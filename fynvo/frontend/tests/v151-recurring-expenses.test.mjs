@@ -9,7 +9,8 @@ const css = fs.readFileSync(new URL('../src/recurring-v18.css', import.meta.url)
 const expectSource = (needle, message) => assert.ok(page.includes(needle), message || `Expected durable RecurringExpensesPage.jsx to contain ${needle}`);
 
 test('v1.5.1 production compatibility now resolves to the durable recurring page', () => {
-  assert.match(compatibility, /export \{ default \} from '\.\/RecurringExpensesPage\.jsx'/);
+  assert.match(compatibility, /import RecurringExpensesPage from '\.\/RecurringExpensesPage\.jsx'/);
+  assert.match(compatibility, /return <RecurringExpensesPage/);
   assert.match(compatibility, /recurring-v18\.css/);
 });
 
