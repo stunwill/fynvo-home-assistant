@@ -10,6 +10,7 @@ const api = (path, options = {}) => fetch(`api${path}`, {
   headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
   ...options,
 });
+const PRODUCTION_VERSION = '1.8.0';
 
 export default function AppV13() {
   const [auth, setAuth] = useState(null);
@@ -56,17 +57,20 @@ export default function AppV13() {
 
   useEffect(() => {
     if (!auth?.authenticated) return undefined;
-    const syncPageClass = () => {
+    const syncProductionShell = () => {
       const heading = document.querySelector('main.content .header h1')?.textContent?.trim();
       document.body.classList.toggle('fynvo-income-page', heading === 'Income');
+      const footer = document.querySelector('.app-footer');
+      const expectedVersion = `Fynvo v${PRODUCTION_VERSION}`;
+      if (footer && footer.textContent !== expectedVersion) footer.textContent = expectedVersion;
     };
     const observer = new MutationObserver(() => {
-      syncPageClass();
+      syncProductionShell();
       if (document.querySelector('main.login')) refreshAuth();
     });
     observer.observe(document.body, { childList: true, subtree: true });
     observerRef.current = observer;
-    syncPageClass();
+    syncProductionShell();
     return () => {
       observer.disconnect();
       document.body.classList.remove('fynvo-income-page');
