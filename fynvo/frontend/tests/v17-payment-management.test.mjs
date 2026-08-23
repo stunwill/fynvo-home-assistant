@@ -4,7 +4,8 @@ import test from 'node:test';
 
 const app = await readFile(new URL('../src/AppCorrectiveV0174.jsx', import.meta.url), 'utf8');
 const payment = await readFile(new URL('../src/PaymentManagementV17.jsx', import.meta.url), 'utf8');
-const recurring = await readFile(new URL('../src/RecurringExpensesPageV151.jsx', import.meta.url), 'utf8');
+const recurring = await readFile(new URL('../src/RecurringExpensesPage.jsx', import.meta.url), 'utf8');
+const compatibility = await readFile(new URL('../src/RecurringExpensesPageV151.jsx', import.meta.url), 'utf8');
 const accounts = await readFile(new URL('../src/V14RecordPages.jsx', import.meta.url), 'utf8');
 const main = await readFile(new URL('../src/main.jsx', import.meta.url), 'utf8');
 
@@ -15,6 +16,7 @@ test('production frontend loads Cards and scheduled payment data', () => {
   assert.match(app, /j\('\/payments\/attention/);
   assert.match(app, /active === 'Cards'/);
   assert.match(main, /payment-v17\.css/);
+  assert.match(compatibility, /RecurringExpensesPage\.jsx/);
 });
 
 
@@ -43,16 +45,17 @@ test('Card CRUD is connected to existing Accounts and stores only last four digi
 });
 
 
-test('recurring list exposes payment method, payment status and attention filters', () => {
+test('recurring list exposes real payment method, payment status and attention filters', () => {
   assert.match(recurring, /All payment methods/);
   assert.match(recurring, /All statuses/);
   assert.match(recurring, /Show payments requiring attention/);
-  assert.match(recurring, /PaymentInfo/);
-  assert.match(recurring, /Linked account:/);
+  assert.match(recurring, /PaymentSource/);
+  assert.match(recurring, /Linked to account:/);
+  assert.match(recurring, /data\.scheduledPayments/);
 });
 
 
-test('payment attention and reconciliation actions are wired', () => {
+test('payment attention and reconciliation actions remain wired', () => {
   assert.match(payment, /Payments requiring attention/);
   assert.match(payment, /Mark as paid/);
   assert.match(payment, /Skip payment/);
@@ -64,4 +67,6 @@ test('payment attention and reconciliation actions are wired', () => {
   assert.match(payment, /Ignore transaction/);
   assert.match(payment, /reject-match/);
   assert.match(payment, /\/ignore/);
+  assert.match(recurring, /scheduled-payments\/\$\{payment\.id\}\/mark-paid/);
+  assert.match(recurring, /scheduled-payments\/\$\{payment\.id\}\/skip/);
 });
