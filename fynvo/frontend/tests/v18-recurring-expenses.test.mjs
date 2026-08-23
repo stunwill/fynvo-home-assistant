@@ -64,7 +64,8 @@ test('list supports grouping, real status/source display and state-aware actions
 });
 
 test('calendar is functional, month-scoped and preserves list relative range state', () => {
-  has("viewMode === 'calendar'");
+  has("viewMode === 'list' ?");
+  has("<CalendarView allRows={rows}");
   has('Previous month');
   has('Next month');
   has("temporalScope === 'month'");
