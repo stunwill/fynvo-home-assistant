@@ -1,3 +1,4 @@
+import RecurringExpensesPage from './RecurringExpensesPage.jsx';
 import './recurring-v18.css';
 
 export {
@@ -12,4 +13,6 @@ export {
   summarisePayments,
 } from './RecurringExpensesPage.jsx';
 
-export { default } from './RecurringExpensesPage.jsx';
+export default function RecurringExpensesPageV151(props) {
+  return <RecurringExpensesPage {...props} onRefresh={props.onRefresh || (() => window.location.reload())}/>;
+}
