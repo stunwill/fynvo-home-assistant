@@ -11,12 +11,34 @@
   .sidebar .nav-group button,
   .sidebar .brand,
   .sidebar .user-card,
-  .sidebar .sidebar-logout,
-  .sidebar .mobile-nav-close{
+  .sidebar .sidebar-logout{
     position:relative;
     z-index:2;
     pointer-events:auto!important;
     opacity:1!important;
+  }
+
+  .sidebar .mobile-nav-close{
+    position:absolute!important;
+    top:calc(env(safe-area-inset-top,0px) + 12px)!important;
+    right:12px!important;
+    left:auto!important;
+    width:44px!important;
+    min-width:44px!important;
+    align-self:auto!important;
+    z-index:4;
+    pointer-events:auto!important;
+    opacity:1!important;
+  }
+
+  .sidebar .brand{
+    flex:0 0 auto;
+    margin-top:0;
+    padding-top:4px;
+  }
+
+  .sidebar nav{
+    flex:0 0 auto;
   }
 
   .mobile-nav-backdrop{
