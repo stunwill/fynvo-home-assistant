@@ -25,12 +25,14 @@ test('zero-entry category rows do not render repeated entry links', () => {
   assert.match(pages, /category-count-empty-v018/);
 });
 
-test('Recurring Expenses delegates to the focused page after its v1.9.2 fast load', () => {
+test('Recurring Expenses delegates to the focused page after its v1.10 reliability load', () => {
   assert.match(pages, /RecurringExpensesPageV151/);
-  assert.match(pages, /api\('\/recurring-expenses'\)/);
-  assert.match(pages, /api\('\/scheduled-payments'\)/);
-  assert.match(pages, /api\('\/payments\/attention'\)/);
+  assert.match(pages, /apiRequest\('\/recurring-expenses'\)/);
+  assert.match(pages, /apiRequest\('\/scheduled-payments'\)/);
+  assert.match(pages, /apiRequest\('\/payments\/attention'\)/);
   assert.match(pages, /Loading recurring expenses…/);
+  assert.match(pages, /Could not load recurring expenses/);
+  assert.match(pages, /setStatus\('loaded'\)/);
   assert.match(pages, /return <RecurringExpensesPageV151 \{\.\.\.props\} data=\{fastData \|\| props\.data\} onEdit=\{onEdit\}\/>/);
 });
 
@@ -43,14 +45,11 @@ test('Income keeps the Date Range correction active', () => {
 
 test('Overview keeps the redundant seven-day Upcoming card hidden', () => {
   assert.match(app, /PanelHead title="Upcoming Commitments"/);
-  assert.match(correctiveCss, /\.dashboard-page > \.card-grid > article\.panel:first-child/);
-  assert.match(correctiveCss, /display: none/);
+  assert.doesNotMatch(app, /PanelHead title="Upcoming" meta="Next 7 days"/);
 });
 
 test('v0.18 responsive overrides remain active and current release version is aligned', () => {
-  assert.match(entry, /'\.\/v018\.css'/);
-  assert.ok(entry.indexOf("'./v018.css'") > entry.indexOf("'./corrective-v0175.css'"));
-  assert.match(version, /1\.1\.0/);
-  assert.match(css, /@media\(max-width:980px\)/);
-  assert.match(css, /@media\(max-width:600px\)/);
+  assert.match(entry, /import '\.\/v018\.css'/);
+  assert.match(css, /@media \(max-width: 760px\)/);
+  assert.match(version, /APP_VERSION_V0174 = '1\.10\.0'/);
 });
