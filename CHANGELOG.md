@@ -2,6 +2,25 @@
 
 All notable Fynvo changes are documented here. Starting with v0.3.0, every release must include a user-readable changelog entry, Home Assistant-visible release notes and GitHub release notes.
 
+## v1.9.1 - Recurring Expense Mobile Modal & Payment Fixes
+
+### Fixed
+- Kept the Recurring Expense editor below Fynvo's fixed mobile application bar so the modal heading and close action remain visible.
+- Removed the mobile horizontal/sideways movement by constraining the recurring editor, Payment fieldset, form controls and explanatory copy to the available viewport width.
+- Kept the recurring modal header and Save/Cancel footer accessible while the form content scrolls vertically inside the viewport-contained dialog.
+- Fixed Payment Method selections reverting to `Not Set`. Payment Method is now applied as a single controlled state transition rather than being overwritten by stale Account/Card-clearing updates.
+
+### Preserved behaviour
+- Preserved v1.7 Payment Handling, Account → Card relationships, Scheduled Payments and reconciliation.
+- Preserved v1.8 Recurring Expenses List, Calendar, filters, summary and responsive page experience.
+- Preserved v1.9.0 edit/save and nullable-reference corrections.
+- No database migration is required.
+
+### Testing and versioning
+- Added focused v1.9.1 frontend regression coverage for Payment Method state, conditional payment-source fields, mobile modal containment, sticky controls and stylesheet ordering.
+- Updated Home Assistant add-on, backend, frontend package and production shell metadata to v1.9.1.
+- Installed iPhone/Home Assistant ingress acceptance remains a manual release gate before merge.
+
 ## v1.8.0 - Recurring Expenses Responsive UI/UX Completion
 
 ### Changed
@@ -50,7 +69,7 @@ All notable Fynvo changes are documented here. Starting with v0.3.0, every relea
 ### Release scope
 - This is a focused UI/usability release. No database migration is required.
 - Existing recurring-expense creation, editing, persistence, recurrence generation, forecasting, authentication and Home Assistant ingress architecture remain unchanged.
-- A recurring-expense List/Calendar switch is not exposed in this release because the existing general Financial Calendar does not yet provide a production-ready recurring-expense-specific calendar interaction. The recurring page remains structured so a real Calendar view can be added without replacing the List implementation.
+- A recurring-expense List/Calendar switch is not exposed in this release because the existing general Fynvo Financial Calendar does not yet provide a production-ready recurring-expense-specific calendar interaction. The recurring page remains structured so a real Calendar view can be added without replacing the List implementation.
 
 ## v1.3.0 - Cash Flow Intelligence, Financial Calendar & Smart Forecasting
 

@@ -34,10 +34,11 @@ export function RecurringPaymentFieldsV17({ values, set, data }) {
   const activeCards = (data.cards || []).filter((card) => card.is_active !== false);
   const setHandling = (handling) => set('payment_handling', handling);
   const setMethod = (next) => {
+    // Update Payment Method as one state transition. Clearing other controlled fields
+    // synchronously through the parent setter used stale form state and immediately
+    // overwrote the new selection back to Not Set. Backend link resolution already
+    // ignores incompatible Account/Card references for the selected method.
     set('payment_method', next);
-    if (next === 'direct_debit') set('card_id', null);
-    else if (next === 'automatic_card_payment') set('account_id', null);
-    else { set('account_id', null); set('card_id', null); }
   };
   return <fieldset className="payment-v17-section"><legend>Payment</legend>
     <span className="payment-v17-question">How is this normally paid?</span>
