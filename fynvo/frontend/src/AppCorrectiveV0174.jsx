@@ -6,11 +6,12 @@ import { CategoriesPageV0174, RecurringExpensesPageV0174 } from './CorrectiveV01
 import { AccountsPageV14, BillsPageV14, IncomePageV14, PlannedSpendingPageV14 } from './V14RecordPages.jsx';
 import { APP_VERSION_V0174, CashFlowChartV0174, CategorySelect } from './v0174-corrective.jsx';
 import { CardsPageV17, PaymentReconciliationV17, PaymentsAttentionV17, RecurringPaymentFieldsV17, recurringV17Values } from './PaymentManagementV17.jsx';
+import { apiRequest } from './apiClient.js';
 import './styles.css';
 
 const api = (path, options = {}) => fetch(`api${path}`, { credentials: 'same-origin', headers: { 'Content-Type': 'application/json', ...(options.headers || {}) }, ...options });
 const today = new Date().toISOString().slice(0, 10);
-const APP_VERSION = '1.7.0';
+const APP_VERSION = '1.10.0';
 const navGroups = [
   { label: 'Core', items: ['Overview', 'Cash Flow', 'Calendar', 'Accounts'] },
   { label: 'Money', items: ['Transactions', 'Income', 'Bills', 'Recurring Expenses', 'Planned Spending', 'Cards'] },
@@ -56,6 +57,21 @@ function friendlyError(payload, fallback) {
   return fallback;
 }
 
+function normaliseMutationValues(type, values = {}) {
+  if (type !== 'recurring') return values;
+  const nullable = (value) => value === '' || value === undefined ? null : value;
+  return {
+    ...values,
+    account_id: nullable(values.account_id),
+    card_id: nullable(values.card_id),
+    category_id: nullable(values.category_id),
+    expense_type_id: nullable(values.expense_type_id),
+    end_date: nullable(values.end_date),
+    reminder_days_before: nullable(values.reminder_days_before),
+    effective_from: nullable(values.effective_from),
+  };
+}
+
 export function normaliseRecord(type, row = {}) {
   if (type === 'accounts') return { name: row.name || '', account_type: row.account_type || 'transaction', institution: row.institution || '', opening_balance: row.opening_balance || '0.00', description: row.description || '', account_suffix: row.account_suffix || '', icon: row.icon || '', color: row.color || '' };
   if (type === 'transactions') return { account_id: row.account_id || '', date: toDateInput(row.date || row.transaction_date) || today, amount: row.amount || '', transaction_type: row.transaction_type || 'expense', description: row.description || '', merchant: row.merchant || '', category: row.category || '', notes: row.notes || '', status: row.status || 'cleared' };
@@ -94,10 +110,16 @@ export default function AppCorrectiveV0174() {
     setData((current) => ({ ...current, accounts: accounts || [], cards: cards || [], transactions: transactions || [], income: income || [], recurring: recurring || [], scheduledPayments: scheduledPayments || [], paymentAttention: paymentAttention || [], bills: bills || [], planned: planned || [], categories: categories || [], expenseTypes: referenceData?.expense_types || [], budgets: budgets || [], goals: goals || [], imports: imports || [], review: review || [], suggestions: suggestions || [], insights: insights || [], financialHealth, budgetAnalysis, forecast }));
   }
   async function loadAll() { await Promise.allSettled([refreshDashboard(rangeDays), loadSupportingData()]); }
+  async function refreshRecurringSlice() {
+    const [recurring, scheduledPayments, paymentAttention] = await Promise.all([
+      apiRequest('/recurring-expenses'), apiRequest('/scheduled-payments'), apiRequest('/payments/attention'),
+    ]);
+    setData((current) => ({ ...current, recurring: recurring || [], scheduledPayments: scheduledPayments || [], paymentAttention: paymentAttention || [] }));
+  }
 
   useEffect(() => { loadAuth(); }, []);
   useEffect(() => { if (!auth?.authenticated) return; if (!initialLoadedRef.current) { initialLoadedRef.current = true; loadAll(); return; } refreshDashboard(rangeDays); }, [auth?.authenticated, rangeDays]);
-  useEffect(() => { localStorage.setItem('fynvo.view', active); setSuccess(''); }, [active]);
+  useEffect(() => { localStorage.setItem('fynvo.view', active); setSuccess(''); setError(''); }, [active]);
   useEffect(() => { localStorage.setItem('fynvo.rangeDays', String(rangeDays)); }, [rangeDays]);
   useEffect(() => { if (!success) return undefined; const timer = window.setTimeout(() => setSuccess(''), 4000); return () => window.clearTimeout(timer); }, [success]);
   useEffect(() => { const syncGreeting = () => setGreeting(greetingForNow()); syncGreeting(); const timer = window.setInterval(syncGreeting, 60000); window.addEventListener('focus', syncGreeting); document.addEventListener('visibilitychange', syncGreeting); return () => { window.clearInterval(timer); window.removeEventListener('focus', syncGreeting); document.removeEventListener('visibilitychange', syncGreeting); }; }, []);
@@ -107,7 +129,25 @@ export default function AppCorrectiveV0174() {
 
   async function submitAuth(e) { e.preventDefault(); setError(''); const payload = auth?.setup_required ? { username: form.username, display_name: form.display_name || form.username, password: form.password } : { username: form.username, password: form.password }; const res = await api(auth?.setup_required ? '/auth/setup' : '/auth/login', { method: 'POST', body: JSON.stringify(payload) }); if (res.ok) { setMobileNavOpen(false); await loadAuth(); } else setError('Sign-in failed. Check your username and password.'); }
   async function logout() { await api('/auth/logout', { method: 'POST' }); setMobileNavOpen(false); setAuth({ authenticated: false, setup_required: false, user: null }); }
-  async function saveEdit(e) { e.preventDefault(); setError(''); setSuccess(''); const creating = edit.row?.id === null || edit.row?.id === undefined; const path = creating ? createPath(edit.type) : endpointFor(edit.type, edit.row.id); const res = await api(path, { method: creating ? 'POST' : 'PUT', body: JSON.stringify(edit.values) }); const payload = await res.json().catch(() => null); if (!res.ok) { setError(friendlyError(payload, `Could not ${creating ? 'create' : 'save'} ${edit.label}. Check the fields and try again.`)); return; } const message = `${creating ? edit.label.replace(/^New /, '') + ' created.' : edit.label + ' updated.'}`; setEdit(null); setSuccess(message); await loadAll(); }
+  async function saveEdit(e) {
+    e.preventDefault();
+    setError('');
+    setSuccess('');
+    const creating = edit.row?.id === null || edit.row?.id === undefined;
+    const path = creating ? createPath(edit.type) : endpointFor(edit.type, edit.row.id);
+    const values = normaliseMutationValues(edit.type, edit.values);
+    try {
+      const payload = await apiRequest(path, { method: creating ? 'POST' : 'PUT', body: JSON.stringify(values) });
+      if (edit.type === 'recurring') await refreshRecurringSlice();
+      else await loadSupportingData();
+      setEdit(null);
+      setSuccess(`${creating ? edit.label.replace(/^New /, '') + ' created.' : edit.label + ' updated.'}`);
+      if (payload && edit.type === 'recurring') setData((current) => ({ ...current, recurring: current.recurring.map((row) => Number(row.id) === Number(payload.id) ? payload : row) }));
+    } catch (requestError) {
+      const payload = requestError?.payload;
+      setError(friendlyError(payload, requestError?.message || `Could not ${creating ? 'create' : 'save'} ${edit.label}. Check the fields and try again.`));
+    }
+  }
   async function createRecord(type, values) { setError(''); setSuccess(''); const res = await api(createPath(type), { method: 'POST', body: JSON.stringify(values) }); if (res.ok) { setQuick(null); setSuccess(`${recordLabels[type] || 'Record'} created.`); await loadAll(); } else setError(friendlyError(await res.json().catch(() => null), 'Could not create this record. Check the fields and try again.')); }
   async function previewImport(e) { e.preventDefault(); const res = await api('/imports/preview', { method: 'POST', body: JSON.stringify(importState) }); if (res.ok) setImportState({ ...importState, preview: await res.json() }); else setError('CSV preview failed. Check the account, headers and mapping.'); }
   async function commitImport() { const res = await api('/imports/commit', { method: 'POST', body: JSON.stringify(importState) }); if (res.ok) { setImportState({ ...importState, preview: await res.json() }); await loadAll(); } else setError('CSV import failed. Review invalid rows and duplicates.'); }
@@ -203,5 +243,5 @@ function DynamicFields({ type, values, set, data, currentId }) {
   if (type === 'accounts') { const legacy = values.account_type && !accountTypeOptions.some(([value]) => value === values.account_type); return <div className="form-grid">{text('name', 'Account name', 'text', true)}{text('opening_balance', 'Opening balance', 'text', true)}<Field label="Account type"><select value={values.account_type} onChange={(e) => set('account_type', e.target.value)}>{legacy && <option value={values.account_type}>{accountTypeLabel(values.account_type)} (Legacy)</option>}{accountTypeOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></Field>{text('institution', 'Bank')}</div>; }
   if (type === 'budgets') return <div className="form-grid">{text('name', 'Name', 'text', true)}{text('amount', 'Amount')}{text('start_date', 'Start date', 'date')}{text('category_name', 'Category')}{text('notes', 'Notes')}</div>;
   if (type === 'goals') return <div className="form-grid">{text('name', 'Name', 'text', true)}{text('target_amount', 'Target amount')}{text('current_amount', 'Current amount')}{text('target_date', 'Target date', 'date')}{text('notes', 'Notes')}</div>;
-  return <div className="form-grid">{Object.keys(values).map((key) => text(key, key))}</div>;
+  return <div className="form-grid">{Object.keys(values).map((key) => text(key, key.replaceAll('_', ' ')))}</div>;
 }
