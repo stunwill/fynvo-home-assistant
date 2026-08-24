@@ -1,0 +1,11 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import fs from 'node:fs';
+const page=fs.readFileSync(new URL('../src/RecurringExpensesPage.jsx',import.meta.url),'utf8');
+const app=fs.readFileSync(new URL('../src/AppCorrectiveV0174.jsx',import.meta.url),'utf8');
+const payment=fs.readFileSync(new URL('../src/PaymentManagementV17.jsx',import.meta.url),'utf8');
+const categories=fs.readFileSync(new URL('../src/CorrectiveV0174Pages.jsx',import.meta.url),'utf8');
+test('action menu closes before edit and mark-paid modal',()=>{assert.ok(page.includes('const beginPaid = () => { setOpen(false); setPaying(true); }'));assert.ok(page.includes('const beginEdit = () => { setOpen(false); onEdit'));});
+test('recurring editor exposes payment handling and completion fields',()=>{for(const value of ['Automatically mark scheduled payments as paid','Payment Method','Bank Account','Linked to account:'])assert.ok(payment.includes(value));for(const value of ['End Date','Reminder days before','Amount Type','Payee / Merchant'])assert.ok(app.includes(value));});
+test('feature errors are cleared on navigation and modal close',()=>{assert.ok(app.includes("setError('');setSuccess('');setEdit(null);setActive"));assert.ok(app.includes("if(next===null)setError('')"));});
+test('category health reconciles every backend issue class and exposes details',()=>{for(const value of ['Children of inactive parents','Hierarchy cycles','Category type conflicts','Inactive category references','Review issue details','Integrity count mismatch'])assert.ok(categories.includes(value));});
