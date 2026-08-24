@@ -10,7 +10,7 @@ const api = (path, options = {}) => fetch(`api${path}`, {
   headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
   ...options,
 });
-const PRODUCTION_VERSION = '1.9.2';
+const PRODUCTION_VERSION = '1.9.3';
 
 export default function AppV13() {
   const [auth, setAuth] = useState(null);

@@ -12,6 +12,14 @@ test('v1.4.3 keeps the drawer above the backdrop and fully interactive', () => {
   assert.match(css, /\.mobile-nav-backdrop\{[\s\S]*z-index:80!important/);
 });
 
+test('mobile close control remains absolutely positioned and out of drawer flex flow', () => {
+  const interactiveBlock = css.slice(css.indexOf('.sidebar nav,'), css.indexOf('.sidebar .mobile-nav-close'));
+  assert.doesNotMatch(interactiveBlock, /mobile-nav-close/);
+  assert.match(css, /\.sidebar \.mobile-nav-close\{[\s\S]*position:absolute!important/);
+  assert.match(css, /right:12px!important/);
+  assert.match(css, /width:44px!important/);
+});
+
 test('open backdrop begins outside the drawer so it cannot intercept menu taps', () => {
   assert.match(css, /\.mobile-nav-open \.mobile-nav-backdrop\{[\s\S]*left:min\(86vw,350px\)/);
   assert.match(css, /left:min\(88vw,340px\)/);
