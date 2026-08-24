@@ -20,9 +20,10 @@ export function recurringV17Values(row = {}) {
   return {
     name: row.name || '', amount: row.amount || '', frequency: row.frequency || 'monthly', next_due_date: String(row.next_due_date || '').slice(0, 10),
     payment_handling: row.payment_handling || (['direct_debit', 'automatic_card_payment'].includes(method) ? 'automatic' : 'manual'),
-    payment_method: method, account_id: row.account_id || '', card_id: row.card_id || '', category: row.category || '', category_id: row.category_id || '',
-    expense_type: row.expense_type || '', expense_type_id: row.expense_type_id || '', payee_merchant: row.payee_merchant || '',
+    payment_method: method, account_id: row.account_id ?? null, card_id: row.card_id ?? null, category: row.category || '', category_id: row.category_id ?? null,
+    expense_type: row.expense_type || '', expense_type_id: row.expense_type_id ?? null, payee_merchant: row.payee_merchant || '',
     amount_type: row.amount_type || (row.variable_amount ? 'variable_estimated' : 'fixed'), auto_payment_grace_days: row.auto_payment_grace_days ?? 3,
+    end_date: String(row.end_date || '').slice(0, 10), reminder_days_before: row.reminder_days_before ?? '',
     notes: row.notes || '', is_active: row.is_active ?? true, effective_from: '',
   };
 }
@@ -31,26 +32,23 @@ export function RecurringPaymentFieldsV17({ values, set, data }) {
   const method = values.payment_method || 'not_set';
   const selectedCard = (data.cards || []).find((card) => Number(card.id) === Number(values.card_id));
   const activeCards = (data.cards || []).filter((card) => card.is_active !== false);
-  const setHandling = (handling) => {
-    set('payment_handling', handling);
-    if (handling === 'automatic' && !['direct_debit', 'automatic_card_payment', 'other'].includes(method)) set('payment_method', 'direct_debit');
-    if (handling === 'manual' && ['direct_debit', 'automatic_card_payment'].includes(method)) set('payment_method', 'bpay');
-  };
+  const setHandling = (handling) => set('payment_handling', handling);
   const setMethod = (next) => {
     set('payment_method', next);
-    if (next === 'direct_debit') { set('payment_handling', 'automatic'); set('card_id', ''); }
-    else if (next === 'automatic_card_payment') { set('payment_handling', 'automatic'); set('account_id', ''); }
-    else if (next !== 'other') { set('payment_handling', 'manual'); set('account_id', ''); set('card_id', ''); }
+    if (next === 'direct_debit') set('card_id', null);
+    else if (next === 'automatic_card_payment') set('account_id', null);
+    else { set('account_id', null); set('card_id', null); }
   };
   return <fieldset className="payment-v17-section"><legend>Payment</legend>
     <span className="payment-v17-question">How is this normally paid?</span>
-    <div className="payment-v17-handling" role="radiogroup" aria-label="How is this expense normally paid?">
+    <div className="payment-v17-handling" role="radiogroup" aria-label="Payment processing behaviour">
       <button type="button" role="radio" aria-checked={values.payment_handling === 'automatic'} className={values.payment_handling === 'automatic' ? 'active' : ''} onClick={() => setHandling('automatic')}>Paid automatically</button>
       <button type="button" role="radio" aria-checked={values.payment_handling === 'manual'} className={values.payment_handling === 'manual' ? 'active' : ''} onClick={() => setHandling('manual')}>I pay this manually</button>
     </div>
+    <small className="payment-v17-linked">Paid automatically means Fynvo expects this scheduled payment to be handled automatically. Payment Method describes how it is paid.</small>
     <label className="field"><span>Payment Method</span><select value={method} onChange={(event) => setMethod(event.target.value)}>{Object.entries(methodLabels).map(([id, label]) => <option key={id} value={id}>{label}</option>)}</select></label>
-    {method === 'direct_debit' && <label className="field"><span>Bank Account</span><select required value={values.account_id || ''} onChange={(event) => set('account_id', event.target.value)}><option value="">Choose bank account</option>{(data.accounts || []).filter((account) => account.is_active !== false).map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}</select></label>}
-    {method === 'automatic_card_payment' && <div className="payment-v17-card-field"><label className="field"><span>Card</span><select required value={values.card_id || ''} onChange={(event) => set('card_id', event.target.value)}><option value="">{activeCards.length ? 'Choose Card' : 'No Cards available'}</option>{activeCards.map((card) => <option key={card.id} value={card.id}>{card.display_name}</option>)}</select></label>{selectedCard && <small className="payment-v17-linked">Linked to account: <strong>{selectedCard.account_name}</strong></small>}{!activeCards.length && <small className="payment-v17-linked">Add a Card from Accounts → Cards, then return to this expense.</small>}</div>}
+    {method === 'direct_debit' && <label className="field"><span>Bank Account</span><select required value={values.account_id || ''} onChange={(event) => set('account_id', event.target.value || null)}><option value="">Choose bank account</option>{(data.accounts || []).filter((account) => account.is_active !== false).map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}</select></label>}
+    {method === 'automatic_card_payment' && <div className="payment-v17-card-field"><label className="field"><span>Card</span><select required value={values.card_id || ''} onChange={(event) => set('card_id', event.target.value || null)}><option value="">{activeCards.length ? 'Choose Card' : 'No Cards available'}</option>{activeCards.map((card) => <option key={card.id} value={card.id}>{card.display_name}</option>)}</select></label>{selectedCard && <small className="payment-v17-linked">Linked to account: <strong>{selectedCard.account_name}</strong></small>}{!activeCards.length && <small className="payment-v17-linked">Add a Card from Accounts → Cards, then return to this expense.</small>}</div>}
     {values.payment_handling === 'automatic' && <label className="field"><span>Confirmation grace period</span><select value={values.auto_payment_grace_days ?? 3} onChange={(event) => set('auto_payment_grace_days', Number(event.target.value))}><option value={1}>1 day</option><option value={2}>2 days</option><option value={3}>3 days</option><option value={5}>5 days</option><option value={7}>7 days</option></select></label>}
   </fieldset>;
 }
