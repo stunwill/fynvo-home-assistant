@@ -1,3 +1,6 @@
+import pytest
+from pydantic import ValidationError
+
 from app import v1
 
 
@@ -23,9 +26,5 @@ def test_recurring_payload_accepts_nullable_reference_fields():
 
 
 def test_recurring_payload_rejects_invalid_reference_shapes():
-    try:
+    with pytest.raises(ValidationError):
         v1.RecurringExpenseCreateV1(name="Bad", account_id="")
-    except Exception:
-        pass
-    else:
-        raise AssertionError("empty-string account_id should not validate as an integer reference")
