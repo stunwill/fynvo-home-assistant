@@ -1,7 +1,7 @@
 import pytest
-from pydantic import ValidationError
 
 from app import v1
+from pydantic import ValidationError
 
 
 def test_recurring_payload_accepts_nullable_reference_fields():
