@@ -34,12 +34,14 @@ test('recurring form uses payment method conditional sources instead of generic 
 });
 
 
-test('Card CRUD is connected to existing Accounts and stores only last four digits', () => {
+test('Card CRUD is connected to existing Accounts, stores only last four digits and refreshes immediately', () => {
   assert.match(payment, /\/cards\/\$\{edit\.id\}/);
   assert.match(payment, /Linked Account/);
   assert.match(payment, /Last 4 Digits/);
   assert.match(payment, /pattern="\[0-9\]\{4\}"/);
-  assert.match(payment, /cards\.filter/);
+  assert.match(payment, /localCards\.filter/);
+  assert.match(payment, /setLocalCards\(\(current\)/);
+  assert.match(payment, /await onRefresh\(\)/);
   assert.match(accounts, /linked Cards/);
   assert.match(accounts, /Manage Cards/);
 });

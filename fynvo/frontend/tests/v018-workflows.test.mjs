@@ -25,9 +25,13 @@ test('zero-entry category rows do not render repeated entry links', () => {
   assert.match(pages, /category-count-empty-v018/);
 });
 
-test('Recurring Expenses delegates to the current focused page implementation', () => {
+test('Recurring Expenses delegates to the focused page after its v1.9.2 fast load', () => {
   assert.match(pages, /RecurringExpensesPageV151/);
-  assert.match(pages, /return <RecurringExpensesPageV151 \{\.\.\.props\}\/>/);
+  assert.match(pages, /api\('\/recurring-expenses'\)/);
+  assert.match(pages, /api\('\/scheduled-payments'\)/);
+  assert.match(pages, /api\('\/payments\/attention'\)/);
+  assert.match(pages, /Loading recurring expenses…/);
+  assert.match(pages, /return <RecurringExpensesPageV151 \{\.\.\.props\} data=\{fastData \|\| props\.data\} onEdit=\{onEdit\}\/>/);
 });
 
 test('Income keeps the Date Range correction active', () => {

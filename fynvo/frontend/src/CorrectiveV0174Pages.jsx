@@ -92,6 +92,54 @@ export function CategoriesPageV0174({ rangeDays, onEdit, money }) {
   </section>;
 }
 
+function normaliseNullableRecurringValues(values = {}) {
+  const nullable = (value) => value === '' || value === undefined ? null : value;
+  return {
+    ...values,
+    account_id: nullable(values.account_id),
+    card_id: nullable(values.card_id),
+    category_id: nullable(values.category_id),
+    expense_type_id: nullable(values.expense_type_id),
+    end_date: nullable(values.end_date),
+    reminder_days_before: nullable(values.reminder_days_before),
+    effective_from: nullable(values.effective_from),
+  };
+}
+
 export function RecurringExpensesPageV0174(props) {
-  return <RecurringExpensesPageV151 {...props}/>;
+  const [fastData, setFastData] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    Promise.all([
+      api('/recurring-expenses').then(async (response) => response.ok ? response.json() : []),
+      api('/scheduled-payments').then(async (response) => response.ok ? response.json() : []),
+      api('/payments/attention').then(async (response) => response.ok ? response.json() : []),
+    ]).then(([recurring, scheduledPayments, paymentAttention]) => {
+      if (cancelled) return;
+      setFastData({ ...props.data, recurring: recurring || [], scheduledPayments: scheduledPayments || [], paymentAttention: paymentAttention || [] });
+      setLoading(false);
+    }).catch(() => {
+      if (!cancelled) setLoading(false);
+    });
+    return () => { cancelled = true; };
+  }, [props.rangeDays]);
+
+  useEffect(() => {
+    if (!fastData) return;
+    if ((props.data?.recurring?.length || 0) > 0 || (props.data?.scheduledPayments?.length || 0) > 0) setFastData(props.data);
+  }, [props.data, fastData]);
+
+  const onEdit = (edit) => props.onEdit({
+    ...edit,
+    values: normaliseNullableRecurringValues(edit?.values || {}),
+  });
+
+  if (loading && !fastData) {
+    return <section className="panel"><div className="panel-head"><h2>Recurring Expenses</h2></div><p className="muted" role="status">Loading recurring expenses…</p></section>;
+  }
+
+  return <RecurringExpensesPageV151 {...props} data={fastData || props.data} onEdit={onEdit}/>;
 }
