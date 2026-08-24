@@ -45,11 +45,14 @@ test('Income keeps the Date Range correction active', () => {
 
 test('Overview keeps the redundant seven-day Upcoming card hidden', () => {
   assert.match(app, /PanelHead title="Upcoming Commitments"/);
-  assert.doesNotMatch(app, /PanelHead title="Upcoming" meta="Next 7 days"/);
+  assert.match(correctiveCss, /\.dashboard-page > \.card-grid > article\.panel:first-child/);
+  assert.match(correctiveCss, /display: none/);
 });
 
 test('v0.18 responsive overrides remain active and current release version is aligned', () => {
-  assert.match(entry, /import '\.\/v018\.css'/);
-  assert.match(css, /@media \(max-width: 760px\)/);
-  assert.match(version, /APP_VERSION_V0174 = '1\.10\.0'/);
+  assert.match(entry, /'\.\/v018\.css'/);
+  assert.ok(entry.indexOf("'./v018.css'") > entry.indexOf("'./corrective-v0175.css'"));
+  assert.match(version, /1\.1\.0/);
+  assert.match(css, /@media\(max-width:980px\)/);
+  assert.match(css, /@media\(max-width:600px\)/);
 });
