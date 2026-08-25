@@ -99,7 +99,7 @@ function TransactionDetail({ row, categories, candidates, money, dateLabel, onCl
   </section></div>;
 }
 
-export default function TransactionWorkspace({ accounts = [], categories = [], money, dateLabel }) {
+export default function TransactionWorkspace({ accounts = [], categories = [], money, dateLabel, refreshKey }) {
   const [rows, setRows] = useState([]);
   const [candidates, setCandidates] = useState([]);
   const [loadState, setLoadState] = useState('loading');
@@ -124,7 +124,7 @@ export default function TransactionWorkspace({ accounts = [], categories = [], m
     try { const result = await apiRequest('/payments/match-candidates?date_tolerance_days=7'); setCandidates(Array.isArray(result) ? result : []); setCandidateState('loaded'); }
     catch { setCandidates([]); setCandidateState('error'); }
   };
-  useEffect(() => { let cancelled = false; Promise.allSettled([load(), loadCandidates()]).then(() => { if (cancelled) return; }); return () => { cancelled = true; }; }, [revision]);
+  useEffect(() => { Promise.allSettled([load(), loadCandidates()]); }, [revision, refreshKey]);
 
   const categoryById = useMemo(() => new Map(categories.map((row) => [Number(row.id), row])), [categories]);
   const filtered = useMemo(() => {
