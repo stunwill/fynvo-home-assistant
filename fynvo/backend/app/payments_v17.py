@@ -259,7 +259,7 @@ def update_recurring_v17(expense_id: int, payload: RecurringExpenseCreateV17, cu
 
     requested_handling = _handling(payload.payment_method, payload.payment_handling)
     base = v1.RecurringExpenseCreateV1(**payload.model_dump(exclude={"payment_handling", "auto_payment_grace_days"}))
-    result = v1.update_recurring_v1(expense_id, base.model_dump(), current_user, db)
+    v1.update_recurring_v1(expense_id, base.model_dump(), current_user, db)
     grace = max(0, min(int(payload.auto_payment_grace_days), 30))
     db.execute(text("""
         UPDATE recurring_expenses
