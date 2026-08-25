@@ -10,10 +10,12 @@ const accounts = await readFile(new URL('../src/V14RecordPages.jsx', import.meta
 const main = await readFile(new URL('../src/main.jsx', import.meta.url), 'utf8');
 
 
-test('production frontend loads Cards and scheduled payment data', () => {
+test('production frontend loads Cards and canonical scheduled payment data', () => {
   assert.match(app, /j\('\/cards\?include_inactive=true/);
   assert.match(app, /j\('\/scheduled-payments/);
-  assert.match(app, /j\('\/payments\/attention/);
+  assert.match(app, /ATTENTION_STATUSES/);
+  assert.match(app, /scheduledPayments \|\| \[\]\)\.filter\(\(row\) => ATTENTION_STATUSES\.has\(row\.status\)\)/);
+  assert.doesNotMatch(app, /j\('\/payments\/attention/);
   assert.match(app, /active === 'Cards'/);
   assert.match(main, /payment-v17\.css/);
   assert.match(compatibility, /RecurringExpensesPage\.jsx/);
