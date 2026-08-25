@@ -25,15 +25,16 @@ test('zero-entry category rows do not render repeated entry links', () => {
   assert.match(pages, /category-count-empty-v018/);
 });
 
-test('Recurring Expenses delegates to the focused page after its v1.10 reliability load', () => {
+test('Recurring Expenses delegates to the focused page after its reliability load', () => {
   assert.match(pages, /RecurringExpensesPageV151/);
   assert.match(pages, /apiRequest\('\/recurring-expenses'\)/);
   assert.match(pages, /apiRequest\('\/scheduled-payments'\)/);
-  assert.match(pages, /apiRequest\('\/payments\/attention'\)/);
+  assert.doesNotMatch(pages, /apiRequest\('\/payments\/attention'\)/);
+  assert.match(pages, /ATTENTION_STATUSES/);
   assert.match(pages, /Loading recurring expenses…/);
   assert.match(pages, /Could not load recurring expenses/);
   assert.match(pages, /setStatus\('loaded'\)/);
-  assert.match(pages, /return <RecurringExpensesPageV151 \{\.\.\.props\} data=\{fastData \|\| props\.data\} onEdit=\{onEdit\}\/>/);
+  assert.match(pages, /const effectiveData = \{ \.\.\.props\.data, \.\.\.\(fastData \|\| \{\}\) \}/);
 });
 
 test('Income keeps the Date Range correction active', () => {
@@ -49,10 +50,10 @@ test('Overview keeps the redundant seven-day Upcoming card hidden', () => {
   assert.match(correctiveCss, /display: none/);
 });
 
-test('v0.18 responsive overrides remain active and current release version is aligned', () => {
+test('v0.18 responsive overrides remain active', () => {
   assert.match(entry, /'\.\/v018\.css'/);
   assert.ok(entry.indexOf("'./v018.css'") > entry.indexOf("'./corrective-v0175.css'"));
-  assert.match(version, /1\.1\.0/);
+  assert.match(version, /APP_VERSION_V0174/);
   assert.match(css, /@media\(max-width:980px\)/);
   assert.match(css, /@media\(max-width:600px\)/);
 });
