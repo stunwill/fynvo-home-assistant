@@ -15,9 +15,13 @@ test('recurring editor normalises optional blank values before generic save', ()
 });
 
 test('recurring page performs a focused fast load instead of showing a false empty state', () => {
-  assert.match(corrective, /api\('\/recurring-expenses'\)/);
-  assert.match(corrective, /api\('\/scheduled-payments'\)/);
-  assert.match(corrective, /api\('\/payments\/attention'\)/);
+  assert.match(corrective, /apiRequest\('\/recurring-expenses'\)/);
+  assert.match(corrective, /apiRequest\('\/scheduled-payments'\)/);
+  assert.match(corrective, /apiRequest\('\/payments\/attention'\)/);
+  assert.match(corrective, /setStatus\('loading'\)/);
+  assert.match(corrective, /setStatus\('loaded'\)/);
+  assert.match(corrective, /setStatus\('error'\)/);
   assert.match(corrective, /Loading recurring expenses…/);
+  assert.match(corrective, /Could not load recurring expenses/);
   assert.doesNotMatch(corrective, /No recurring expenses yet/);
 });
