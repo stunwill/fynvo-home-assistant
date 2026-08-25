@@ -1,4 +1,4 @@
-export const APP_VERSION_V0174 = '1.11.0';
+export const APP_VERSION_V0174 = '1.11.1';
 
 export function categoryGroups(categories = []) {
   const rows = categories.filter((item) => item && item.is_active !== false && (!item.category_type || item.category_type === 'expense'));
@@ -23,16 +23,22 @@ export function CategorySelect({ categories = [], value = '', onChange }) {
 }
 
 function compactMoney(value) {
-  const number = Number(value || 0);
+  const number = Number(value);
+  if (!Number.isFinite(number)) return '—';
   return new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD', maximumFractionDigits: 0 }).format(number);
 }
 
+function chartPoints(forecast) {
+  const points = forecast?.chart_points || forecast?.points || forecast?.series || [];
+  return points.filter((row) => Number.isFinite(Number(row?.balance ?? row?.forecast_balance ?? row?.value ?? row?.amount)));
+}
+
 export function CashFlowChartV0174({ baseline, expected, Empty }) {
-  const baselinePoints = baseline?.points || baseline?.series || [];
-  const expectedPoints = expected?.points || expected?.series || [];
+  const baselinePoints = chartPoints(baseline);
+  const expectedPoints = chartPoints(expected);
   if (!baselinePoints.length && !expectedPoints.length) return <Empty title="No forecast yet">Add financial records to build a cash-flow forecast.</Empty>;
   const rows = baselinePoints.length ? baselinePoints : expectedPoints;
-  const values = [...baselinePoints, ...expectedPoints].map((row) => Number(row.balance ?? row.value ?? row.amount ?? 0));
+  const values = [...baselinePoints, ...expectedPoints].map((row) => Number(row.balance ?? row.forecast_balance ?? row.value ?? row.amount));
   const minimum = Math.min(...values, 0);
   const maximum = Math.max(...values, 0);
   const span = Math.max(maximum - minimum, 1);
@@ -42,8 +48,9 @@ export function CashFlowChartV0174({ baseline, expected, Empty }) {
   const plotWidth = width - pad.left - pad.right;
   const plotHeight = height - pad.top - pad.bottom;
   const x = (index, count) => pad.left + (count <= 1 ? 0 : (index / (count - 1)) * plotWidth);
-  const y = (value) => pad.top + ((maximum - Number(value || 0)) / span) * plotHeight;
-  const pathFor = (points) => points.map((row, index) => `${index ? 'L' : 'M'}${x(index, points.length).toFixed(1)} ${y(row.balance ?? row.value ?? row.amount).toFixed(1)}`).join(' ');
+  const y = (value) => pad.top + ((maximum - Number(value)) / span) * plotHeight;
+  const valueFor = (row) => row.balance ?? row.forecast_balance ?? row.value ?? row.amount;
+  const pathFor = (points) => points.map((row, index) => `${index ? 'L' : 'M'}${x(index, points.length).toFixed(1)} ${y(valueFor(row)).toFixed(1)}`).join(' ');
   const ticks = Array.from({ length: 5 }, (_, index) => maximum - (span * index / 4));
   const dateFor = (row) => row.date || row.day || row.label || '';
   const labels = rows.length > 1 ? [0, Math.round((rows.length - 1) / 2), rows.length - 1] : [0];
