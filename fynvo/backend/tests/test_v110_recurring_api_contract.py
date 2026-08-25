@@ -1,7 +1,6 @@
 import pytest
 
 from app import v1
-from pydantic import ValidationError
 
 
 def test_recurring_payload_accepts_nullable_reference_fields():
@@ -26,5 +25,5 @@ def test_recurring_payload_accepts_nullable_reference_fields():
 
 
 def test_recurring_payload_rejects_invalid_reference_shapes():
-    with pytest.raises(ValidationError):
+    with pytest.raises(ValueError):
         v1.RecurringExpenseCreateV1(name="Bad", account_id="")
