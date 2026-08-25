@@ -55,6 +55,14 @@ def test_recurring_rules_remain_fast_and_scheduled_generation_is_idempotent(clie
     second_rows = second.json()
     second_ids = {row["id"] for row in second_rows}
 
+    print(
+        "v1.11 loading timings: "
+        f"recurring={recurring_elapsed:.4f}s, "
+        f"scheduled_initial={first_elapsed:.4f}s, "
+        f"scheduled_unchanged={second_elapsed:.4f}s, "
+        f"scheduled_rows={len(first_rows)}"
+    )
+
     assert second_ids == first_ids
     assert len(second_rows) == len(first_rows)
     assert first_elapsed < 2.0
