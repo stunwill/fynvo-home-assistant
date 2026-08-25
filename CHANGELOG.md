@@ -2,6 +2,26 @@
 
 All notable Fynvo changes are documented here. Starting with v0.3.0, every release must include a user-readable changelog entry, Home Assistant-visible release notes and GitHub release notes.
 
+## v1.10.1 - Installed Reliability, API & Workflow Hardening
+
+### Recurring Expense persistence
+- Replaced the loose Recurring Expense update payload with the canonical v1.7 payment-aware request contract, so Payment Handling, Payment Method, Card/Account relationships, Expense Type, Payee/Merchant, Notes and confirmation-period fields are validated consistently before persistence.
+- Added an end-to-end backend regression that creates a representative iCloud Storage recurring expense, updates it, performs a fresh GET and verifies the changed values remain persisted.
+- Added a specific invalid-card regression so Automatic Card Payment returns an actionable validation error instead of a generic save failure.
+
+### Loading and performance hardening
+- Reduced the Recurring Expenses critical loading path from three requests to two by deriving payment-attention rows from the authoritative Scheduled Payments response rather than invoking the schedule-generation endpoint a second time.
+- Removed the fast-data mirroring effect that could repeatedly copy parent application state back into the Recurring Expenses local state.
+- Allows already-loaded recurring data to render immediately while a background refresh runs, while still preserving distinct Loading, Error and Loaded behaviour when no authoritative data is available.
+
+### Regression protection
+- Added v1.10.1 frontend regression coverage for the focused recurring-data path, existing-data rendering, canonical recurring mutation normalization and payment configuration fields.
+- Preserved v1.9.3 mobile navigation, v1.9.1 mobile modal containment, Category integrity behaviour and existing financial data.
+
+### Versioning
+- Updated Home Assistant add-on, backend, frontend package, production shell and corrective-module version metadata to v1.10.1.
+- Installed Home Assistant/iPhone acceptance remains an explicit user-verification requirement before merge and is not represented as completed by repository CI.
+
 ## v1.10.0 - Workflow Reliability, Performance & Data Integrity
 
 ### Reliability and API handling

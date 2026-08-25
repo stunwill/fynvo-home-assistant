@@ -1,5 +1,15 @@
 # Fynvo Add-on Changelog
 
+## v1.10.1 - Installed Reliability, API & Workflow Hardening
+
+- Hardened the Recurring Expense update contract so payment-aware fields are validated and persisted through the active v1.7 endpoint.
+- Added fresh-fetch persistence coverage for representative Recurring Expense edits, including payment configuration, Card linkage, Expense Type, Payee/Merchant and Notes.
+- Reduced the Recurring Expenses critical load path by deriving payment-attention rows from Scheduled Payments instead of making a second schedule-generation request.
+- Removed a fast-state synchronisation loop risk and allows already-loaded Recurring Expense data to remain visible while a focused refresh runs.
+- Preserved existing Accounts, Cards, Categories, Scheduled Payments, mobile navigation and mobile modal behaviour without a destructive data migration.
+- Updated add-on, backend, frontend package and production-shell release metadata to v1.10.1.
+- Real installed Home Assistant/iPhone acceptance remains a required manual verification before merge.
+
 ## v1.8.0 - Recurring Expenses Responsive UI/UX Completion
 
 ### Recurring Expenses

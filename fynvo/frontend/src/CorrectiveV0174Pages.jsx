@@ -7,6 +7,7 @@ const api = (path, options = {}) => fetch(`api${path}`, {
   headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
   ...options,
 });
+const ATTENTION_STATUSES = new Set(['overdue', 'due', 'auto_payment_unconfirmed']);
 
 export function CategoriesPageV0174({ rangeDays, onEdit, money }) {
   const [rows, setRows] = useState([]);
@@ -108,24 +109,32 @@ function normaliseNullableRecurringValues(values = {}) {
 }
 
 export function RecurringExpensesPageV0174(props) {
-  const [fastData, setFastData] = useState(null);
-  const [status, setStatus] = useState('loading');
+  const existingRecurring = props.data?.recurring || [];
+  const existingScheduled = props.data?.scheduledPayments || [];
+  const existingAttention = props.data?.paymentAttention || [];
+  const hasExistingData = existingRecurring.length > 0 || existingScheduled.length > 0;
+  const [fastData, setFastData] = useState(() => hasExistingData ? {
+    recurring: existingRecurring,
+    scheduledPayments: existingScheduled,
+    paymentAttention: existingAttention,
+  } : null);
+  const [status, setStatus] = useState(hasExistingData ? 'loaded' : 'loading');
   const [error, setError] = useState('');
   const [revision, setRevision] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
     const load = async () => {
-      setStatus('loading');
+      if (!fastData) setStatus('loading');
       setError('');
       try {
-        const [recurring, scheduledPayments, paymentAttention] = await Promise.all([
+        const [recurring, scheduledPayments] = await Promise.all([
           apiRequest('/recurring-expenses'),
           apiRequest('/scheduled-payments'),
-          apiRequest('/payments/attention'),
         ]);
         if (cancelled) return;
-        setFastData({ ...props.data, recurring: recurring || [], scheduledPayments: scheduledPayments || [], paymentAttention: paymentAttention || [] });
+        const paymentAttention = (scheduledPayments || []).filter((row) => ATTENTION_STATUSES.has(row.status));
+        setFastData({ recurring: recurring || [], scheduledPayments: scheduledPayments || [], paymentAttention });
         setStatus('loaded');
       } catch (requestError) {
         if (cancelled) return;
@@ -136,11 +145,6 @@ export function RecurringExpensesPageV0174(props) {
     load();
     return () => { cancelled = true; };
   }, [props.rangeDays, revision]);
-
-  useEffect(() => {
-    if (!fastData || status !== 'loaded') return;
-    if ((props.data?.recurring?.length || 0) > 0 || (props.data?.scheduledPayments?.length || 0) > 0) setFastData((current) => ({ ...current, ...props.data }));
-  }, [props.data, fastData, status]);
 
   const onEdit = (edit) => props.onEdit({
     ...edit,
@@ -155,5 +159,6 @@ export function RecurringExpensesPageV0174(props) {
     return <section className="panel"><div className="panel-head"><h2>Recurring Expenses</h2></div><div className="empty"><strong>Could not load recurring expenses</strong><p>{error}</p><button type="button" className="primary" onClick={() => setRevision((value) => value + 1)}>Retry</button></div></section>;
   }
 
-  return <RecurringExpensesPageV151 {...props} data={fastData || props.data} onEdit={onEdit}/>;
+  const effectiveData = { ...props.data, ...(fastData || {}) };
+  return <RecurringExpensesPageV151 {...props} data={effectiveData} onEdit={onEdit}/>;
 }
