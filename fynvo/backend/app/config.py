@@ -82,5 +82,5 @@ def get_settings() -> Settings:
         admin_display_name=_option(options, "admin_display_name", "FYNVO_ADMIN_DISPLAY_NAME"),
         admin_password=_option(options, "admin_password", "FYNVO_ADMIN_PASSWORD"),
         admin_recovery_mode=_bool(_option(options, "admin_recovery_mode", "FYNVO_ADMIN_RECOVERY_MODE", False)),
-        options_source=options_source,
+        options_source=options_source if not any(os.getenv(name) for name in ("FYNVO_ADMIN_USERNAME", "FYNVO_ADMIN_PASSWORD", "FYNVO_ADMIN_RECOVERY_MODE", "FYNVO_SESSION_DAYS")) else "environment",
     )
