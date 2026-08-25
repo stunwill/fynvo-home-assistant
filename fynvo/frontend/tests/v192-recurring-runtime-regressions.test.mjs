@@ -33,8 +33,8 @@ test('recurring page performs independent focused loads without a duplicate atte
 });
 
 test('recurring page composes parent data with authoritative rule and enrichment state only', () => {
-  assert.match(corrective, /const recurringData = localRecurring \?\? existingRecurring/);
-  assert.match(corrective, /const scheduledData = localScheduled \?\? existingScheduled/);
+  assert.match(corrective, /const \[recurringData, setRecurringData\] = useState\(existingRecurring\)/);
+  assert.match(corrective, /const \[scheduledData, setScheduledData\] = useState\(existingScheduled\)/);
   assert.match(corrective, /const effectiveData = \{ \.\.\.props\.data, recurring: recurringData, scheduledPayments: scheduledData, paymentAttention: attentionData \}/);
   assert.doesNotMatch(corrective, /setFastData/);
 });
