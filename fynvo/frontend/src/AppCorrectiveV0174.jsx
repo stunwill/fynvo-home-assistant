@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import InsightsPage from './InsightsPage.jsx';
+import SpendingIntelligence from './SpendingIntelligence.jsx';
 import TransactionWorkspace from './TransactionWorkspace.jsx';
 import logo from './assets/fynvo-logo.svg';
 import mark from './assets/fynvo-mark.svg';
 import { CategoriesPageV0174, RecurringExpensesPageV0174 } from './CorrectiveV0174Pages.jsx';
 import { AccountsPageV14, BillsPageV14, IncomePageV14, PlannedSpendingPageV14 } from './V14RecordPages.jsx';
-import { APP_VERSION_V0174, CashFlowChartV0174, CategorySelect } from './v0174-corrective.jsx';
+import { CashFlowChartV0174, CategorySelect } from './v0174-corrective.jsx';
 import { CardsPageV17, PaymentReconciliationV17, PaymentsAttentionV17, RecurringPaymentFieldsV17, recurringV17Values } from './PaymentManagementV17.jsx';
 import { apiRequest } from './apiClient.js';
 import './styles.css';
@@ -104,7 +105,7 @@ export default function AppCorrectiveV0174() {
   async function j(path) { try { return await apiRequest(path); } catch { return null; } }
   async function refreshDashboard(days = rangeDays) { const requestId = ++commandRequestRef.current; setDashboardLoading(true); try { const command = await j(`/dashboard/command-centre?range_days=${days}`); if (requestId !== commandRequestRef.current) return; setData((current) => ({ ...current, command })); } finally { if (requestId === commandRequestRef.current) setDashboardLoading(false); } }
   async function loadSupportingData() {
-    const scheduledRequest = active === 'Recurring Expenses' ? Promise.resolve(null) : j('/scheduled-payments');
+    const scheduledRequest = active === 'Overview' ? j('/scheduled-payments') : Promise.resolve(null);
     const [accounts, cards, transactions, income, recurring, scheduledPayments, bills, planned, categories, referenceData, budgets, goals, imports, review, suggestions, insights, financialHealth, budgetAnalysis, forecast] = await Promise.all([
       j('/accounts'), j('/cards?include_inactive=true'), j('/transactions'), j('/income'), j('/recurring-expenses'), scheduledRequest, j('/bills'), j('/planned-spending'), j('/categories'), j('/reference-data'), j('/budgets'), j('/goals'), j('/imports/history'), j('/reconciliation/review-queue'), j('/intelligence/suggestions'), j(`/insights?horizon_days=${rangeDays}&refresh=false`), j(`/insights/financial-health?horizon_days=${rangeDays}`), j('/budgets/analysis'), j(`/forecast?mode=expected&horizon=${rangeDays}d`),
     ]);
@@ -180,6 +181,17 @@ export default function AppCorrectiveV0174() {
       }
       return;
     }
+    if (type === 'transactions') {
+      try {
+        await apiRequest(createPath(type), { method: 'POST', body: JSON.stringify(values) });
+        setQuick(null);
+        setSuccess('Transaction created.');
+        await loadSupportingData();
+      } catch (requestError) {
+        setError(friendlyError(requestError?.payload, requestError?.message || 'Could not create Transaction. Check the fields and try again.'));
+      }
+      return;
+    }
     const res = await api(createPath(type), { method: 'POST', body: JSON.stringify(values) });
     if (res.ok) { setQuick(null); setSuccess(`${recordLabels[type] || 'Record'} created.`); await loadAll(); } else setError(friendlyError(await res.json().catch(() => null), 'Could not create this record. Check the fields and try again.'));
   }
@@ -225,7 +237,7 @@ export default function AppCorrectiveV0174() {
       {active === 'CSV Import' && <><CsvImport state={importState} setState={setImportState} accounts={data.accounts} previewImport={previewImport} commitImport={commitImport}/><PaymentReconciliationV17 money={money} dateLabel={dateLabel}/></>} 
       {active === 'Import History' && <ImportHistory rows={data.imports}/>} 
       {active === 'Review Queue' && <><ReviewQueue rows={data.review} acceptMatch={acceptMatch}/><PaymentReconciliationV17 money={money} dateLabel={dateLabel}/></>} 
-      {active === 'Spending Intelligence' && <SpendingIntelligence suggestions={data.suggestions} dismissSuggestion={dismissSuggestion}/>} 
+      {active === 'Spending Intelligence' && <SpendingIntelligence suggestions={data.suggestions} onDismiss={dismissSuggestion}/>} 
       {active === 'Insights' && <InsightsPage insights={data.insights} health={data.financialHealth || data.command?.financial_health} onDismiss={dismissInsight} onReviewed={reviewInsight} onNavigate={navigate} onRefresh={refreshInsights}/>} 
       {active === 'Budgeting' && <Budgeting budgets={data.budgets} analysis={data.budgetAnalysis} onEdit={(row) => setEdit({ type: 'budgets', label: 'Budget', row, values: normaliseRecord('budgets', row) })}/>} 
       {active === 'Goals' && <GoalsPage goals={data.goals} accounts={data.accounts} onEdit={(row) => setEdit({ type: 'goals', label: 'Goal', row, values: normaliseRecord('goals', row) })} onAdd={() => setQuick(quickDefaults('goals'))} onComplete={completeGoal}/>} 
@@ -236,7 +248,7 @@ export default function AppCorrectiveV0174() {
       {active === 'Income' && <IncomePageV14 rows={data.income} onEdit={setEdit} onAdd={() => setQuick(quickDefaults('income'))} money={money} dateLabel={dateLabel} normaliseRecord={normaliseRecord}/>} 
       {active === 'Bills' && <BillsPageV14 rows={data.bills} onEdit={setEdit} onAdd={() => setQuick(quickDefaults('bills'))} money={money} dateLabel={dateLabel} normaliseRecord={normaliseRecord}/>} 
       {active === 'Planned Spending' && <PlannedSpendingPageV14 rows={data.planned} onEdit={setEdit} onAdd={() => setQuick(quickDefaults('planned'))} money={money} dateLabel={dateLabel} normaliseRecord={normaliseRecord}/>} 
-      {active === 'Transactions' && <TransactionWorkspace accounts={data.accounts} categories={data.categories} money={money} dateLabel={dateLabel}/>} 
+      {active === 'Transactions' && <TransactionWorkspace accounts={data.accounts} categories={data.categories} money={money} dateLabel={dateLabel} refreshKey={data.transactions}/>} 
       <footer className="app-footer">Fynvo v{APP_VERSION}</footer>
     </main>
     {edit && <EditModal edit={edit} setEdit={setEdit} onSubmit={saveEdit} data={data}/>} 
