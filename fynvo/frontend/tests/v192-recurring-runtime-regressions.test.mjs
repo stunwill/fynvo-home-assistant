@@ -14,20 +14,27 @@ test('recurring editor normalises optional blank values before generic save', ()
   assert.match(corrective, /values: normaliseNullableRecurringValues\(edit\?\.values \|\| \{\}\)/);
 });
 
-test('recurring page performs a focused fast load without a duplicate attention request', () => {
+test('recurring page performs independent focused loads without a duplicate attention request', () => {
+  assert.match(corrective, /const loadRecurring = async/);
+  assert.match(corrective, /const loadScheduled = async/);
   assert.match(corrective, /apiRequest\('\/recurring-expenses'\)/);
   assert.match(corrective, /apiRequest\('\/scheduled-payments'\)/);
   assert.doesNotMatch(corrective, /apiRequest\('\/payments\/attention'\)/);
   assert.match(corrective, /ATTENTION_STATUSES\.has\(row\.status\)/);
-  assert.match(corrective, /setStatus\('loading'\)/);
-  assert.match(corrective, /setStatus\('loaded'\)/);
-  assert.match(corrective, /setStatus\('error'\)/);
+  assert.match(corrective, /setRecurringState\('loading'\)/);
+  assert.match(corrective, /setRecurringState\('loaded'\)/);
+  assert.match(corrective, /setRecurringState\('error'\)/);
+  assert.match(corrective, /setScheduleState\('loading'\)/);
+  assert.match(corrective, /setScheduleState\('loaded'\)/);
+  assert.match(corrective, /setScheduleState\('error'\)/);
   assert.match(corrective, /Loading recurring expenses…/);
   assert.match(corrective, /Could not load recurring expenses/);
   assert.doesNotMatch(corrective, /No recurring expenses yet/);
 });
 
-test('recurring page does not mirror all parent data back into fast state', () => {
-  assert.doesNotMatch(corrective, /setFastData\(\(current\) => \(\{ \.\.\.current, \.\.\.props\.data \}\)\)/);
-  assert.match(corrective, /const effectiveData = \{ \.\.\.props\.data, \.\.\.\(fastData \|\| \{\}\) \}/);
+test('recurring page composes parent data with authoritative rule and enrichment state only', () => {
+  assert.match(corrective, /const \[recurringData, setRecurringData\] = useState\(existingRecurring\)/);
+  assert.match(corrective, /const \[scheduledData, setScheduledData\] = useState\(existingScheduled\)/);
+  assert.match(corrective, /const effectiveData = \{ \.\.\.props\.data, recurring: recurringData, scheduledPayments: scheduledData, paymentAttention: attentionData \}/);
+  assert.doesNotMatch(corrective, /setFastData/);
 });

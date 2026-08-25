@@ -13,10 +13,15 @@ test('recurring page derives attention from the authoritative scheduled-payment 
   assert.match(pages, /filter\(\(row\) => ATTENTION_STATUSES\.has\(row\.status\)\)/);
 });
 
-test('recurring page can render existing authoritative data while refreshing', () => {
-  assert.match(pages, /const hasExistingData = existingRecurring\.length > 0 \|\| existingScheduled\.length > 0/);
-  assert.match(pages, /useState\(hasExistingData \? 'loaded' : 'loading'\)/);
-  assert.match(pages, /const effectiveData = \{ \.\.\.props\.data, \.\.\.\(fastData \|\| \{\}\) \}/);
+test('recurring rules load independently from scheduled-payment enrichment', () => {
+  assert.match(pages, /const loadRecurring = async/);
+  assert.match(pages, /const loadScheduled = async/);
+  assert.match(pages, /setRecurringState\('loaded'\)/);
+  assert.match(pages, /setScheduleState\('loaded'\)/);
+  assert.doesNotMatch(pages, /Promise\.all\(\[\s*apiRequest\('\/recurring-expenses'\),\s*apiRequest\('\/scheduled-payments'\)/s);
+  assert.match(pages, /RecurringRulesWhileScheduling/);
+  assert.match(pages, /Recurring expenses are available, but scheduled payment information could not be refreshed/);
+  assert.match(pages, /retrySchedule/);
 });
 
 test('recurring mutation uses canonical API request and normalises nullable references', () => {

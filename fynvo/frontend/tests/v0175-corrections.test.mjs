@@ -11,13 +11,15 @@ const corrective = await readFile(new URL('../src/v0174-corrective.jsx', import.
 test('v0.17.5 corrective stylesheet remains loaded after the earlier UX styles', () => {
   assert.match(entry, /import '\.\/corrective-v0175\.css';/);
   assert.ok(entry.indexOf("'./corrective-v0175.css'") > entry.indexOf("'./ux-v171.css'"));
-  assert.match(corrective, /APP_VERSION_V0174 = '1\.10\.1'/);
+  assert.match(corrective, /APP_VERSION_V0174 = '1\.11\.0'/);
 });
 
-test('overview no longer displays the redundant next seven days card', () => {
+test('overview keeps commitments while moving key planning cards near the top', () => {
   assert.doesNotMatch(app, /PanelHead title="Upcoming" meta="Next 7 days"/);
-  assert.match(app, /PanelHead title="Upcoming Commitments"/);
-  assert.match(css, /\.dashboard-page > \.card-grid > article\.panel:first-child\s*\{\s*display:\s*none;/s);
+  assert.match(app, /Top Planned Spending/);
+  assert.match(app, /Financial Health/);
+  assert.match(app, /Forecast Summary/);
+  assert.match(app, /Upcoming Commitments/);
 });
 
 test('income page hides the global date range selector without affecting other pages', () => {

@@ -25,7 +25,7 @@ test('zero-entry category rows do not render repeated entry links', () => {
   assert.match(pages, /category-count-empty-v018/);
 });
 
-test('Recurring Expenses delegates to the focused page after its reliability load', () => {
+test('Recurring Expenses renders authoritative rules before schedule enrichment completes', () => {
   assert.match(pages, /RecurringExpensesPageV151/);
   assert.match(pages, /apiRequest\('\/recurring-expenses'\)/);
   assert.match(pages, /apiRequest\('\/scheduled-payments'\)/);
@@ -33,8 +33,10 @@ test('Recurring Expenses delegates to the focused page after its reliability loa
   assert.match(pages, /ATTENTION_STATUSES/);
   assert.match(pages, /Loading recurring expenses…/);
   assert.match(pages, /Could not load recurring expenses/);
-  assert.match(pages, /setStatus\('loaded'\)/);
-  assert.match(pages, /const effectiveData = \{ \.\.\.props\.data, \.\.\.\(fastData \|\| \{\}\) \}/);
+  assert.match(pages, /setRecurringState\('loaded'\)/);
+  assert.match(pages, /RecurringRulesWhileScheduling/);
+  assert.match(pages, /scheduled payment information could not be refreshed/);
+  assert.match(pages, /const effectiveData = \{ \.\.\.props\.data, recurring: recurringData, scheduledPayments: scheduledData, paymentAttention: attentionData \}/);
 });
 
 test('Income keeps the Date Range correction active', () => {
@@ -44,10 +46,10 @@ test('Income keeps the Date Range correction active', () => {
   assert.match(correctiveCss, /display: none/);
 });
 
-test('Overview keeps the redundant seven-day Upcoming card hidden', () => {
-  assert.match(app, /PanelHead title="Upcoming Commitments"/);
-  assert.match(correctiveCss, /\.dashboard-page > \.card-grid > article\.panel:first-child/);
-  assert.match(correctiveCss, /display: none/);
+test('Overview exposes corrected commitments placement', () => {
+  assert.match(app, /Upcoming Commitments/);
+  assert.match(app, /Top Planned Spending/);
+  assert.match(app, /Financial Health/);
 });
 
 test('v0.18 responsive overrides remain active', () => {

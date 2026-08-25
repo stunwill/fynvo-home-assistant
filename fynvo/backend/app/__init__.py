@@ -278,12 +278,18 @@ from . import (
     v09,
     v11,
     v13_cashflow,
+    v111,
 )
 
 schemas.RecurringExpenseCreate = payments_v17.RecurringExpenseCreateV17
 finance.create_recurring = payments_v17.create_recurring_v17
+payments_v17.ensure_scheduled_payments = v111.ensure_scheduled_payments
 
 v09.router.routes = [route for route in v09.router.routes if not (getattr(route, "path", None) == "/api/budgets/analysis" or (getattr(route, "path", None) == "/api/recurring-expenses/{expense_id}" and "PUT" in getattr(route, "methods", set())))]
+payments_v17.router.routes = [
+    route for route in payments_v17.router.routes
+    if getattr(route, "path", None) not in {"/scheduled-payments", "/payments/attention", "/payments/match-candidates"}
+]
 v09.router.include_router(budget_v14.router)
 v09.router.include_router(v1.router)
 v09.router.include_router(auth_v15.router)
@@ -297,6 +303,7 @@ v09.router.include_router(v018.router)
 v09.router.include_router(v11.router)
 v09.router.include_router(v13_cashflow.router)
 v09.router.include_router(payments_v17.router)
+v09.router.include_router(v111.router)
 
 _legacy_run_migrations_v12_plus = database.run_migrations
 

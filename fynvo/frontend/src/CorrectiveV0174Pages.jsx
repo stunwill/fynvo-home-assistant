@@ -108,57 +108,87 @@ function normaliseNullableRecurringValues(values = {}) {
   };
 }
 
+function RecurringRulesWhileScheduling({ rows, scheduleState, scheduleError, retrySchedule, onEdit, money }) {
+  return <section className="panel recurring-rules-fast-path"><div className="panel-head"><div><h2>Recurring Expenses</h2><p className="muted">Your recurring rules are available. Scheduled payment information is {scheduleState === 'error' ? 'temporarily unavailable' : 'still refreshing'}.</p></div>{scheduleState === 'error' && <button type="button" onClick={retrySchedule}>Retry scheduled payments</button>}</div>
+    {scheduleState === 'error' && <p className="notice" role="alert">Recurring expenses loaded, but scheduled payment information could not be refreshed. {scheduleError}</p>}
+    <div className="recurring-rule-fast-list">{rows.map((row) => <button type="button" className="list-row button-row" key={row.id} onClick={() => onEdit({ type: 'recurring', label: 'Recurring Expense', row, values: normaliseNullableRecurringValues(row) })}><span><strong>{row.name}</strong><small>{row.frequency ? String(row.frequency).replaceAll('_', ' ') : 'Frequency not set'} · next due {row.next_due_date ? String(row.next_due_date).slice(0, 10) : 'not set'}</small></span><strong>{money(row.amount) || 'Amount not set'}</strong></button>)}</div>
+  </section>;
+}
+
 export function RecurringExpensesPageV0174(props) {
   const existingRecurring = props.data?.recurring || [];
   const existingScheduled = props.data?.scheduledPayments || [];
   const existingAttention = props.data?.paymentAttention || [];
-  const hasExistingData = existingRecurring.length > 0 || existingScheduled.length > 0;
-  const [fastData, setFastData] = useState(() => hasExistingData ? {
-    recurring: existingRecurring,
-    scheduledPayments: existingScheduled,
-    paymentAttention: existingAttention,
-  } : null);
-  const [status, setStatus] = useState(hasExistingData ? 'loaded' : 'loading');
-  const [error, setError] = useState('');
-  const [revision, setRevision] = useState(0);
+  const [recurringData, setRecurringData] = useState(existingRecurring);
+  const [scheduledData, setScheduledData] = useState(existingScheduled);
+  const [attentionData, setAttentionData] = useState(existingAttention);
+  const [recurringState, setRecurringState] = useState(existingRecurring.length ? 'loaded' : 'loading');
+  const [scheduleState, setScheduleState] = useState(existingScheduled.length ? 'loaded' : 'loading');
+  const [recurringError, setRecurringError] = useState('');
+  const [scheduleError, setScheduleError] = useState('');
+  const [recurringRevision, setRecurringRevision] = useState(0);
+  const [scheduleRevision, setScheduleRevision] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
-    const load = async () => {
-      if (!fastData) setStatus('loading');
-      setError('');
+    const loadRecurring = async () => {
+      if (!recurringData.length) setRecurringState('loading');
+      setRecurringError('');
       try {
-        const [recurring, scheduledPayments] = await Promise.all([
-          apiRequest('/recurring-expenses'),
-          apiRequest('/scheduled-payments'),
-        ]);
+        const recurring = await apiRequest('/recurring-expenses');
         if (cancelled) return;
-        const paymentAttention = (scheduledPayments || []).filter((row) => ATTENTION_STATUSES.has(row.status));
-        setFastData({ recurring: recurring || [], scheduledPayments: scheduledPayments || [], paymentAttention });
-        setStatus('loaded');
+        setRecurringData(Array.isArray(recurring) ? recurring : []);
+        setRecurringState('loaded');
       } catch (requestError) {
         if (cancelled) return;
-        setError(requestError?.message || 'Could not load recurring expenses.');
-        setStatus('error');
+        setRecurringError(requestError?.message || 'Could not load recurring expenses.');
+        setRecurringState('error');
       }
     };
-    load();
+    loadRecurring();
     return () => { cancelled = true; };
-  }, [props.rangeDays, revision]);
+  }, [props.rangeDays, recurringRevision]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadScheduled = async () => {
+      if (!scheduledData.length) setScheduleState('loading');
+      setScheduleError('');
+      try {
+        const scheduledPayments = await apiRequest('/scheduled-payments');
+        if (cancelled) return;
+        const resolved = Array.isArray(scheduledPayments) ? scheduledPayments : [];
+        setScheduledData(resolved);
+        setAttentionData(resolved.filter((row) => ATTENTION_STATUSES.has(row.status)));
+        setScheduleState('loaded');
+      } catch (requestError) {
+        if (cancelled) return;
+        setScheduleError(requestError?.message || 'Scheduled payment information could not be loaded.');
+        setScheduleState('error');
+      }
+    };
+    loadScheduled();
+    return () => { cancelled = true; };
+  }, [props.rangeDays, scheduleRevision]);
 
   const onEdit = (edit) => props.onEdit({
     ...edit,
     values: normaliseNullableRecurringValues(edit?.values || {}),
   });
+  const refresh = () => { setRecurringRevision((value) => value + 1); setScheduleRevision((value) => value + 1); };
 
-  if (status === 'loading' && !fastData) {
+  if (recurringState === 'loading' && !recurringData.length) {
     return <section className="panel"><div className="panel-head"><h2>Recurring Expenses</h2></div><p className="muted" role="status">Loading recurring expenses…</p></section>;
   }
 
-  if (status === 'error' && !fastData) {
-    return <section className="panel"><div className="panel-head"><h2>Recurring Expenses</h2></div><div className="empty"><strong>Could not load recurring expenses</strong><p>{error}</p><button type="button" className="primary" onClick={() => setRevision((value) => value + 1)}>Retry</button></div></section>;
+  if (recurringState === 'error' && !recurringData.length) {
+    return <section className="panel"><div className="panel-head"><h2>Recurring Expenses</h2></div><div className="empty"><strong>Could not load recurring expenses</strong><p>{recurringError}</p><button type="button" className="primary" onClick={() => setRecurringRevision((value) => value + 1)}>Retry</button></div></section>;
   }
 
-  const effectiveData = { ...props.data, ...(fastData || {}) };
-  return <RecurringExpensesPageV151 {...props} data={effectiveData} onEdit={onEdit}/>;
+  if (recurringState === 'loaded' && recurringData.length > 0 && scheduleState !== 'loaded' && scheduledData.length === 0) {
+    return <RecurringRulesWhileScheduling rows={recurringData} scheduleState={scheduleState} scheduleError={scheduleError} retrySchedule={() => setScheduleRevision((value) => value + 1)} onEdit={onEdit} money={props.money}/>;
+  }
+
+  const effectiveData = { ...props.data, recurring: recurringData, scheduledPayments: scheduledData, paymentAttention: attentionData };
+  return <><div className="recurring-schedule-state">{scheduleState === 'loading' && <p className="muted" role="status">Refreshing scheduled payment information…</p>}{scheduleState === 'error' && <p className="notice" role="alert">Recurring expenses are available, but scheduled payment information could not be refreshed. {scheduleError} <button type="button" onClick={() => setScheduleRevision((value) => value + 1)}>Retry</button></p>}</div><RecurringExpensesPageV151 {...props} data={effectiveData} onEdit={onEdit} onRefresh={refresh}/></>;
 }
