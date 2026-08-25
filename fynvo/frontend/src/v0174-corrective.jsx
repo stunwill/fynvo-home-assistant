@@ -1,4 +1,4 @@
-export const APP_VERSION_V0174 = '1.10.1';
+export const APP_VERSION_V0174 = '1.11.0';
 
 export function categoryGroups(categories = []) {
   const rows = categories.filter((item) => item && item.is_active !== false && (!item.category_type || item.category_type === 'expense'));
@@ -22,65 +22,30 @@ export function CategorySelect({ categories = [], value = '', onChange }) {
   </select>;
 }
 
-const compactCurrency = (value) => {
+function compactMoney(value) {
   const number = Number(value || 0);
-  const absolute = Math.abs(number);
-  if (absolute >= 10000) return `${number < 0 ? '-' : ''}$${Math.round(absolute / 1000)}k`;
   return new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD', maximumFractionDigits: 0 }).format(number);
-};
+}
 
-const niceStep = (span) => {
-  const rough = Math.max(span / 4, 1);
-  const magnitude = 10 ** Math.floor(Math.log10(rough));
-  const normalized = rough / magnitude;
-  const factor = normalized <= 1 ? 1 : normalized <= 2 ? 2 : normalized <= 5 ? 5 : 10;
-  return factor * magnitude;
-};
-
-export function CashFlowChartV0174({ baseline, expected, dateLabel, Empty }) {
-  const points = baseline?.chart_points || [];
-  const expectedPoints = expected?.chart_points || [];
-  const all = [...points, ...expectedPoints];
-  if (!all.length) return <Empty title="No forecast yet">Add income, recurring expenses, bills or planned spending to generate a forecast.</Empty>;
-
-  const values = all.map((point) => Number(point.balance || 0));
-  const rawMin = Math.min(...values, 0);
-  const rawMax = Math.max(...values, 0);
-  const step = niceStep(Math.max(rawMax - rawMin, 1));
-  const min = Math.floor(rawMin / step) * step;
-  const max = Math.ceil(rawMax / step) * step || step;
-  const span = Math.max(max - min, step);
-  const width = 960;
-  const height = 330;
-  const padLeft = 92;
-  const padRight = 22;
-  const padTop = 22;
-  const padBottom = 52;
-  const plotWidth = width - padLeft - padRight;
-  const plotHeight = height - padTop - padBottom;
-  const line = (rows) => rows.map((point, index) => {
-    const x = padLeft + (index / Math.max(rows.length - 1, 1)) * plotWidth;
-    const y = padTop + plotHeight - ((Number(point.balance || 0) - min) / span) * plotHeight;
-    return `${x.toFixed(1)},${y.toFixed(1)}`;
-  }).join(' ');
-  const yTicks = Array.from({ length: 5 }, (_, index) => max - (span * index / 4));
-  const dateRows = points.length ? points : expectedPoints;
-  const tickCount = Math.min(5, dateRows.length);
-  const indexes = [...new Set(Array.from({ length: tickCount }, (_, index) => Math.round(index * (dateRows.length - 1) / Math.max(tickCount - 1, 1))))];
-
-  return <div className="chart-wrap chart-with-axes" role="img" aria-label="Cash flow forecast chart with readable balance and date axes">
-    <svg viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="xMidYMid meet">
-      {yTicks.map((tick, index) => {
-        const y = padTop + (index / 4) * plotHeight;
-        return <g key={`y-${index}`}><line x1={padLeft} y1={y} x2={width - padRight} y2={y}/><text className="axis-label axis-y" x={padLeft - 12} y={y + 4} textAnchor="end">{compactCurrency(tick)}</text></g>;
-      })}
-      {indexes.map((index) => {
-        const x = padLeft + (index / Math.max(dateRows.length - 1, 1)) * plotWidth;
-        return <g key={`x-${index}`}><line x1={x} y1={padTop} x2={x} y2={padTop + plotHeight}/><text className="axis-label axis-x" x={x} y={height - 14} textAnchor={index === 0 ? 'start' : index === dateRows.length - 1 ? 'end' : 'middle'}>{dateLabel(dateRows[index]?.date).replace(/\s\d{4}$/, '')}</text></g>;
-      })}
-      {points.length > 0 && <polyline className="baseline" points={line(points)}/>}
-      {expectedPoints.length > 0 && <polyline className="expected" points={line(expectedPoints)}/>}
-    </svg>
-    <div className="chart-legend"><span><i className="solid"></i>Baseline Forecast</span><span><i className="dash"></i>Expected Forecast</span></div>
-  </div>;
+export function CashFlowChartV0174({ baseline, expected, Empty }) {
+  const baselinePoints = baseline?.points || baseline?.series || [];
+  const expectedPoints = expected?.points || expected?.series || [];
+  if (!baselinePoints.length && !expectedPoints.length) return <Empty title="No forecast yet">Add financial records to build a cash-flow forecast.</Empty>;
+  const rows = baselinePoints.length ? baselinePoints : expectedPoints;
+  const values = [...baselinePoints, ...expectedPoints].map((row) => Number(row.balance ?? row.value ?? row.amount ?? 0));
+  const minimum = Math.min(...values, 0);
+  const maximum = Math.max(...values, 0);
+  const span = Math.max(maximum - minimum, 1);
+  const width = 900;
+  const height = 280;
+  const pad = { left: 78, right: 22, top: 24, bottom: 46 };
+  const plotWidth = width - pad.left - pad.right;
+  const plotHeight = height - pad.top - pad.bottom;
+  const x = (index, count) => pad.left + (count <= 1 ? 0 : (index / (count - 1)) * plotWidth);
+  const y = (value) => pad.top + ((maximum - Number(value || 0)) / span) * plotHeight;
+  const pathFor = (points) => points.map((row, index) => `${index ? 'L' : 'M'}${x(index, points.length).toFixed(1)} ${y(row.balance ?? row.value ?? row.amount).toFixed(1)}`).join(' ');
+  const ticks = Array.from({ length: 5 }, (_, index) => maximum - (span * index / 4));
+  const dateFor = (row) => row.date || row.day || row.label || '';
+  const labels = rows.length > 1 ? [0, Math.round((rows.length - 1) / 2), rows.length - 1] : [0];
+  return <div className="cashflow-chart-v111"><svg viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="xMidYMid meet" role="img" aria-label="Cash Flow Forecast"><g className="cashflow-grid-v111">{ticks.map((tick) => <g key={tick}><line x1={pad.left} x2={width - pad.right} y1={y(tick)} y2={y(tick)}/><text x={pad.left - 12} y={y(tick) + 4} textAnchor="end">{compactMoney(tick)}</text></g>)}</g>{baselinePoints.length > 0 && <path className="cashflow-line-v111 baseline" d={pathFor(baselinePoints)}/>} {expectedPoints.length > 0 && <path className="cashflow-line-v111 expected" d={pathFor(expectedPoints)}/>}<g className="cashflow-axis-v111">{labels.map((index) => <text key={index} x={x(index, rows.length)} y={height - 14} textAnchor={index === 0 ? 'start' : index === rows.length - 1 ? 'end' : 'middle'}>{dateFor(rows[index])}</text>)}</g></svg><div className="cashflow-legend-v111"><span><i className="baseline"></i>Baseline Forecast</span><span><i className="expected"></i>Expected Forecast</span></div></div>;
 }
