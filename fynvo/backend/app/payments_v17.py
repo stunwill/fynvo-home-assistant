@@ -55,6 +55,15 @@ def ensure_payment_schema(engine) -> None:
 
         add_column("recurring_expenses", "payment_handling VARCHAR(20)")
         add_column("recurring_expenses", "auto_payment_grace_days INTEGER NOT NULL DEFAULT 3")
+        add_column("transactions", "matched_type VARCHAR(60)")
+        add_column("transactions", "matched_id INTEGER")
+        transaction_columns = columns("transactions")
+        if "reconciliation_status" not in transaction_columns:
+            if "reconciliation_state" in transaction_columns:
+                add_column("transactions", "reconciliation_status VARCHAR(40)")
+                connection.execute(text("UPDATE transactions SET reconciliation_status=COALESCE(reconciliation_state,'unmatched') WHERE reconciliation_status IS NULL"))
+            else:
+                add_column("transactions", "reconciliation_status VARCHAR(40) NOT NULL DEFAULT 'unmatched'")
         connection.execute(text("""
             UPDATE recurring_expenses
             SET payment_handling = CASE
@@ -252,24 +261,26 @@ def ensure_scheduled_payments(db: DbSession, user: User, horizon_days: int = 120
 
 
 @router.put("/recurring-expenses/{expense_id}")
-def update_recurring_v17(expense_id: int, payload: RecurringExpenseCreateV17, current_user: User = USER, db: DbSession = DB):
+def update_recurring_v17(expense_id: int, payload: dict[str, Any], current_user: User = USER, db: DbSession = DB):
     existing = db.execute(text("SELECT * FROM recurring_expenses WHERE id=:id AND user_id=:uid"), {"id": expense_id, "uid": current_user.id}).mappings().first()
     if not existing:
         raise HTTPException(status_code=404, detail="Recurring Expense not found")
-
-    requested_handling = _handling(payload.payment_method, payload.payment_handling)
-    base = v1.RecurringExpenseCreateV1(**payload.model_dump(exclude={"payment_handling", "auto_payment_grace_days"}))
-    v1.update_recurring_v1(expense_id, base.model_dump(), current_user, db)
-    grace = max(0, min(int(payload.auto_payment_grace_days), 30))
+    changes = dict(payload)
+    requested_handling = changes.pop("payment_handling", existing.get("payment_handling"))
+    requested_grace = changes.pop("auto_payment_grace_days", existing.get("auto_payment_grace_days") or DEFAULT_GRACE_DAYS)
+    result = v1.update_recurring_v1(expense_id, changes, current_user, db)
+    method = result.get("payment_method") or existing.get("payment_method") or "not_set"
+    handling = _handling(method, requested_handling)
+    grace = max(0, min(int(requested_grace), 30))
     db.execute(text("""
         UPDATE recurring_expenses
         SET payment_handling=:handling,auto_payment_grace_days=:grace,updated_at=:now
         WHERE id=:id AND user_id=:uid
-    """), {"handling": requested_handling, "grace": grace, "now": utcnow(), "id": expense_id, "uid": current_user.id})
+    """), {"handling": handling, "grace": grace, "now": utcnow(), "id": expense_id, "uid": current_user.id})
     db.commit()
     row = db.execute(text("SELECT * FROM recurring_expenses WHERE id=:id AND user_id=:uid"), {"id": expense_id, "uid": current_user.id}).first()
     response = v1._recurring_response(db, current_user, row)
-    response["payment_handling"] = requested_handling
+    response["payment_handling"] = handling
     response["auto_payment_grace_days"] = grace
     return response
 
@@ -351,7 +362,6 @@ def skip_payment(payment_id: int, payload: dict[str, Any], current_user: User = 
 @router.get("/payments/match-candidates")
 def payment_match_candidates(date_tolerance_days: int = Query(default=7, ge=1, le=31), current_user: User = USER, db: DbSession = DB):
     ensure_scheduled_payments(db, current_user)
-    # Unmatched imported/manual transactions only. Fynvo never silently confirms a payment without evidence.
     tx_rows = db.execute(text("SELECT * FROM transactions WHERE user_id=:uid AND transaction_type='expense' AND COALESCE(reconciliation_status,'unmatched') NOT IN ('matched','ignored','duplicate') ORDER BY transaction_date DESC,id DESC"), {"uid": current_user.id}).mappings().all()
     mapping_rows = db.execute(text("SELECT * FROM recurring_match_mappings WHERE user_id=:uid"), {"uid": current_user.id}).mappings().all()
     mappings = {(int(row["recurring_expense_id"]), row["merchant_key"], int(row["account_id"]) if row["account_id"] is not None else None): row for row in mapping_rows}
@@ -378,7 +388,9 @@ def payment_match_candidates(date_tolerance_days: int = Query(default=7, ge=1, l
                 continue
             if sp["account_id"] and tx.get("account_id") and int(sp["account_id"]) != int(tx["account_id"]):
                 continue
-            expected = int(sp["expected_amount_cents"] or 0); actual = abs(int(tx["amount_cents"] or 0)); variance = abs(expected - actual)
+            expected = int(sp["expected_amount_cents"] or 0)
+            actual = abs(int(tx["amount_cents"] or 0))
+            variance = abs(expected - actual)
             if sp["amount_type"] == "fixed":
                 allowed = max(100, round(expected * 0.05))
             else:
@@ -410,7 +422,8 @@ def confirm_payment_match(payment_id: int, payload: ConfirmMatchPayload, current
     already = db.execute(text("SELECT id FROM scheduled_payments WHERE user_id=:uid AND matched_transaction_id=:txid AND id<>:id"), {"uid": current_user.id, "txid": payload.transaction_id, "id": payment_id}).scalar()
     if already:
         raise HTTPException(status_code=409, detail="Transaction is already matched to another Scheduled Payment")
-    actual = abs(int(transaction["amount_cents"] or 0)); tx_date = transaction["transaction_date"]
+    actual = abs(int(transaction["amount_cents"] or 0))
+    tx_date = transaction["transaction_date"]
     now = utcnow()
     db.execute(text("UPDATE scheduled_payments SET status='paid',actual_date=:actual_date,actual_amount_cents=:actual,matched_transaction_id=:txid,match_confidence=:confidence,confirmation_source='csv_match',updated_at=:now WHERE id=:id"), {"actual_date": tx_date, "actual": actual, "txid": payload.transaction_id, "confidence": payload.confidence or "confirmed", "now": now, "id": payment_id})
     db.execute(text("UPDATE transactions SET reconciliation_status='matched',matched_type='scheduled_payment',matched_id=:sid,updated_at=:now WHERE id=:txid AND user_id=:uid"), {"sid": payment_id, "now": now, "txid": payload.transaction_id, "uid": current_user.id})
