@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import InsightsPage from './InsightsPage.jsx';
+import TransactionWorkspace from './TransactionWorkspace.jsx';
 import logo from './assets/fynvo-logo.svg';
 import mark from './assets/fynvo-mark.svg';
 import { CategoriesPageV0174, RecurringExpensesPageV0174 } from './CorrectiveV0174Pages.jsx';
@@ -41,10 +42,8 @@ const horizonOptions = [
 const money = (value) => value === null || value === undefined || value === '' ? null : new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(Number(value || 0));
 const dateLabel = (value) => value ? new Intl.DateTimeFormat('en-AU', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(`${String(value).slice(0, 10)}T00:00:00`)) : 'No date';
 const amountClass = (value) => Number(value || 0) >= 0 ? 'positive' : 'negative';
-const parseAmount = (value) => Number(value || 0);
 const greetingForNow = () => { const hour = new Date().getHours(); if (hour < 12) return 'Good morning'; if (hour < 17) return 'Good afternoon'; return 'Good evening'; };
 const Field = ({ label, children, error, className = '', ...props }) => <label className={`field ${className} ${error ? 'field-error' : ''}`.trim()}><span>{label}</span>{children || <input {...props}/>} {error && <small className="field-error-message">{error}</small>}</label>;
-const Badge = ({ children, tone = '' }) => <span className={`badge ${tone}`}>{children}</span>;
 const Empty = ({ title, children, action }) => <div className="empty"><strong>{title}</strong><p>{children}</p>{action}</div>;
 const toDateInput = (value) => value ? String(value).slice(0, 10) : '';
 
@@ -105,19 +104,28 @@ export default function AppCorrectiveV0174() {
   async function j(path) { try { return await apiRequest(path); } catch { return null; } }
   async function refreshDashboard(days = rangeDays) { const requestId = ++commandRequestRef.current; setDashboardLoading(true); try { const command = await j(`/dashboard/command-centre?range_days=${days}`); if (requestId !== commandRequestRef.current) return; setData((current) => ({ ...current, command })); } finally { if (requestId === commandRequestRef.current) setDashboardLoading(false); } }
   async function loadSupportingData() {
+    const scheduledRequest = active === 'Recurring Expenses' ? Promise.resolve(null) : j('/scheduled-payments');
     const [accounts, cards, transactions, income, recurring, scheduledPayments, bills, planned, categories, referenceData, budgets, goals, imports, review, suggestions, insights, financialHealth, budgetAnalysis, forecast] = await Promise.all([
-      j('/accounts'), j('/cards?include_inactive=true'), j('/transactions'), j('/income'), j('/recurring-expenses'), j('/scheduled-payments'), j('/bills'), j('/planned-spending'), j('/categories'), j('/reference-data'), j('/budgets'), j('/goals'), j('/imports/history'), j('/reconciliation/review-queue'), j('/intelligence/suggestions'), j(`/insights?horizon_days=${rangeDays}&refresh=false`), j(`/insights/financial-health?horizon_days=${rangeDays}`), j('/budgets/analysis'), j(`/forecast?mode=expected&horizon=${rangeDays}d`),
+      j('/accounts'), j('/cards?include_inactive=true'), j('/transactions'), j('/income'), j('/recurring-expenses'), scheduledRequest, j('/bills'), j('/planned-spending'), j('/categories'), j('/reference-data'), j('/budgets'), j('/goals'), j('/imports/history'), j('/reconciliation/review-queue'), j('/intelligence/suggestions'), j(`/insights?horizon_days=${rangeDays}&refresh=false`), j(`/insights/financial-health?horizon_days=${rangeDays}`), j('/budgets/analysis'), j(`/forecast?mode=expected&horizon=${rangeDays}d`),
     ]);
-    const paymentAttention = (scheduledPayments || []).filter((row) => ATTENTION_STATUSES.has(row.status));
-    setData((current) => ({ ...current, accounts: accounts || [], cards: cards || [], transactions: transactions || [], income: income || [], recurring: recurring || [], scheduledPayments: scheduledPayments || [], paymentAttention, bills: bills || [], planned: planned || [], categories: categories || [], expenseTypes: referenceData?.expense_types || [], budgets: budgets || [], goals: goals || [], imports: imports || [], review: review || [], suggestions: suggestions || [], insights: insights || [], financialHealth, budgetAnalysis, forecast }));
+    setData((current) => {
+      const resolvedScheduled = scheduledPayments === null ? current.scheduledPayments : scheduledPayments || [];
+      const paymentAttention = scheduledPayments === null ? current.paymentAttention : resolvedScheduled.filter((row) => ATTENTION_STATUSES.has(row.status));
+      return { ...current, accounts: accounts || [], cards: cards || [], transactions: transactions || [], income: income || [], recurring: recurring || [], scheduledPayments: resolvedScheduled, paymentAttention, bills: bills || [], planned: planned || [], categories: categories || [], expenseTypes: referenceData?.expense_types || [], budgets: budgets || [], goals: goals || [], imports: imports || [], review: review || [], suggestions: suggestions || [], insights: insights || [], financialHealth, budgetAnalysis, forecast };
+    });
   }
   async function loadAll() { await Promise.allSettled([refreshDashboard(rangeDays), loadSupportingData()]); }
   async function refreshRecurringSlice() {
-    const [recurring, scheduledPayments] = await Promise.all([
-      apiRequest('/recurring-expenses'), apiRequest('/scheduled-payments'),
-    ]);
-    const paymentAttention = (scheduledPayments || []).filter((row) => ATTENTION_STATUSES.has(row.status));
-    setData((current) => ({ ...current, recurring: recurring || [], scheduledPayments: scheduledPayments || [], paymentAttention }));
+    const recurring = await apiRequest('/recurring-expenses');
+    setData((current) => ({ ...current, recurring: recurring || [] }));
+    try {
+      const scheduledPayments = await apiRequest('/scheduled-payments');
+      const paymentAttention = (scheduledPayments || []).filter((row) => ATTENTION_STATUSES.has(row.status));
+      setData((current) => ({ ...current, scheduledPayments: scheduledPayments || [], paymentAttention }));
+      return { scheduleError: null };
+    } catch (requestError) {
+      return { scheduleError: requestError };
+    }
   }
   async function refreshCards() {
     const cards = await apiRequest('/cards?include_inactive=true');
@@ -145,9 +153,10 @@ export default function AppCorrectiveV0174() {
     const values = normaliseMutationValues(edit.type, edit.values);
     try {
       const payload = await apiRequest(path, { method: creating ? 'POST' : 'PUT', body: JSON.stringify(values) });
-      if (edit.type === 'recurring') await refreshRecurringSlice();
-      else if (edit.type === 'accounts') await loadSupportingData();
-      else await loadSupportingData();
+      if (edit.type === 'recurring') {
+        const refresh = await refreshRecurringSlice();
+        if (refresh.scheduleError) setError('Recurring Expense saved, but scheduled payment information could not be refreshed yet.');
+      } else await loadSupportingData();
       setEdit(null);
       setSuccess(`${creating ? edit.label.replace(/^New /, '') + ' created.' : edit.label + ' updated.'}`);
       if (payload && edit.type === 'recurring') setData((current) => ({ ...current, recurring: current.recurring.map((row) => Number(row.id) === Number(payload.id) ? payload : row) }));
@@ -164,7 +173,8 @@ export default function AppCorrectiveV0174() {
         await apiRequest(createPath(type), { method: 'POST', body: JSON.stringify(normaliseMutationValues(type, values)) });
         setQuick(null);
         setSuccess('Recurring Expense created.');
-        await refreshRecurringSlice();
+        const refresh = await refreshRecurringSlice();
+        if (refresh.scheduleError) setError('Recurring Expense created, but scheduled payment information could not be refreshed yet.');
       } catch (requestError) {
         setError(friendlyError(requestError?.payload, requestError?.message || 'Could not create Recurring Expense. Check the fields and try again.'));
       }
@@ -226,7 +236,7 @@ export default function AppCorrectiveV0174() {
       {active === 'Income' && <IncomePageV14 rows={data.income} onEdit={setEdit} onAdd={() => setQuick(quickDefaults('income'))} money={money} dateLabel={dateLabel} normaliseRecord={normaliseRecord}/>} 
       {active === 'Bills' && <BillsPageV14 rows={data.bills} onEdit={setEdit} onAdd={() => setQuick(quickDefaults('bills'))} money={money} dateLabel={dateLabel} normaliseRecord={normaliseRecord}/>} 
       {active === 'Planned Spending' && <PlannedSpendingPageV14 rows={data.planned} onEdit={setEdit} onAdd={() => setQuick(quickDefaults('planned'))} money={money} dateLabel={dateLabel} normaliseRecord={normaliseRecord}/>} 
-      {active === 'Transactions' && <RecordTable active={active} data={data} onEdit={setEdit}/>} 
+      {active === 'Transactions' && <TransactionWorkspace accounts={data.accounts} categories={data.categories} money={money} dateLabel={dateLabel}/>} 
       <footer className="app-footer">Fynvo v{APP_VERSION}</footer>
     </main>
     {edit && <EditModal edit={edit} setEdit={setEdit} onSubmit={saveEdit} data={data}/>} 
@@ -236,12 +246,32 @@ export default function AppCorrectiveV0174() {
   </div>;
 }
 
-function Overview({ data, setActive, rangeDays, setQuick, quickDefaults, loading }) { const command = data.command || {}; const kpis = command.kpis || {}; const forecast = command.forecast?.baseline; const expected = command.forecast?.expected; const planned = command.top_planned_spending || data.planned || []; const attention = command.attention || {}; return <div className="dashboard-page"><section className="kpi-grid five"><Kpi icon="💵" label="Total Balance" value={money(kpis.total_balance)} sub={`${data.accounts.length} accounts`}/><Kpi icon="📈" label="Next Income" value={money(kpis.next_income?.amount)} sub={kpis.next_income?.date ? `${kpis.next_income.name} · ${dateLabel(kpis.next_income.date)}` : 'No scheduled income'}/><Kpi icon="🧾" label="Next Bills" value={money(kpis.next_bills_total)} sub={`${kpis.next_bills_count || 0} commitments in range`}/><Kpi icon="💸" label="Discretionary" value={money(kpis.discretionary_spend)} sub={`Next ${rangeDays} days`}/><Kpi icon="🏁" label="Goals" value={`${kpis.active_goal_count || 0} active`} sub={kpis.next_goal ? `Next: ${kpis.next_goal.name}` : 'No target dates'}/></section><section className="dashboard-grid two"><article className="panel"><PanelHead title="Cash Flow Forecast" meta={`Next ${rangeDays} days`}/><CashFlowChartV0174 baseline={forecast} expected={expected} dateLabel={dateLabel} Empty={Empty}/></article><article className="panel"><PanelHead title="Upcoming Commitments" meta={`${planned.length} items`}/>{planned.length ? planned.slice(0, 7).map((row) => <div className="list-row" key={`${row.source_type || 'planned'}-${row.id || row.source_id}`}><span>{row.name}<small>{row.date || row.planned_date ? dateLabel(row.date || row.planned_date) : 'No date'}</small></span><strong>{money(row.amount || row.estimated_amount)}</strong></div>) : <Empty title="Nothing planned">Add planned spending or bills to see them here.</Empty>}</article></section></div>; }
+function Overview({ data, setActive, rangeDays, setQuick, quickDefaults, loading }) {
+  const command = data.command || {};
+  const kpis = command.kpis || {};
+  const forecast = command.forecast?.baseline;
+  const expected = command.forecast?.expected;
+  const planned = command.top_planned_spending || data.planned || [];
+  const upcoming = (command.calendar || []).slice(0, 7);
+  const health = data.financialHealth || command.financial_health || {};
+  const attentionCount = Number(health.issue_count ?? health.attention_count ?? data.paymentAttention?.length ?? 0);
+  const baselineEnd = forecast?.final_balance ?? forecast?.end_balance ?? forecast?.ending_balance;
+  const expectedEnd = expected?.final_balance ?? expected?.end_balance ?? expected?.ending_balance;
+  const lowest = expected?.lowest_balance ?? expected?.minimum_balance ?? forecast?.lowest_balance ?? forecast?.minimum_balance;
+  return <div className="dashboard-page">
+    <section className="kpi-grid five"><Kpi icon="💵" label="Total Balance" value={money(kpis.total_balance)} sub={`${data.accounts.length} accounts`}/><Kpi icon="📈" label="Next Income" value={money(kpis.next_income?.amount)} sub={kpis.next_income?.date ? `${kpis.next_income.name} · ${dateLabel(kpis.next_income.date)}` : 'No scheduled income'}/><Kpi icon="🧾" label="Next Bills" value={money(kpis.next_bills_total)} sub={`${kpis.next_bills_count || 0} commitments in range`}/><Kpi icon="💸" label="Discretionary" value={money(kpis.discretionary_spend)} sub={`Next ${rangeDays} days`}/><Kpi icon="🏁" label="Goals" value={`${kpis.active_goal_count || 0} active`} sub={kpis.next_goal ? `Next: ${kpis.next_goal.name}` : 'No target dates'}/></section>
+    <section className="dashboard-secondary-row">
+      <article className="panel dashboard-compact-panel"><div className="panel-head compact"><h2>Top Planned Spending</h2><button type="button" className="link-button" onClick={() => setQuick(quickDefaults('planned'))}>+ Quick Add</button></div>{planned.length ? planned.slice(0, 3).map((row) => <div className="list-row" key={`planned-${row.id || row.source_id}`}><span>{row.name}<small>{row.date || row.planned_date ? dateLabel(row.date || row.planned_date) : 'No date'}</small></span><strong>{money(row.amount || row.estimated_amount)}</strong></div>) : <Empty title="No planned spending">No planned purchases during this period.</Empty>}</article>
+      <article className="panel dashboard-compact-panel"><div className="panel-head compact"><h2>Financial Health</h2><button type="button" className="link-button" onClick={() => setActive('Insights')}>View insights →</button></div><strong className="dashboard-health-number">{attentionCount} item{attentionCount === 1 ? '' : 's'} need attention</strong><p className="muted">Review overdue payments, data-quality issues and financial insights.</p></article>
+      <article className="panel dashboard-compact-panel dashboard-forecast-summary"><PanelHead title="Forecast Summary" meta={`End of ${rangeDays} days`}/><div className="list-row"><span>Baseline Forecast</span><strong>{money(baselineEnd) || '—'}</strong></div><div className="list-row"><span>Expected Forecast</span><strong>{money(expectedEnd) || '—'}</strong></div><div className="list-row"><span>Lowest Balance</span><strong>{money(lowest) || '—'}</strong></div><button type="button" className="link-button" onClick={() => setActive('Cash Flow')}>View cash flow →</button></article>
+    </section>
+    <section className="dashboard-main-row"><article className="panel dashboard-forecast-panel"><div className="panel-head compact"><h2>Cash Flow Forecast</h2><button type="button" className="link-button" onClick={() => setActive('Cash Flow')}>View full cash flow →</button></div><CashFlowChartV0174 baseline={forecast} expected={expected} dateLabel={dateLabel} Empty={Empty}/></article><div className="dashboard-side-stack"><article className="panel dashboard-compact-panel"><div className="panel-head compact"><h2>Upcoming Commitments</h2><button type="button" className="link-button" onClick={() => setActive('Calendar')}>View calendar →</button></div>{upcoming.length ? upcoming.map((row, index) => <div className="list-row" key={`${row.source_type}-${row.source_id}-${row.date}-${index}`}><span>{row.name}<small>{dateLabel(row.date)} · {row.category || row.source_type?.replaceAll('_', ' ')}</small></span><strong>{money(row.amount)}</strong></div>) : planned.length ? planned.slice(0, 7).map((row) => <div className="list-row" key={`${row.source_type || 'planned'}-${row.id || row.source_id}`}><span>{row.name}<small>{row.date || row.planned_date ? dateLabel(row.date || row.planned_date) : 'No date'}</small></span><strong>{money(row.amount || row.estimated_amount)}</strong></div>) : <Empty title="Nothing planned">Add recurring expenses, bills or planned spending to see commitments here.</Empty>}</article></div></section>
+  </div>;
+}
 function Kpi({ icon, label, value, sub }) { return <article className="kpi"><span className="kpi-icon">{icon}</span><div><small>{label}</small><strong>{value ?? '—'}</strong><p>{sub}</p></div></article>; }
 function PanelHead({ title, meta }) { return <div className="panel-head compact"><h2>{title}</h2>{meta && <small>{meta}</small>}</div>; }
 function ForecastPage({ forecast, onView }) { const events = forecast?.events || []; return <section className="panel"><PanelHead title="Cash Flow" meta={`${events.length} forecast events`}/>{events.length ? events.map((event, index) => <button type="button" className="list-row button-row" onClick={() => onView(event)} key={`${event.source_type}-${event.source_id}-${event.date}-${index}`}><span>{event.name}<small>{dateLabel(event.date)} · {event.source_type.replaceAll('_', ' ')}</small></span><strong className={amountClass(event.amount)}>{money(event.amount)}</strong></button>) : <Empty title="No forecast events">Add income, recurring expenses, bills or planned spending.</Empty>}</section>; }
 function CalendarPage({ command }) { const events = command?.calendar || []; return <section className="panel"><PanelHead title="Calendar" meta={`${events.length} events`}/>{events.length ? events.map((event, index) => <div className="list-row" key={`${event.source_type}-${event.source_id}-${index}`}><span>{event.name}<small>{dateLabel(event.date)} · {event.source_type}</small></span><strong>{money(event.amount)}</strong></div>) : <Empty title="Nothing scheduled">Financial events will appear here.</Empty>}</section>; }
-function RecordTable({ active, data, onEdit }) { const key = active === 'Transactions' ? 'transactions' : ''; const rows = data[key] || []; return <section className="panel"><PanelHead title={active} meta={`${rows.length} records`}/>{rows.length ? rows.map((row) => <button className="list-row button-row" type="button" key={row.id} onClick={() => onEdit({ type: key, label: recordLabels[key], row, values: normaliseRecord(key, row) })}><span>{row.description || row.name}<small>{row.date || row.transaction_date ? dateLabel(row.date || row.transaction_date) : ''}</small></span><strong>{money(row.amount)}</strong></button>) : <Empty title={`No ${active.toLowerCase()} yet`}>Use Quick Add to create the first record.</Empty>}</section>; }
 function Budgeting({ budgets, analysis, onEdit }) { return <section className="panel"><PanelHead title="Budgeting" meta={`${budgets.length} budgets`}/>{analysis?.totals && <div className="kpi-grid"><Kpi icon="🎯" label="Budgeted" value={money(analysis.totals.budgeted)}/><Kpi icon="💳" label="Actual" value={money(analysis.totals.actual)}/></div>}{budgets.length ? budgets.map((row) => <button type="button" className="list-row button-row" key={row.id} onClick={() => onEdit(row)}><span>{row.name}<small>{row.period}</small></span><strong>{money(row.amount)}</strong></button>) : <Empty title="No budgets yet">Create a budget to track spending.</Empty>}</section>; }
 function GoalsPage({ goals, onEdit, onAdd, onComplete }) { return <section className="panel"><div className="panel-head"><h2>Goals</h2><button className="primary ghost" onClick={onAdd}>+ Add</button></div>{goals.length ? goals.map((row) => <div className="list-row" key={row.id}><button type="button" className="link-button" onClick={() => onEdit(row)}>{row.name}</button><span>{money(row.current_amount)} / {money(row.target_amount)}</span>{row.status !== 'completed' && <button type="button" onClick={() => onComplete(row.id)}>Complete</button>}</div>) : <Empty title="No goals yet">Add a financial goal.</Empty>}</section>; }
 function CsvImport({ state, setState, accounts, previewImport, commitImport }) { return <section className="panel"><PanelHead title="CSV Import"/><form className="form-grid" onSubmit={previewImport}><Field label="Filename"><input value={state.filename} onChange={(e) => setState({ ...state, filename: e.target.value })}/></Field><Field label="Account"><select value={state.account_id} onChange={(e) => setState({ ...state, account_id: e.target.value })}><option value="">Choose account</option>{accounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}</select></Field><Field label="CSV text" className="wide"><textarea rows="10" value={state.csv_text} onChange={(e) => setState({ ...state, csv_text: e.target.value })}/></Field><button className="primary">Preview</button></form>{state.preview && <div><pre>{JSON.stringify(state.preview, null, 2)}</pre><button type="button" className="primary" onClick={commitImport}>Commit import</button></div>}</section>; }
