@@ -29,10 +29,55 @@ const compactCurrency = (value) => {
   return new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD', maximumFractionDigits: 0 }).format(number);
 };
 
-export function CashFlowChartV0174({ rows = [] }) {
-  const points = rows.slice(0, 30);
-  if (!points.length) return <div className="empty"><strong>No forecast data</strong><p>Add income, bills or recurring expenses to build the cash-flow forecast.</p></div>;
-  const values = points.map((row) => Number(row.balance ?? row.running_balance ?? row.amount ?? 0));
-  const min = Math.min(...values, 0); const max = Math.max(...values, 1); const span = max - min || 1;
-  return <div className="cashflow-v0174-chart" role="img" aria-label="Projected cash-flow balance"><div className="cashflow-v0174-bars">{points.map((row, index) => { const value = values[index]; const height = Math.max(5, Math.round(((value - min) / span) * 100)); return <div className="cashflow-v0174-point" key={`${row.date || index}-${index}`} title={`${row.date || ''} ${compactCurrency(value)}`}><span style={{ height: `${height}%` }}></span></div>; })}</div><div className="cashflow-v0174-axis"><span>{points[0]?.date || ''}</span><span>{points.at(-1)?.date || ''}</span></div></div>;
+const niceStep = (span) => {
+  const rough = Math.max(span / 4, 1);
+  const magnitude = 10 ** Math.floor(Math.log10(rough));
+  const normalized = rough / magnitude;
+  const factor = normalized <= 1 ? 1 : normalized <= 2 ? 2 : normalized <= 5 ? 5 : 10;
+  return factor * magnitude;
+};
+
+export function CashFlowChartV0174({ baseline, expected, dateLabel, Empty }) {
+  const points = baseline?.chart_points || [];
+  const expectedPoints = expected?.chart_points || [];
+  const all = [...points, ...expectedPoints];
+  if (!all.length) return <Empty title="No forecast yet">Add income, recurring expenses, bills or planned spending to generate a forecast.</Empty>;
+
+  const values = all.map((point) => Number(point.balance || 0));
+  const rawMin = Math.min(...values, 0);
+  const rawMax = Math.max(...values, 0);
+  const step = niceStep(Math.max(rawMax - rawMin, 1));
+  const min = Math.floor(rawMin / step) * step;
+  const max = Math.ceil(rawMax / step) * step || step;
+  const span = Math.max(max - min, step);
+  const padLeft = 22;
+  const padRight = 4;
+  const padTop = 6;
+  const padBottom = 17;
+  const plotWidth = 100 - padLeft - padRight;
+  const plotHeight = 100 - padTop - padBottom;
+  const line = (rows) => rows.map((point, index) => {
+    const x = padLeft + (index / Math.max(rows.length - 1, 1)) * plotWidth;
+    const y = padTop + plotHeight - ((Number(point.balance || 0) - min) / span) * plotHeight;
+    return `${x},${y}`;
+  }).join(' ');
+  const yTicks = Array.from({ length: 5 }, (_, index) => max - (span * index / 4));
+  const dateRows = points.length ? points : expectedPoints;
+  const tickCount = Math.min(5, dateRows.length);
+  const indexes = [...new Set(Array.from({ length: tickCount }, (_, index) => Math.round(index * (dateRows.length - 1) / Math.max(tickCount - 1, 1))))];
+
+  return <div className="chart-wrap chart-with-axes" role="img" aria-label="Cash flow forecast chart with readable balance and date axes">
+    <svg viewBox="0 0 100 100" preserveAspectRatio="none">
+      {yTicks.map((tick, index) => {
+        const y = padTop + (index / 4) * plotHeight;
+        return <g key={`y-${index}`}><line x1={padLeft} y1={y} x2={100 - padRight} y2={y}/><text className="axis-label axis-y" x={padLeft - 1.5} y={y + 1.5} textAnchor="end">{compactCurrency(tick)}</text></g>;
+      })}
+      {indexes.map((index) => {
+        const x = padLeft + (index / Math.max(dateRows.length - 1, 1)) * plotWidth;
+        return <g key={`x-${index}`}><line x1={x} y1={padTop} x2={x} y2={padTop + plotHeight}/><text className="axis-label axis-x" x={x} y={97} textAnchor={index === 0 ? 'start' : index === dateRows.length - 1 ? 'end' : 'middle'}>{dateLabel(dateRows[index]?.date).replace(/\s\d{4}$/, '')}</text></g>;
+      })}
+      <polyline className="baseline" points={line(points)}/><polyline className="expected" points={line(expectedPoints)}/>
+    </svg>
+    <div className="chart-legend"><span><i className="solid"></i>Baseline Forecast</span><span><i className="dash"></i>Expected Forecast</span></div>
+  </div>;
 }
