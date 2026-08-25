@@ -11,7 +11,6 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session as DbSession
 
 from . import payments_v17 as legacy
-from . import v1
 from .auth import get_current_user
 from .database import get_db
 from .models import User
