@@ -1,5 +1,17 @@
 # Fynvo Add-on Changelog
 
+## v1.11.1 - Financial Event Consistency, Forecast & Calendar Fixes
+
+- Corrected the v1.11 command-centre/frontend contract so Overview consumes `available_cash`, `scheduled_commitments`, forecast events and upcoming commitments from their authoritative response fields.
+- Restored Calendar population by using the canonical upcoming/forecast event data instead of the removed `command.calendar` field.
+- Fixed Forecast Summary Lowest Balance handling so the nested forecast balance value is rendered instead of the object itself.
+- Hardened currency rendering so invalid/non-finite numeric values cannot appear as `$NaN`, `Infinity` or `-Infinity`.
+- Restored the Overview Cash Flow Forecast by consuming the backend's canonical `chart_points` series.
+- Corrected the mobile Cash Flow event presentation so forecast events render as contained, readable rows rather than oversized grey blocks.
+- Preserved existing Recurring Expenses, Scheduled Payments, Transactions, reconciliation relationships and household financial data without a destructive migration.
+- Updated frontend, backend, add-on and production-shell metadata to v1.11.1.
+- Installed Home Assistant/iPhone cross-screen acceptance remains a manual verification gate.
+
 ## v1.10.1 - Installed Reliability, API & Workflow Hardening
 
 - Hardened the Recurring Expense update contract so payment-aware fields are validated and persisted through the active v1.7 endpoint.
