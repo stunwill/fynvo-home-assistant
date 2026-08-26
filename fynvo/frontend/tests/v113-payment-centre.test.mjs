@@ -81,6 +81,6 @@ test('dashboard uses the unified Payment Centre attention and money-needed summa
 test('mobile Payment Centre prevents horizontal page overflow while preserving scrollable summary cards', () => {
   assert.match(css, /\.payment-centre-page\{[^}]*min-width:0/);
   assert.match(css, /@media\(max-width:620px\)[\s\S]*\.payment-centre-page\{[^}]*overflow-x:hidden/);
-  assert.match(css, /\.payment-centre-summary\{display:flex;overflow-x:auto/);
+  assert.match(css, /@media\(max-width:980px\)[\s\S]*\.payment-centre-summary\{[^}]*display:flex;[^}]*overflow-x:auto/);
   assert.match(css, /max-height:calc\(100dvh/);
 });
