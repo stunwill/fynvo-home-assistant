@@ -118,6 +118,8 @@ def _bill_status(row: dict[str, Any], today: date | None = None) -> str:
         return "cancelled"
     if row.get("paid_at") or row.get("actual_date") or row.get("remaining_amount_cents") == 0:
         return "paid"
+    if row.get("original_amount_cents") is None and row.get("remaining_amount_cents") is None:
+        return "unknown"
     due = _as_date(row.get("due_date"))
     handling = row.get("payment_handling") or payments_v17.default_payment_handling(row.get("payment_method"))
     grace = int(row.get("auto_payment_grace_days") or payments_v17.DEFAULT_GRACE_DAYS)
@@ -227,6 +229,28 @@ class BillPayload(BaseModel):
     version: int | None = None
 
 
+class BillUpdatePayload(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=140)
+    amount: str | None = None
+    due_date: date | None = None
+    provider: str | None = Field(default=None, max_length=140)
+    payee_merchant: str | None = Field(default=None, max_length=180)
+    bill_type: str | None = Field(default=None, max_length=80)
+    priority: str | None = None
+    category_id: int | None = None
+    expense_type_id: int | None = None
+    payment_handling: str | None = None
+    payment_method: str | None = None
+    account_id: int | None = None
+    card_id: int | None = None
+    auto_payment_grace_days: int | None = Field(default=None, ge=0, le=30)
+    notes: str | None = None
+    recurring_expense_id: int | None = None
+    paid_through_date: date | None = None
+    version: int | None = None
+    status: str | None = None
+
+
 def _validate_bill_payload(db: DbSession, user: User, payload: BillPayload) -> tuple[int | None, int | None]:
     if payload.priority not in {"high", "normal", "low"}:
         raise HTTPException(status_code=400, detail="Invalid Bill priority")
@@ -296,21 +320,45 @@ def bill_detail(bill_id: int, current_user: User = USER, db: DbSession = DB):
 
 
 @router.put("/bills/{bill_id}")
-def update_bill(bill_id: int, payload: BillPayload, current_user: User = USER, db: DbSession = DB):
+def update_bill(bill_id: int, payload: BillUpdatePayload, current_user: User = USER, db: DbSession = DB):
     existing = db.execute(text("SELECT * FROM bills WHERE id=:id AND user_id=:uid"), {"id": bill_id, "uid": current_user.id}).mappings().first()
     if not existing:
         raise HTTPException(status_code=404, detail="Bill not found")
-    current_status = _bill_status(dict(existing))
-    if existing["original_amount_cents"] is not None:
-        amount_changed = payload.amount not in (None, cents_to_decimal(int(existing["original_amount_cents"])))
-    else:
-        amount_changed = payload.amount not in (None, "")
-    if current_status in TERMINAL_BILL_STATUSES and (amount_changed or payload.due_date != _as_date(existing["due_date"])):
+    existing_data = dict(existing)
+    current_status = _bill_status(existing_data)
+    changes = payload.model_dump(exclude_unset=True)
+    requested_status = changes.pop("status", None)
+    merged = {
+        "name": changes.get("name", existing_data.get("name")),
+        "amount": changes.get("amount", cents_to_decimal(int(existing_data["original_amount_cents"])) if existing_data.get("original_amount_cents") is not None else None),
+        "due_date": changes.get("due_date", _as_date(existing_data.get("due_date"))),
+        "provider": changes.get("provider", existing_data.get("provider")),
+        "payee_merchant": changes.get("payee_merchant", existing_data.get("payee_merchant")),
+        "bill_type": changes.get("bill_type", existing_data.get("bill_type")),
+        "priority": changes.get("priority", existing_data.get("priority") or "normal"),
+        "category_id": changes.get("category_id", existing_data.get("category_id")),
+        "expense_type_id": changes.get("expense_type_id", existing_data.get("expense_type_id")),
+        "payment_handling": changes.get("payment_handling", existing_data.get("payment_handling") or "manual"),
+        "payment_method": changes.get("payment_method", existing_data.get("payment_method") or "not_set"),
+        "account_id": changes.get("account_id", existing_data.get("account_id")),
+        "card_id": changes.get("card_id", existing_data.get("card_id")),
+        "auto_payment_grace_days": changes.get("auto_payment_grace_days", int(existing_data.get("auto_payment_grace_days") or payments_v17.DEFAULT_GRACE_DAYS)),
+        "notes": changes.get("notes", existing_data.get("notes")),
+        "recurring_expense_id": changes.get("recurring_expense_id", existing_data.get("recurring_expense_id")),
+        "paid_through_date": changes.get("paid_through_date", _as_date(existing_data.get("paid_through_date"))),
+        "version": payload.version,
+    }
+    values = BillPayload(**merged)
+    existing_amount = cents_to_decimal(int(existing_data["original_amount_cents"])) if existing_data.get("original_amount_cents") is not None else None
+    amount_changed = "amount" in changes and changes.get("amount") != existing_amount
+    due_changed = "due_date" in changes and changes.get("due_date") != _as_date(existing_data.get("due_date"))
+    if current_status in TERMINAL_BILL_STATUSES and (amount_changed or due_changed):
         raise HTTPException(status_code=409, detail="Paid or cancelled Bill financial evidence cannot be changed. Create a new obligation if the historical record was materially different.")
-    if payload.version is not None and int(payload.version) != int(existing.get("version") or 1):
+    if payload.version is not None and int(payload.version) != int(existing_data.get("version") or 1):
         raise HTTPException(status_code=409, detail="This payment changed while you were reviewing it")
-    account_id, card_id = _validate_bill_payload(db, current_user, payload)
-    expected = parse_money(payload.amount) if payload.amount not in (None, "") else None
+    account_id, card_id = _validate_bill_payload(db, current_user, values)
+    expected = parse_money(values.amount) if values.amount not in (None, "") else None
+    now = utcnow()
     result = db.execute(text("""
         UPDATE bills SET name=:name,provider=:provider,payee_merchant=:payee,bill_type=:bill_type,priority=:priority,
             original_amount_cents=:amount,
@@ -320,16 +368,32 @@ def update_bill(bill_id: int, payload: BillPayload, current_user: User = USER, d
             notes=:notes,updated_at=:now,version=version+1
         WHERE id=:id AND user_id=:uid AND version=:expected_version
     """), {
-        "name": payload.name.strip(), "provider": payload.provider, "payee": payload.payee_merchant or payload.provider,
-        "bill_type": payload.bill_type, "priority": payload.priority, "amount": expected, "due": payload.due_date,
-        "account_id": account_id, "card_id": card_id, "category_id": payload.category_id, "expense_type_id": payload.expense_type_id,
-        "method": payload.payment_method, "handling": payload.payment_handling, "grace": payload.auto_payment_grace_days,
-        "paid_through": payload.paid_through_date, "notes": payload.notes, "now": utcnow(), "id": bill_id,
-        "uid": current_user.id, "expected_version": int(existing.get("version") or 1),
+        "name": values.name.strip(), "provider": values.provider, "payee": values.payee_merchant or values.provider,
+        "bill_type": values.bill_type, "priority": values.priority, "amount": expected, "due": values.due_date,
+        "account_id": account_id, "card_id": card_id, "category_id": values.category_id, "expense_type_id": values.expense_type_id,
+        "method": values.payment_method, "handling": values.payment_handling, "grace": values.auto_payment_grace_days,
+        "paid_through": values.paid_through_date, "notes": values.notes, "now": now, "id": bill_id,
+        "uid": current_user.id, "expected_version": int(existing_data.get("version") or 1),
     })
     if not result.rowcount:
         db.rollback()
         raise HTTPException(status_code=409, detail="This payment changed while you were reviewing it")
+    if requested_status in {"paid", "resolved"}:
+        actual_date = date.today()
+        db.execute(text("""
+            UPDATE bills SET remaining_amount_cents=0,paid_at=:paid,actual_date=:actual_date,actual_amount_cents=:actual,
+                confirmation_source='manual',resolved_at=:resolved,updated_at=:now
+            WHERE id=:id AND user_id=:uid
+        """), {
+            "paid": now if requested_status == "paid" else None,
+            "actual_date": actual_date if requested_status == "paid" else None,
+            "actual": expected if requested_status == "paid" else None,
+            "resolved": now,
+            "now": now,
+            "id": bill_id,
+            "uid": current_user.id,
+        })
+        db.execute(text("INSERT INTO bill_payment_history(user_id,bill_id,from_status,to_status,source,note,created_at) VALUES(:uid,:bid,:from_status,:to_status,'legacy_edit','Updated through legacy Bill edit workflow',:now)"), {"uid": current_user.id, "bid": bill_id, "from_status": current_status, "to_status": "paid" if requested_status == "paid" else "resolved", "now": now})
     db.commit()
     return get_bill(db, current_user, bill_id)
 
