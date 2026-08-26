@@ -37,7 +37,7 @@ def _add_column(connection, table: str, definition: str, columns: set[str]) -> N
 
 
 def ensure_v112_schema(engine) -> None:
-    """Add production Bill payment metadata without replacing existing financial records."""
+    """Add Bill payment metadata without replacing existing financial records."""
     with engine.begin() as connection:
         columns = _columns(connection, "bills")
         for definition in (
@@ -80,11 +80,6 @@ def ensure_v112_schema(engine) -> None:
         connection.execute(text("CREATE INDEX IF NOT EXISTS idx_bill_payment_history ON bill_payment_history(user_id,bill_id,created_at)"))
         connection.execute(text("CREATE INDEX IF NOT EXISTS idx_bill_payment_centre ON bills(user_id,is_active,due_date,payment_handling,payment_method)"))
         connection.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS idx_bill_tx_unique ON bills(user_id,matched_transaction_id) WHERE matched_transaction_id IS NOT NULL"))
-        current = connection.execute(text("SELECT MAX(version) FROM schema_version")).scalar()
-        if current is None:
-            connection.execute(text("INSERT INTO schema_version(version) VALUES(15)"))
-        elif int(current) < 15:
-            connection.execute(text("UPDATE schema_version SET version=15"))
 
 
 def _as_date(value: Any) -> date | None:
@@ -151,7 +146,6 @@ def _bill_response(row: Any, today: date | None = None) -> dict[str, Any]:
     state = _bill_status(data, current)
     difference = None if actual_cents is None or expected_cents is None else int(actual_cents) - int(expected_cents)
     payment_method = data.get("payment_method") or "not_set"
-    card_name = data.get("card_display_name")
     return {
         "id": int(data["id"]), "source_type": "bill", "source_id": int(data["id"]),
         "recurring_expense_id": data.get("recurring_expense_id"), "name": data.get("name"),
@@ -171,9 +165,10 @@ def _bill_response(row: Any, today: date | None = None) -> dict[str, Any]:
         "payment_handling": data.get("payment_handling") or payments_v17.default_payment_handling(payment_method),
         "auto_payment_grace_days": int(data.get("auto_payment_grace_days") or payments_v17.DEFAULT_GRACE_DAYS),
         "account_id": data.get("account_id"), "account_name": data.get("account_name"),
-        "card_id": data.get("card_id"), "card_name": card_name, "linked_account_name": data.get("linked_account_name"),
+        "card_id": data.get("card_id"), "card_name": data.get("card_display_name"), "linked_account_name": data.get("linked_account_name"),
         "notes": data.get("notes"), "matched_transaction_id": data.get("matched_transaction_id"),
         "confirmation_source": data.get("confirmation_source"), "version": int(data.get("version") or 1),
+        "is_active": bool(data.get("is_active", True)), "original_status": data.get("original_status"),
         "requires_action": state in ACTIONABLE_STATUSES,
     }
 
@@ -196,6 +191,9 @@ def _bill_rows(db: DbSession, user: User) -> list[dict[str, Any]]:
 
 
 def list_bills_v112(db: DbSession, user: User, filter_value: str = "all") -> list[dict[str, Any]]:
+    from .finance import ensure_seed_data
+
+    ensure_seed_data(db, user)
     rows = _bill_rows(db, user)
     if filter_value == "overdue":
         return [row for row in rows if row["status"] == "overdue"]
@@ -303,7 +301,6 @@ def update_bill(bill_id: int, payload: BillPayload, current_user: User = USER, d
     if not existing:
         raise HTTPException(status_code=404, detail="Bill not found")
     current_status = _bill_status(dict(existing))
-    amount_changed = False
     if existing["original_amount_cents"] is not None:
         amount_changed = payload.amount not in (None, cents_to_decimal(int(existing["original_amount_cents"])))
     else:
@@ -410,9 +407,9 @@ def _scheduled_payment_rows(db: DbSession, user: User) -> list[dict[str, Any]]:
             WHERE r.user_id=:uid
         """), {"uid": user.id}).mappings().all()
     }
-    candidate_ids = {int(item["scheduled_payment_id"]) for item in v111._match_candidates(7, user, db)}
+    candidate_ids = {int(item["scheduled_payment_id"]) for item in v111.payment_match_candidates(7, user, db)}
     output = []
-    today = date.today()
+    current = date.today()
     for item in rows:
         meta = recurring_meta.get(int(item["recurring_expense_id"]), {})
         due = _as_date(item.get("expected_date"))
@@ -423,7 +420,7 @@ def _scheduled_payment_rows(db: DbSession, user: User) -> list[dict[str, Any]]:
             "expense_type_id": meta.get("expense_type_id"), "expense_type": meta.get("expense_type_name"),
             "payee_merchant": meta.get("payee_merchant"), "amount_type": meta.get("amount_type"),
             "difference": cents_to_decimal(parse_money(item["actual_amount"]) - parse_money(item["expected_amount"])) if item.get("actual_amount") is not None and item.get("expected_amount") is not None else None,
-            "days_overdue": (today - due).days if due and status_name == "overdue" else None,
+            "days_overdue": (current - due).days if due and status_name == "overdue" else None,
             "match_review_available": int(item["id"]) in candidate_ids,
             "history_count": history_counts.get(int(item["id"]), 0),
         }
@@ -433,20 +430,20 @@ def _scheduled_payment_rows(db: DbSession, user: User) -> list[dict[str, Any]]:
 
 
 def _date_range(kind: str, start: date | None, end: date | None) -> tuple[date | None, date | None]:
-    today = date.today()
+    current = date.today()
     if kind == "overdue":
-        return None, today - timedelta(days=1)
+        return None, current - timedelta(days=1)
     if kind == "next_7_days":
-        return today, today + timedelta(days=7)
+        return current, current + timedelta(days=7)
     if kind == "next_30_days":
-        return today, today + timedelta(days=30)
+        return current, current + timedelta(days=30)
     if kind == "next_90_days":
-        return today, today + timedelta(days=90)
+        return current, current + timedelta(days=90)
     if kind == "this_month":
-        month_end = date(today.year + (today.month == 12), 1 if today.month == 12 else today.month + 1, 1) - timedelta(days=1)
-        return date(today.year, today.month, 1), month_end
+        month_end = date(current.year + (current.month == 12), 1 if current.month == 12 else current.month + 1, 1) - timedelta(days=1)
+        return date(current.year, current.month, 1), month_end
     if kind == "next_month":
-        first = date(today.year + (today.month == 12), 1 if today.month == 12 else today.month + 1, 1)
+        first = date(current.year + (current.month == 12), 1 if current.month == 12 else current.month + 1, 1)
         end_month = date(first.year + (first.month == 12), 1 if first.month == 12 else first.month + 1, 1) - timedelta(days=1)
         return first, end_month
     if kind == "custom":
@@ -454,7 +451,7 @@ def _date_range(kind: str, start: date | None, end: date | None) -> tuple[date |
             raise HTTPException(status_code=400, detail="Custom Date Range requires valid start and end dates")
         return start, end
     if kind == "history":
-        return start, end or today
+        return start, end or current
     raise HTTPException(status_code=400, detail="Unsupported Date Range")
 
 
@@ -479,11 +476,10 @@ def _status_bucket(item: dict[str, Any]) -> str:
 
 
 def _sort_key(item: dict[str, Any]) -> tuple[int, str, str]:
-    state = item.get("status")
     priority = {
         "overdue": 0, "auto_payment_unconfirmed": 1, "due_today": 2, "due": 2,
         "expected_automatically": 3, "upcoming": 5, "paid": 8, "skipped": 9, "cancelled": 10,
-    }.get(state, 6)
+    }.get(item.get("status"), 6)
     return priority, str(item.get("expected_date") or item.get("due_date") or "9999-12-31"), str(item.get("name") or "")
 
 
