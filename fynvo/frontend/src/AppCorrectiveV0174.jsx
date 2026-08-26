@@ -285,7 +285,7 @@ function Overview({ data, setActive, rangeDays, setQuick, quickDefaults }) {
   const actionable = paymentRows.filter((row) => row.requires_action || row.match_review_available).slice(0, 6);
   const upcoming = paymentRows.length ? paymentRows.filter((row) => !['paid', 'skipped', 'cancelled'].includes(row.status)).slice(0, 7) : (command.upcoming_commitments || command.upcoming || events.filter((row) => row.direction === 'expense')).slice(0, 7);
   const health = data.financialHealth || command.financial_health || {};
-  const attentionCount = Number(actionable.length || health.issue_count ?? health.attention_count ?? data.paymentAttention?.length ?? 0);
+  const attentionCount = Number(actionable.length || (health.issue_count ?? health.attention_count ?? data.paymentAttention?.length ?? 0));
   const baselineEnd = forecast?.final_balance ?? forecast?.end_balance ?? forecast?.ending_balance;
   const expectedEnd = expected?.final_balance ?? expected?.end_balance ?? expected?.ending_balance;
   const lowestRecord = expected?.lowest_balance ?? forecast?.lowest_balance;
