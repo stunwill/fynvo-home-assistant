@@ -8,6 +8,7 @@ import {
   buildPaymentCentreQuery,
   defaultPaymentCentreFilters,
   groupPayments,
+  paymentAttentionReason,
   paymentNeedsAction,
   paymentPrimaryAction,
   paymentSourceLabel,
@@ -20,11 +21,16 @@ const finiteNumber = (value) => {
   const number = Number(value);
   return Number.isFinite(number) ? number : null;
 };
+
 const money = (value) => {
   const number = finiteNumber(value);
   return number === null ? 'Not set' : new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(number);
 };
-const dateLabel = (value) => value ? new Intl.DateTimeFormat('en-AU', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(`${String(value).slice(0, 10)}T00:00:00`)) : 'No date';
+
+const dateLabel = (value) => value
+  ? new Intl.DateTimeFormat('en-AU', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(`${String(value).slice(0, 10)}T00:00:00`))
+  : 'No date';
+
 const todayInput = () => new Date().toISOString().slice(0, 10);
 
 function StatusBadge({ status }) {
@@ -33,12 +39,20 @@ function StatusBadge({ status }) {
 
 function Summary({ summary }) {
   const items = [
-    ['total_scheduled', 'Total scheduled'], ['overdue', 'Overdue'], ['requires_payment', 'Requires payment'],
-    ['expected_automatically', 'Expected automatically'], ['awaiting_confirmation', 'Awaiting confirmation'],
-    ['upcoming', 'Upcoming'], ['paid', 'Paid'],
+    ['total_scheduled', 'Total scheduled'],
+    ['overdue', 'Overdue'],
+    ['requires_payment', 'Requires payment'],
+    ['expected_automatically', 'Expected automatically'],
+    ['awaiting_confirmation', 'Awaiting confirmation'],
+    ['upcoming', 'Upcoming'],
+    ['paid', 'Paid'],
   ];
   return <div className="payment-centre-summary" aria-label="Payment summary">
-    {items.map(([key, label]) => <article key={key} className={`payment-centre-summary-card summary-${key}`}><small>{label}</small><strong>{money(summary?.[key]?.amount)}</strong><span>{summary?.[key]?.count || 0} item{summary?.[key]?.count === 1 ? '' : 's'}</span></article>)}
+    {items.map(([key, label]) => <article key={key} className={`payment-centre-summary-card summary-${key}`}>
+      <small>{label}</small>
+      <strong>{money(summary?.[key]?.amount)}</strong>
+      <span>{summary?.[key]?.count || 0} item{summary?.[key]?.count === 1 ? '' : 's'}</span>
+    </article>)}
   </div>;
 }
 
@@ -68,10 +82,11 @@ function PaymentRow({ row, onOpen, onAction }) {
   const amount = row.status === 'paid' && row.actual_amount != null ? row.actual_amount : row.expected_amount ?? row.amount;
   const primary = paymentPrimaryAction(row);
   const actionLabel = primary === 'mark_paid' ? 'Mark as paid' : primary === 'review' ? 'Review' : 'View';
+  const reason = paymentAttentionReason(row);
   return <article className={`payment-centre-row ${paymentNeedsAction(row) ? 'needs-action' : ''}`}>
     <button type="button" className="payment-centre-row-main" onClick={() => onOpen(row)}>
       <span className="payment-centre-date"><small>Due</small><strong>{dateLabel(row.expected_date || row.due_date)}</strong>{row.days_overdue ? <em>Overdue by {row.days_overdue} day{row.days_overdue === 1 ? '' : 's'}</em> : null}</span>
-      <span className="payment-centre-name"><strong>{row.name}</strong><small>{row.category || 'Uncategorised'} · {paymentSourceLabel(row)}</small></span>
+      <span className="payment-centre-name"><strong>{row.name}</strong><small>{row.category || 'Uncategorised'} · {paymentSourceLabel(row)}</small>{reason && <small>{reason}</small>}</span>
       <span className="payment-centre-amount"><strong>{money(amount)}</strong>{row.actual_amount != null && row.expected_amount != null && <small>Expected {money(row.expected_amount)}</small>}</span>
       <span className="payment-centre-method"><strong>{row.payment_method_label || PAYMENT_METHOD_LABELS[row.payment_method] || 'Not Set'}</strong><small>{row.card_name || row.account_name || (row.payment_handling === 'automatic' ? 'Automatic' : 'Manual')}</small></span>
       <StatusBadge status={row.status}/>
@@ -80,26 +95,37 @@ function PaymentRow({ row, onOpen, onAction }) {
   </article>;
 }
 
-function DetailModal({ detail, onClose, onMarkPaid, onSkip, onReview, onViewTransaction }) {
+function DetailModal({ detail, onClose, onMarkPaid, onSkip, onReview, onViewTransaction, onEditBill, onCancelBill, onOpenRecurring }) {
   if (!detail) return null;
   const expected = detail.expected_amount ?? detail.amount;
   const canReviewMatch = detail.source_type === 'scheduled_payment' && (detail.match_review_available || detail.status === 'auto_payment_unconfirmed');
+  const unresolved = !['paid', 'skipped', 'cancelled'].includes(detail.status);
   return <div className="payment-centre-modal-backdrop" onMouseDown={(event) => event.target === event.currentTarget && onClose()}><section className="payment-centre-detail" role="dialog" aria-modal="true" aria-label={`${detail.name} payment detail`}><header><div><StatusBadge status={detail.status}/><h2>{detail.name}</h2><p>{paymentSourceLabel(detail)}</p></div><button type="button" onClick={onClose} aria-label="Close payment detail">×</button></header><div className="payment-centre-detail-body">
     <div className="payment-centre-detail-grid"><div><span>Expected</span><strong>{money(expected)}</strong></div><div><span>Actual</span><strong>{detail.actual_amount != null ? money(detail.actual_amount) : 'Not confirmed'}</strong></div><div><span>Difference</span><strong>{detail.difference != null ? `${Number(detail.difference) > 0 ? '+' : ''}${money(detail.difference)}` : 'Not available'}</strong></div><div><span>Due date</span><strong>{dateLabel(detail.expected_date || detail.due_date)}</strong></div><div><span>Paid date</span><strong>{detail.actual_date ? dateLabel(detail.actual_date) : 'Not paid'}</strong></div><div><span>Category</span><strong>{detail.category || 'Not set'}</strong></div><div><span>Expense Type</span><strong>{detail.expense_type || 'Not set'}</strong></div><div><span>Payee / Merchant</span><strong>{detail.payee_merchant || detail.provider || 'Not set'}</strong></div><div><span>Payment Handling</span><strong>{detail.payment_handling === 'automatic' ? 'Paid automatically' : 'I pay this manually'}</strong></div><div><span>Payment Method</span><strong>{detail.payment_method_label || PAYMENT_METHOD_LABELS[detail.payment_method] || 'Not Set'}</strong></div><div><span>Account</span><strong>{detail.account_name || detail.linked_account_name || 'Not set'}</strong></div><div><span>Card</span><strong>{detail.card_name || 'Not set'}</strong></div></div>
     {detail.card_name && detail.linked_account_name && <p className="payment-centre-linked-account">Linked to account: <strong>{detail.linked_account_name}</strong></p>}
-    {detail.source_type === 'bill' && detail.status === 'auto_payment_unconfirmed' && <div className="payment-centre-evidence"><span>Transaction confirmation</span><strong>No automatic Bill transaction link has been confirmed.</strong><small>Use Transactions to inspect imported evidence. Fynvo does not fabricate a Transaction or create a separate Bill reconciliation model.</small><button type="button" onClick={() => onViewTransaction(null)}>Review Transactions</button></div>}
     {detail.notes && <div className="payment-centre-note"><span>Notes</span><p>{detail.notes}</p></div>}
     {detail.matched_transaction && <div className="payment-centre-evidence"><span>Matched transaction</span><strong>{detail.matched_transaction.merchant || detail.matched_transaction.description}</strong><small>{dateLabel(detail.matched_transaction.date)} · {money(detail.matched_transaction.amount)}</small><button type="button" onClick={() => onViewTransaction(detail.matched_transaction)}>View Transaction</button></div>}
     {(detail.history || []).length > 0 && <div className="payment-centre-history"><h3>Status history</h3>{detail.history.map((item, index) => <div key={`${item.created_at}-${index}`}><span>{dateLabel(item.created_at)}</span><strong>{paymentStatusLabel(item.to_status)}</strong>{item.note && <small>{item.note}</small>}</div>)}</div>}
-  </div><footer>{detail.source_type === 'scheduled_payment' && !['paid', 'skipped', 'cancelled'].includes(detail.status) && <button type="button" onClick={() => onSkip(detail)}>Skip payment</button>}{canReviewMatch ? <button type="button" onClick={() => onReview(detail)}>Review Match</button> : null}{(detail.payment_handling === 'manual' || ['due', 'due_today', 'overdue'].includes(detail.status)) && !['paid', 'skipped', 'cancelled'].includes(detail.status) && <button type="button" className="primary" onClick={() => onMarkPaid(detail)}>Mark as paid</button>}<button type="button" onClick={onClose}>Close</button></footer></section></div>;
+  </div><footer>
+    {detail.source_type === 'bill' && unresolved && <button type="button" onClick={() => onEditBill(detail)}>Edit Bill</button>}
+    {detail.source_type === 'bill' && unresolved && <button type="button" onClick={() => onCancelBill(detail)}>Cancel Bill</button>}
+    {detail.source_type === 'scheduled_payment' && unresolved && <button type="button" onClick={() => onSkip(detail)}>Skip payment</button>}
+    {detail.source_type === 'scheduled_payment' && detail.recurring_expense_id && <button type="button" onClick={() => onOpenRecurring(detail)}>Open Recurring Expense</button>}
+    {canReviewMatch && <button type="button" onClick={() => onReview(detail)}>Review Match</button>}
+    {(detail.payment_handling === 'manual' || ['due', 'due_today', 'overdue'].includes(detail.status)) && unresolved && <button type="button" className="primary" onClick={() => onMarkPaid(detail)}>Mark as paid</button>}
+    <button type="button" onClick={onClose}>Close</button>
+  </footer></section></div>;
 }
 
 function MarkPaidModal({ payment, onClose, onSaved }) {
   const [form, setForm] = useState({ paid_date: todayInput(), paid_amount: payment?.expected_amount || payment?.amount || '', note: '' });
-  const [saving, setSaving] = useState(false); const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
   if (!payment) return null;
   const submit = async (event) => {
-    event.preventDefault(); setSaving(true); setError('');
+    event.preventDefault();
+    setSaving(true);
+    setError('');
     try {
       const isBill = payment.source_type === 'bill';
       const path = isBill ? `/bills/${payment.id}/mark-paid` : `/scheduled-payments/${payment.id}/mark-paid`;
@@ -108,36 +134,126 @@ function MarkPaidModal({ payment, onClose, onSaved }) {
         : { actual_date: form.paid_date, actual_amount: form.paid_amount, note: form.note };
       await apiRequest(path, { method: 'POST', body: JSON.stringify(payload) });
       await onSaved();
-    } catch (requestError) { setError(requestError.message || 'Could not mark this payment paid.'); } finally { setSaving(false); }
+    } catch (requestError) {
+      setError(requestError.message || 'Could not mark this payment paid.');
+    } finally {
+      setSaving(false);
+    }
   };
   return <div className="payment-centre-modal-backdrop"><form className="payment-centre-mark-paid" onSubmit={submit}><header><div><h2>Mark as paid</h2><p>{payment.name} · expected {money(payment.expected_amount ?? payment.amount)}</p></div><button type="button" onClick={onClose} aria-label="Close mark paid">×</button></header><div className="payment-centre-form"><label><span>Actual date</span><input required type="date" value={form.paid_date} onChange={(event) => setForm({ ...form, paid_date: event.target.value })}/></label><label><span>Actual amount</span><input required inputMode="decimal" value={form.paid_amount} onChange={(event) => setForm({ ...form, paid_amount: event.target.value })}/></label><label><span>Note (optional)</span><textarea rows="3" value={form.note} onChange={(event) => setForm({ ...form, note: event.target.value })}/></label>{error && <p className="error">{error}</p>}<p className="muted">This records payment evidence. It does not invent a bank Transaction.</p></div><footer><button type="button" onClick={onClose}>Cancel</button><button className="primary" disabled={saving}>{saving ? 'Saving…' : 'Mark as paid'}</button></footer></form></div>;
 }
 
-export default function PaymentCentreV112({ data, onNavigate, onRefreshSupporting }) {
+export default function PaymentCentreV112({ data, onNavigate, onRefreshSupporting, onEditBill, onOpenRecurring }) {
   const [filters, setFilters] = useState(defaultPaymentCentreFilters);
-  const [result, setResult] = useState(null); const [loading, setLoading] = useState(true); const [error, setError] = useState('');
-  const [detail, setDetail] = useState(null); const [markingPaid, setMarkingPaid] = useState(null); const [mobileFilters, setMobileFilters] = useState(false);
+  const [result, setResult] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [actionError, setActionError] = useState('');
+  const [detail, setDetail] = useState(null);
+  const [markingPaid, setMarkingPaid] = useState(null);
+  const [mobileFilters, setMobileFilters] = useState(false);
   const query = useMemo(() => buildPaymentCentreQuery(filters), [filters]);
-  const load = async () => { setLoading(true); setError(''); try { setResult(await apiRequest(query)); } catch (requestError) { setError(requestError.message || 'Could not load the Payment Centre.'); } finally { setLoading(false); } };
-  useEffect(() => { const timer = window.setTimeout(load, filters.search ? 180 : 0); return () => window.clearTimeout(timer); }, [query]);
-  const open = async (row) => { try { setDetail(await apiRequest(`/payment-centre/${row.source_type}/${row.id}`)); } catch (requestError) { setError(requestError.message || 'Could not load payment detail.'); } };
-  const refreshed = async () => { setMarkingPaid(null); setDetail(null); await Promise.allSettled([load(), onRefreshSupporting?.()]); };
+
+  const load = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      setResult(await apiRequest(query));
+    } catch (requestError) {
+      setError(requestError.message || 'Could not load the Payment Centre.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    const timer = window.setTimeout(load, filters.search ? 180 : 0);
+    return () => window.clearTimeout(timer);
+  }, [query]);
+
+  const open = async (row) => {
+    setActionError('');
+    try {
+      setDetail(await apiRequest(`/payment-centre/${row.source_type}/${row.id}`));
+    } catch (requestError) {
+      setActionError(requestError.message || 'Could not load payment detail.');
+    }
+  };
+
+  const refreshed = async () => {
+    setMarkingPaid(null);
+    setDetail(null);
+    setActionError('');
+    await Promise.allSettled([load(), onRefreshSupporting?.()]);
+  };
+
+  const cancelBill = async (row) => {
+    setActionError('');
+    try {
+      await apiRequest(`/bills/${row.id}/cancel`, { method: 'POST', body: JSON.stringify({ version: row.version }) });
+      await refreshed();
+    } catch (requestError) {
+      setActionError(requestError.message || 'Could not cancel this Bill.');
+    }
+  };
+
+  const skip = async (row) => {
+    setActionError('');
+    try {
+      if (row.source_type !== 'scheduled_payment') return;
+      await apiRequest(`/scheduled-payments/${row.id}/skip`, { method: 'POST', body: JSON.stringify({ note: 'Skipped from Payment Centre' }) });
+      await refreshed();
+    } catch (requestError) {
+      setActionError(requestError.message || 'Could not skip this payment.');
+    }
+  };
+
+  const editBill = (row) => {
+    setDetail(null);
+    setActionError('');
+    if (onEditBill) onEditBill(row);
+    else onNavigate('Bills');
+  };
+
+  const openRecurring = (row) => {
+    setDetail(null);
+    setActionError('');
+    if (onOpenRecurring) onOpenRecurring(row);
+    else onNavigate('Recurring Expenses');
+  };
+
   const action = (row, kind) => {
-    if (kind === 'mark_paid') setMarkingPaid(row);
+    setActionError('');
+    if (kind === 'mark_paid') { setDetail(null); setMarkingPaid(row); }
     else if (kind === 'review' && row.source_type === 'scheduled_payment') onNavigate('Review Queue');
     else if (kind === 'review') onNavigate('Transactions');
+    else if (kind === 'edit') editBill(row);
+    else if (kind === 'cancel') cancelBill(row);
+    else if (kind === 'open_recurring') openRecurring(row);
     else open(row);
   };
-  const skip = async (row) => { try { if (row.source_type !== 'scheduled_payment') return; await apiRequest(`/scheduled-payments/${row.id}/skip`, { method: 'POST', body: JSON.stringify({ note: 'Skipped from Payment Centre' }) }); await refreshed(); } catch (requestError) { setError(requestError.message || 'Could not skip this payment.'); } };
+
   const groups = groupPayments(result?.rows || []);
-  return <section className="payment-centre-page"><div className="payment-centre-head"><div><h1>Payment Centre</h1><p>What needs to be paid, what will be paid automatically, and what needs review.</p></div><button type="button" className="primary ghost" onClick={() => onNavigate('Bills')}>+ Add Bill</button></div>
+  return <section className="payment-centre-page">
+    <div className="payment-centre-head"><div><h1>Payment Centre</h1><p>What needs to be paid, what will be paid automatically, and what needs review.</p></div><button type="button" className="primary ghost" onClick={() => onNavigate('Bills')}>+ Add Bill</button></div>
     {result && !error && <Summary summary={result.summary}/>} 
     <Filters filters={filters} setFilters={setFilters} data={data} onClear={() => setFilters(defaultPaymentCentreFilters())} mobileOpen={mobileFilters} setMobileOpen={setMobileFilters}/>
+    {actionError && <div className="payment-centre-action-error" role="alert">{actionError}</div>}
     {loading && !result && <div className="payment-centre-state" role="status"><strong>Loading payments…</strong><p>Getting the latest household obligations.</p></div>}
     {error && <div className="payment-centre-state error-state" role="alert"><strong>Payment Centre could not load</strong><p>{error}</p><button type="button" onClick={load}>Retry</button></div>}
     {!loading && !error && result && result.rows.length === 0 && <div className="payment-centre-state"><strong>Nothing matches these filters</strong><p>No payment obligations were returned for this Date Range and filter combination.</p><button type="button" onClick={() => setFilters(defaultPaymentCentreFilters())}>Clear Filters</button></div>}
     {!error && result && result.rows.length > 0 && <div className={`payment-centre-groups ${loading ? 'refreshing' : ''}`}>{groups.map(([label, rows]) => <section className="payment-centre-group" key={label}><div className="payment-centre-group-head"><h2>{label}</h2><span>{rows.length}</span></div>{rows.map((row) => <PaymentRow key={`${row.source_type}-${row.id}`} row={row} onOpen={open} onAction={action}/>)}</section>)}</div>}
-    <DetailModal detail={detail} onClose={() => setDetail(null)} onMarkPaid={(row) => { setDetail(null); setMarkingPaid(row); }} onSkip={skip} onReview={() => { setDetail(null); onNavigate('Review Queue'); }} onViewTransaction={() => { setDetail(null); onNavigate('Transactions'); }}/>
-    <MarkPaidModal payment={markingPaid} onClose={() => setMarkingPaid(null)} onSaved={refreshed}/>
+    <DetailModal
+      detail={detail}
+      onClose={() => { setDetail(null); setActionError(''); }}
+      onMarkPaid={(row) => { setDetail(null); setMarkingPaid(row); }}
+      onSkip={skip}
+      onReview={() => { setDetail(null); onNavigate('Review Queue'); }}
+      onViewTransaction={() => { setDetail(null); onNavigate('Transactions'); }}
+      onEditBill={editBill}
+      onCancelBill={cancelBill}
+      onOpenRecurring={openRecurring}
+    />
+    <MarkPaidModal payment={markingPaid} onClose={() => { setMarkingPaid(null); setActionError(''); }} onSaved={refreshed}/>
   </section>;
 }
