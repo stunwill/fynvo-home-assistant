@@ -8,13 +8,14 @@ import mark from './assets/fynvo-mark.svg';
 import { CategoriesPageV0174, RecurringExpensesPageV0174 } from './CorrectiveV0174Pages.jsx';
 import { AccountsPageV14, BillsPageV14, IncomePageV14, PlannedSpendingPageV14 } from './V14RecordPages.jsx';
 import { CashFlowChartV0174, CategorySelect } from './v0174-corrective.jsx';
-import { CardsPageV17, PaymentReconciliationV17, RecurringPaymentFieldsV17, recurringV17Values } from './PaymentManagementV17.jsx';
+import { CardsPageV17, PaymentReconciliationV17, PaymentsAttentionV17, RecurringPaymentFieldsV17, recurringV17Values } from './PaymentManagementV17.jsx';
 import { apiRequest } from './apiClient.js';
 import './styles.css';
 
 const api = (path, options = {}) => fetch(`api${path}`, { credentials: 'same-origin', headers: { 'Content-Type': 'application/json', ...(options.headers || {}) }, ...options });
 const today = new Date().toISOString().slice(0, 10);
 const APP_VERSION = '1.13.0';
+const ATTENTION_STATUSES = new Set(['overdue', 'due', 'due_today', 'auto_payment_unconfirmed', 'unknown']);
 const navGroups = [
   { label: 'Core', items: ['Overview', 'Cash Flow', 'Calendar', 'Accounts'] },
   { label: 'Money', items: ['Payment Centre', 'Transactions', 'Income', 'Bills', 'Recurring Expenses', 'Planned Spending', 'Cards'] },
@@ -102,7 +103,7 @@ export default function AppCorrectiveV0174() {
   const [active, setActive] = useState(localStorage.getItem('fynvo.view') || 'Overview');
   const [rangeDays, setRangeDays] = useState(Number(localStorage.getItem('fynvo.rangeDays') || 90));
   const [form, setForm] = useState({ username: '', display_name: '', password: '' });
-  const [data, setData] = useState({ accounts: [], cards: [], transactions: [], income: [], recurring: [], scheduledPayments: [], bills: [], planned: [], categories: [], expenseTypes: [], budgets: [], goals: [], imports: [], review: [], suggestions: [], insights: [], financialHealth: null, budgetAnalysis: null, forecast: null, command: null, paymentCentreOverview: null });
+  const [data, setData] = useState({ accounts: [], cards: [], transactions: [], income: [], recurring: [], scheduledPayments: [], paymentAttention: [], bills: [], planned: [], categories: [], expenseTypes: [], budgets: [], goals: [], imports: [], review: [], suggestions: [], insights: [], financialHealth: null, budgetAnalysis: null, forecast: null, command: null, paymentCentreOverview: null });
   const [dashboardLoading, setDashboardLoading] = useState(true);
   const [error, setError] = useState(''); const [success, setSuccess] = useState(''); const [edit, setEdit] = useState(null); const [quick, setQuick] = useState(null); const [quickMenuOpen, setQuickMenuOpen] = useState(false); const [detail, setDetail] = useState(null); const [greeting, setGreeting] = useState(() => greetingForNow()); const [mobileNavOpen, setMobileNavOpen] = useState(false); const [isMobile, setIsMobile] = useState(() => window.matchMedia('(max-width: 980px)').matches);
   const menuButtonRef = useRef(null); const closeButtonRef = useRef(null); const commandRequestRef = useRef(0); const initialLoadedRef = useRef(false);
@@ -112,34 +113,41 @@ export default function AppCorrectiveV0174() {
   async function j(path) { try { return await apiRequest(path); } catch { return null; } }
   async function refreshDashboard(days = rangeDays) { const requestId = ++commandRequestRef.current; setDashboardLoading(true); try { const command = await j(`/dashboard/command-centre?range_days=${days}`); if (requestId !== commandRequestRef.current) return; setData((current) => ({ ...current, command })); } finally { if (requestId === commandRequestRef.current) setDashboardLoading(false); } }
   async function loadSupportingData() {
+    const scheduledRequest = active === 'Overview' ? j('/scheduled-payments') : Promise.resolve(null);
     const paymentCentreRequest = active === 'Overview' ? j('/payment-centre?date_range=next_30_days') : Promise.resolve(null);
     const [accounts, cards, transactions, income, recurring, scheduledPayments, bills, planned, categories, referenceData, budgets, goals, imports, review, suggestions, insights, financialHealth, budgetAnalysis, forecast, paymentCentreOverview] = await Promise.all([
-      j('/accounts'), j('/cards?include_inactive=true'), j('/transactions'), j('/income'), j('/recurring-expenses'), j('/scheduled-payments'), j('/bills'), j('/planned-spending'), j('/categories'), j('/reference-data'), j('/budgets'), j('/goals'), j('/imports/history'), j('/reconciliation/review-queue'), j('/intelligence/suggestions'), j(`/insights?horizon_days=${rangeDays}&refresh=false`), j(`/insights/financial-health?horizon_days=${rangeDays}`), j('/budgets/analysis'), j(`/forecast?mode=expected&horizon=${rangeDays}d`), paymentCentreRequest,
+      j('/accounts'), j('/cards?include_inactive=true'), j('/transactions'), j('/income'), j('/recurring-expenses'), scheduledRequest, j('/bills'), j('/planned-spending'), j('/categories'), j('/reference-data'), j('/budgets'), j('/goals'), j('/imports/history'), j('/reconciliation/review-queue'), j('/intelligence/suggestions'), j(`/insights?horizon_days=${rangeDays}&refresh=false`), j(`/insights/financial-health?horizon_days=${rangeDays}`), j('/budgets/analysis'), j(`/forecast?mode=expected&horizon=${rangeDays}d`), paymentCentreRequest,
     ]);
-    setData((current) => ({ ...current, accounts: accounts || [], cards: cards || [], transactions: transactions || [], income: income || [], recurring: recurring || [], scheduledPayments: scheduledPayments || [], bills: bills || [], planned: planned || [], categories: categories || [], expenseTypes: referenceData?.expense_types || [], budgets: budgets || [], goals: goals || [], imports: imports || [], review: review || [], suggestions: suggestions || [], insights: insights || [], financialHealth, budgetAnalysis, forecast, paymentCentreOverview: paymentCentreOverview === null ? current.paymentCentreOverview : paymentCentreOverview }));
+    setData((current) => {
+      const resolvedScheduled = scheduledPayments === null ? current.scheduledPayments : scheduledPayments || [];
+      const derivedAttention = paymentCentreOverview?.rows?.filter((row) => row.requires_action || ATTENTION_STATUSES.has(row.status)) || (scheduledPayments === null ? current.paymentAttention : resolvedScheduled.filter((row) => ATTENTION_STATUSES.has(row.status)));
+      return { ...current, accounts: accounts || [], cards: cards || [], transactions: transactions || [], income: income || [], recurring: recurring || [], scheduledPayments: resolvedScheduled, paymentAttention: derivedAttention, bills: bills || [], planned: planned || [], categories: categories || [], expenseTypes: referenceData?.expense_types || [], budgets: budgets || [], goals: goals || [], imports: imports || [], review: review || [], suggestions: suggestions || [], insights: insights || [], financialHealth, budgetAnalysis, forecast, paymentCentreOverview: paymentCentreOverview === null ? current.paymentCentreOverview : paymentCentreOverview };
+    });
   }
   async function loadAll() { await Promise.allSettled([refreshDashboard(rangeDays), loadSupportingData()]); }
   async function refreshRecurringSlice() {
     const recurring = await apiRequest('/recurring-expenses');
-    setData((current) => ({ ...current, recurring: recurring || [] }));
+    setData((current) => ({ ...current, recurring }));
     try {
       const scheduledPayments = await apiRequest('/scheduled-payments');
-      setData((current) => ({ ...current, scheduledPayments: scheduledPayments || [] }));
+      setData((current) => ({ ...current, scheduledPayments, paymentAttention: scheduledPayments.filter((row) => ATTENTION_STATUSES.has(row.status)) }));
       return { scheduleError: false };
     } catch {
       return { scheduleError: true };
     }
   }
-  async function refreshCards() { const cards = await apiRequest('/cards?include_inactive=true'); setData((current) => ({ ...current, cards: cards || [] })); }
+  async function refreshCards() { const cards = await apiRequest('/cards?include_inactive=true'); setData((current) => ({ ...current, cards })); }
   useEffect(() => { loadAuth(); }, []);
   useEffect(() => { if (auth?.authenticated && !initialLoadedRef.current) { initialLoadedRef.current = true; loadAll(); } }, [auth?.authenticated]);
   useEffect(() => { if (auth?.authenticated) refreshDashboard(rangeDays); localStorage.setItem('fynvo.rangeDays', String(rangeDays)); }, [rangeDays]);
   useEffect(() => { localStorage.setItem('fynvo.view', active); setError(''); setSuccess(''); setEdit(null); setQuick(null); setDetail(null); setQuickMenuOpen(false); if (auth?.authenticated && active === 'Overview') loadSupportingData(); }, [active]);
-  useEffect(() => { const update = () => { const mobile = window.matchMedia('(max-width: 980px)').matches; setIsMobile(mobile); if (!mobile) setMobileNavOpen(false); }; window.addEventListener('resize', update); return () => window.removeEventListener('resize', update); }, []);
-  useEffect(() => { setGreeting(greetingForNow()); const timer = window.setInterval(() => setGreeting(greetingForNow()), 60000); return () => window.clearInterval(timer); }, []);
+  useEffect(() => { const update = () => { const mobile = window.matchMedia('(max-width: 980px)').matches; setIsMobile(mobile); if (!mobile) setMobileNavOpen(false); }; update(); window.addEventListener('resize', update); return () => window.removeEventListener('resize', update); }, []);
+  useEffect(() => { if (!mobileNavOpen || !isMobile) return undefined; const onKeyDown = (event) => { if (event.key === 'Escape') { event.preventDefault(); closeMobileNav(); return; } if (event.key !== 'Tab') return; const sidebar = closeButtonRef.current?.closest('.sidebar'); const focusable = Array.from(sidebar?.querySelectorAll('button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])') || []); if (!focusable.length) return; const first = focusable[0]; const last = focusable[focusable.length - 1]; if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); } else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); } }; document.addEventListener('keydown', onKeyDown); const timer = window.setTimeout(() => closeButtonRef.current?.focus({ preventScroll: true }), 0); return () => { window.clearTimeout(timer); document.removeEventListener('keydown', onKeyDown); }; }, [mobileNavOpen, isMobile]);
+  useEffect(() => { const timer = window.setInterval(() => setGreeting(greetingForNow()), 60000); return () => window.clearInterval(timer); }, []);
+  useEffect(() => { setGreeting(greetingForNow()); }, [auth?.authenticated]);
 
-  async function submitAuth(e) { e.preventDefault(); setError(''); const endpoint = auth.setup_required ? '/auth/setup' : '/auth/login'; const res = await api(endpoint, { method: 'POST', body: JSON.stringify(form) }); if (res.ok) await loadAuth(); else setError('Sign in failed. Check your credentials.'); }
-  async function logout() { await api('/auth/logout', { method: 'POST' }); initialLoadedRef.current = false; setData((current) => ({ ...current, paymentCentreOverview: null })); await loadAuth(); }
+  async function submitAuth(e) { e.preventDefault(); setError(''); const endpoint = auth.setup_required ? '/auth/setup' : '/auth/login'; const res = await api(endpoint, { method: 'POST', body: JSON.stringify(form) }); if (res.ok) { const next = await res.json(); setAuth({ ...auth, ...next, authenticated: true, setup_required: false }); await loadAll(); } else { setError((await res.json().catch(() => ({}))).detail || 'Authentication failed.'); } }
+  async function logout() { await api('/auth/logout', { method: 'POST' }); setData((current) => ({ ...current, paymentCentreOverview: null })); setAuth({ authenticated: false, setup_required: false }); }
   async function saveEdit(e) {
     e.preventDefault(); setError(''); setSuccess('');
     const creating = edit.row?.id === null || edit.row?.id === undefined;
@@ -160,13 +168,39 @@ export default function AppCorrectiveV0174() {
     }
   }
   async function createRecord(type, values) {
-    setError(''); setSuccess('');
-    if (['recurring', 'transactions', 'bills'].includes(type)) {
+    setError('');
+    setSuccess('');
+    if (type === 'recurring') {
       try {
         await apiRequest(createPath(type), { method: 'POST', body: JSON.stringify(normaliseMutationValues(type, values)) });
-        setQuick(null); setSuccess(`${recordLabels[type]} created.`); await loadAll();
+        setQuick(null);
+        setSuccess('Recurring Expense created.');
+        const refresh = await refreshRecurringSlice();
+        if (refresh.scheduleError) setError('Recurring Expense created, but scheduled payment information could not be refreshed yet.');
       } catch (requestError) {
-        setError(friendlyError(requestError?.payload, requestError?.message || `Could not create ${recordLabels[type]}. Check the fields and try again.`));
+        setError(friendlyError(requestError?.payload, requestError?.message || 'Could not create Recurring Expense. Check the fields and try again.'));
+      }
+      return;
+    }
+    if (type === 'transactions') {
+      try {
+        await apiRequest(createPath(type), { method: 'POST', body: JSON.stringify(values) });
+        setQuick(null);
+        setSuccess('Transaction created.');
+        await loadSupportingData();
+      } catch (requestError) {
+        setError(friendlyError(requestError?.payload, requestError?.message || 'Could not create Transaction. Check the fields and try again.'));
+      }
+      return;
+    }
+    if (type === 'bills') {
+      try {
+        await apiRequest(createPath(type), { method: 'POST', body: JSON.stringify(normaliseMutationValues(type, values)) });
+        setQuick(null);
+        setSuccess('Bill created.');
+        await loadAll();
+      } catch (requestError) {
+        setError(friendlyError(requestError?.payload, requestError?.message || 'Could not create Bill. Check the payment details and try again.'));
       }
       return;
     }
@@ -183,7 +217,11 @@ export default function AppCorrectiveV0174() {
   async function refreshInsights() { const res = await api(`/insights/refresh?horizon_days=${rangeDays}`, { method: 'POST' }); if (res.ok) { setSuccess('Financial Insights refreshed.'); await loadAll(); } else setError('Could not refresh Financial Insights.'); }
 
   const quickDefaults = (type) => {
-    const defaults = ['recurring', 'bills'].includes(type) ? { account_id: null, card_id: null } : { account_id: type === 'planned' ? null : data.accounts[0]?.id || '', destination_account_id: data.accounts[0]?.id || '' };
+    const defaults = type === 'recurring'
+      ? { account_id: null, card_id: null }
+      : type === 'bills'
+        ? { account_id: null, card_id: null }
+        : { account_id: type === 'planned' ? null : data.accounts[0]?.id || '', destination_account_id: data.accounts[0]?.id || '' };
     return { type, values: normaliseRecord(type, defaults) };
   };
   const openQuickAdd = (type) => { setQuickMenuOpen(false); setQuick(quickDefaults(type)); };
@@ -207,7 +245,7 @@ export default function AppCorrectiveV0174() {
     <main className="content">
       <div className="mobile-app-bar" aria-label="Fynvo application controls"><button ref={menuButtonRef} className="mobile-menu-button" type="button" aria-label={mobileNavOpen ? 'Close Fynvo navigation' : 'Open Fynvo navigation'} aria-expanded={mobileNavOpen} aria-controls="fynvo-navigation" onClick={() => setMobileNavOpen((open) => !open)}><span aria-hidden="true">☰</span><span className="sr-only">Menu</span></button><strong className="mobile-app-identity">Fynvo</strong></div>
       <header className="header"><div><h1>{active === 'Overview' ? `${greeting}, ${auth.user?.display_name || 'there'}! 👋` : active}</h1><p>{active === 'Overview' ? "Here's your financial overview and what's ahead." : active === 'Insights' ? 'Understand what is changing, why it matters and which data supports it.' : active === 'Payment Centre' ? 'Manage household obligations, payment status and actions.' : 'Manage household financial records and planning.'}</p></div><div className="header-actions"><label className="select-shell">Date range<select value={rangeDays} onChange={(e) => setRangeDays(Number(e.target.value))}>{horizonOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label><button className="primary ghost" onClick={() => setQuickMenuOpen(true)}>+ Quick Add</button></div></header>{error && <p className="error banner">{error}</p>}{success && <p className="success banner">{success}</p>}
-      {active === 'Overview' && <Overview data={data} setActive={navigate} rangeDays={rangeDays} setQuick={setQuick} quickDefaults={quickDefaults}/>} 
+      {active === 'Overview' && <><Overview data={data} setActive={navigate} rangeDays={rangeDays} setQuick={setQuick} quickDefaults={quickDefaults}/><PaymentsAttentionV17 rows={data.paymentAttention.filter((row) => row.source_type !== 'bill')} money={money} dateLabel={dateLabel} onRefresh={loadAll}/></>}
       {active === 'Payment Centre' && <PaymentCentreV112 data={data} onNavigate={navigate} onRefreshSupporting={loadAll} onEditBill={(row) => setEdit({ type: 'bills', label: 'Bill', row, values: normaliseRecord('bills', row) })}/>} 
       {active === 'Cash Flow' && <ForecastPage forecast={data.command?.forecast?.expected || data.forecast} onView={openForecastDetail}/>} 
       {active === 'Calendar' && <CalendarPage command={data.command}/>} 
@@ -245,53 +283,66 @@ function Overview({ data, setActive, rangeDays, setQuick, quickDefaults }) {
   const paymentCentreOverview = data.paymentCentreOverview || {};
   const paymentRows = paymentCentreOverview.rows || [];
   const actionable = paymentRows.filter((row) => row.requires_action || row.match_review_available).slice(0, 6);
-  const upcoming = paymentRows.filter((row) => !['paid', 'skipped', 'cancelled'].includes(row.status)).slice(0, 7);
+  const upcoming = paymentRows.length ? paymentRows.filter((row) => !['paid', 'skipped', 'cancelled'].includes(row.status)).slice(0, 7) : (command.upcoming_commitments || command.upcoming || events.filter((row) => row.direction === 'expense')).slice(0, 7);
   const health = data.financialHealth || command.financial_health || {};
-  const attentionCount = Number(actionable.length || health.issue_count || health.attention_count || 0);
+  const attentionCount = Number(actionable.length || health.issue_count ?? health.attention_count ?? data.paymentAttention?.length ?? 0);
   const baselineEnd = forecast?.final_balance ?? forecast?.end_balance ?? forecast?.ending_balance;
   const expectedEnd = expected?.final_balance ?? expected?.end_balance ?? expected?.ending_balance;
   const lowestRecord = expected?.lowest_balance ?? forecast?.lowest_balance;
   const lowest = lowestRecord && typeof lowestRecord === 'object' ? (lowestRecord.balance ?? lowestRecord.amount ?? lowestRecord.value) : lowestRecord;
   const nextIncome = events.find((row) => row.direction === 'income');
+  const commitments = events.filter((row) => row.direction === 'expense');
   const totalBalance = finiteNumber(kpis.total_balance ?? kpis.available_cash ?? forecast?.starting_balance ?? expected?.starting_balance);
   const nextIncomeAmount = finiteNumber(kpis.next_income?.amount ?? nextIncome?.amount);
   const nextIncomeName = kpis.next_income?.name ?? nextIncome?.name;
   const nextIncomeDate = kpis.next_income?.date ?? nextIncome?.date;
-  const commitmentsTotal = finiteNumber(paymentCentreOverview.summary?.total_scheduled?.amount ?? kpis.next_bills_total ?? kpis.scheduled_commitments ?? command.upcoming_commitments_summary?.total);
-  const commitmentsCount = Number(paymentCentreOverview.summary?.total_scheduled?.count ?? kpis.next_bills_count ?? command.upcoming_commitments?.length ?? 0);
-  const dueWithin = (days) => paymentRows.filter((row) => {
-    if (['paid', 'skipped', 'cancelled'].includes(row.status)) return false;
-    const raw = row.expected_date || row.due_date;
-    if (!raw) return false;
-    const delta = Math.ceil((new Date(`${raw}T00:00:00`) - new Date(`${today}T00:00:00`)) / 86400000);
-    return delta >= 0 && delta <= days;
-  });
-  const totalFor = (rows) => rows.reduce((sum, row) => sum + Math.abs(finiteNumber(row.expected_amount ?? row.amount) || 0), 0);
-  const next7 = dueWithin(7);
-  const next30 = dueWithin(30);
-  const manual30 = next30.filter((row) => row.payment_handling !== 'automatic');
-  const automatic30 = next30.filter((row) => row.payment_handling === 'automatic');
+  const commitmentsTotal = finiteNumber(paymentCentreOverview.summary?.total_scheduled?.amount ?? kpis.next_bills_total ?? kpis.scheduled_commitments ?? command.upcoming_commitments_summary?.total) ?? commitments.reduce((sum, row) => sum + Math.abs(finiteNumber(row.amount) || 0), 0);
+  const commitmentsCount = Number(paymentCentreOverview.summary?.total_scheduled?.count ?? kpis.next_bills_count ?? command.upcoming_commitments?.length ?? commitments.length ?? 0);
+  const dateDistance = (value) => value ? Math.round((new Date(`${String(value).slice(0, 10)}T00:00:00`) - new Date(`${today}T00:00:00`)) / 86400000) : null;
+  const withinDays = (days) => paymentRows.filter((row) => { const delta = dateDistance(row.expected_date || row.due_date); return delta !== null && delta >= 0 && delta <= days && !['paid', 'skipped', 'cancelled'].includes(row.status); });
+  const paymentTotal = (rows) => rows.reduce((sum, row) => sum + Math.abs(finiteNumber(row.expected_amount ?? row.amount) || 0), 0);
+  const next7 = withinDays(7); const next30 = withinDays(30); const manual30 = next30.filter((row) => row.payment_handling !== 'automatic'); const automatic30 = next30.filter((row) => row.payment_handling === 'automatic');
   return <div className="dashboard-page">
     <section className="kpi-grid five"><Kpi icon="💵" label="Total Balance" value={money(totalBalance)} sub={`${data.accounts.length} accounts`}/><Kpi icon="📈" label="Next Income" value={money(nextIncomeAmount)} sub={nextIncomeDate ? `${nextIncomeName || 'Income'} · ${dateLabel(nextIncomeDate)}` : 'No scheduled income'}/><Kpi icon="🧾" label="Next Bills" value={money(commitmentsTotal)} sub={`${commitmentsCount} commitments in range`}/><Kpi icon="💸" label="Discretionary" value={money(kpis.discretionary_spend)} sub={`Next ${rangeDays} days`}/><Kpi icon="🏁" label="Goals" value={`${kpis.active_goal_count || 0} active`} sub={kpis.next_goal ? `Next: ${kpis.next_goal.name}` : 'No target dates'}/></section>
     <section className="dashboard-secondary-row">
       <article className="panel dashboard-compact-panel"><div className="panel-head compact"><h2>Top Planned Spending</h2><button type="button" className="link-button" onClick={() => setQuick(quickDefaults('planned'))}>+ Quick Add</button></div>{planned.length ? planned.slice(0, 3).map((row) => <div className="list-row" key={`planned-${row.id || row.source_id}`}><span>{row.name}<small>{row.date || row.planned_date ? dateLabel(row.date || row.planned_date) : 'No date'}</small></span><strong>{money(row.amount || row.estimated_amount)}</strong></div>) : <Empty title="No planned spending">No planned purchases during this period.</Empty>}</article>
-      <article className="panel dashboard-compact-panel"><div className="panel-head compact"><h2>Payments</h2><button type="button" className="link-button" onClick={() => setActive('Payment Centre')}>View All Payments →</button></div><strong className="dashboard-health-number">{attentionCount} item{attentionCount === 1 ? '' : 's'} need attention</strong>{actionable.length ? actionable.slice(0, 3).map((row) => <div className="list-row" key={`attention-${row.source_type}-${row.id}`}><span>{row.name}<small>{row.status === 'overdue' && row.days_overdue ? `${row.days_overdue} days overdue` : row.status === 'auto_payment_unconfirmed' ? 'Automatic payment not confirmed' : row.match_review_available ? 'Possible transaction match' : 'Requires action'}</small></span><strong>{money(row.expected_amount ?? row.amount) || 'Not set'}</strong></div>) : <p className="muted">Nothing needs your attention right now.</p>}</article>
-      <article className="panel dashboard-compact-panel dashboard-forecast-summary"><PanelHead title="Money Needed Soon" meta="Upcoming household payments"/><div className="list-row"><span>Next 7 days</span><strong>{money(totalFor(next7))}</strong></div><div className="list-row"><span>Next 30 days</span><strong>{money(totalFor(next30))}</strong></div><div className="list-row"><span>Manual payments</span><strong>{money(totalFor(manual30))}</strong></div><div className="list-row"><span>Automatic payments</span><strong>{money(totalFor(automatic30))}</strong></div><button type="button" className="link-button" onClick={() => setActive('Payment Centre')}>View All Payments →</button></article>
+      <article className="panel dashboard-compact-panel"><div className="panel-head compact"><h2>Payments</h2><button type="button" className="link-button" onClick={() => setActive('Payment Centre')}>View All Payments →</button></div><strong className="dashboard-health-number">{attentionCount} item{attentionCount === 1 ? '' : 's'} need attention</strong><p className="muted">Overdue, due, unconfirmed and incomplete payments are prioritised in Payment Centre.</p></article>
+      <article className="panel dashboard-compact-panel dashboard-forecast-summary"><PanelHead title="Money Needed Soon" meta="Upcoming household payments"/><div className="list-row"><span>Next 7 days</span><strong>{money(paymentTotal(next7)) || '—'}</strong></div><div className="list-row"><span>Next 30 days</span><strong>{money(paymentTotal(next30)) || '—'}</strong></div><div className="list-row"><span>Manual payments</span><strong>{money(paymentTotal(manual30)) || '—'}</strong></div><div className="list-row"><span>Automatic payments</span><strong>{money(paymentTotal(automatic30)) || '—'}</strong></div><button type="button" className="link-button" onClick={() => setActive('Payment Centre')}>View All Payments →</button></article>
     </section>
-    <section className="dashboard-main-row"><article className="panel dashboard-forecast-panel"><div className="panel-head compact"><h2>Cash Flow Forecast</h2><button type="button" className="link-button" onClick={() => setActive('Cash Flow')}>View full cash flow →</button></div><CashFlowChartV0174 baseline={forecast} expected={expected} dateLabel={dateLabel} Empty={Empty}/></article><div className="dashboard-side-stack"><article className="panel dashboard-compact-panel"><div className="panel-head compact"><h2>Upcoming Commitments</h2><button type="button" className="link-button" onClick={() => setActive('Payment Centre')}>Open Payment Centre →</button></div>{upcoming.length ? upcoming.map((row) => <div className="list-row" key={`upcoming-${row.source_type}-${row.id}`}><span>{row.name}<small>{dateLabel(row.expected_date || row.due_date)} · {row.payment_handling === 'automatic' ? 'Automatic' : 'Manual'}</small></span><strong>{money(row.expected_amount ?? row.amount) || 'Not set'}</strong></div>) : <Empty title="No upcoming payments">No payment obligations are scheduled in the next 30 days.</Empty>}</article></div></section>
+    <section className="dashboard-main-row"><article className="panel dashboard-forecast-panel"><div className="panel-head compact"><h2>Cash Flow Forecast</h2><button type="button" className="link-button" onClick={() => setActive('Cash Flow')}>View full cash flow →</button></div><CashFlowChartV0174 baseline={forecast} expected={expected} dateLabel={dateLabel} Empty={Empty}/></article><div className="dashboard-side-stack"><article className="panel dashboard-compact-panel"><div className="panel-head compact"><h2>Upcoming Commitments</h2><button type="button" className="link-button" onClick={() => setActive('Payment Centre')}>Open Payment Centre →</button></div>{upcoming.length ? upcoming.map((row, index) => <div className="list-row" key={`${row.source_type || row.kind || 'payment'}-${row.id || row.source_id || index}`}><span>{row.name}<small>{dateLabel(row.expected_date || row.due_date || row.date)}</small></span><strong>{money(row.expected_amount ?? row.amount)}</strong></div>) : <Empty title="No upcoming commitments">Nothing scheduled in this period.</Empty>}</article></div></section>
   </div>;
 }
 
-// Existing components below are intentionally preserved from the established application shell.
-function Kpi({ icon, label, value, sub }) { return <article className="kpi"><span className="kpi-icon">{icon}</span><div><small>{label}</small><strong>{value || '—'}</strong><span>{sub}</span></div></article>; }
-function PanelHead({ title, meta }) { return <div className="panel-head compact"><h2>{title}</h2>{meta && <span>{meta}</span>}</div>; }
-function ForecastPage({ forecast, onView }) { if (!forecast) return <Empty title="No forecast available">Add accounts and scheduled financial events to build a forecast.</Empty>; const events = forecast.events || []; return <section className="panel"><PanelHead title="Cash Flow" meta="Expected mode"/><CashFlowChartV0174 baseline={forecast} expected={forecast} dateLabel={dateLabel} Empty={Empty}/>{events.map((row, index) => <button type="button" className="list-row" key={`${row.source_type}-${row.source_id}-${index}`} onClick={() => onView(row)}><span>{row.name}<small>{dateLabel(row.date)}</small></span><strong className={amountClass(row.amount)}>{money(row.amount)}</strong></button>)}</section>; }
-function CalendarPage({ command }) { const rows = command?.upcoming_commitments || command?.forecast?.expected?.events || []; return <section className="panel"><PanelHead title="Financial Calendar" meta={`${rows.length} events`}/>{rows.length ? rows.map((row, index) => <div className="list-row" key={`${row.kind || row.source_type}-${row.id || row.source_id}-${index}`}><span>{row.name}<small>{dateLabel(row.date || row.expected_date)}</small></span><strong>{money(row.amount || row.expected_amount)}</strong></div>) : <Empty title="No calendar events">No upcoming financial events are available.</Empty>}</section>; }
-function CsvImport() { return <section className="panel"><h2>CSV Import</h2><p>Import Review is for transaction data quality and reconciliation.</p></section>; }
-function ImportHistory({ rows }) { return <section className="panel"><PanelHead title="Import History" meta={`${rows.length} imports`}/></section>; }
-function ReviewQueue({ rows }) { return <section className="panel"><PanelHead title="Payment Review" meta={`${rows.length} items`}/></section>; }
-function Budgeting() { return <section className="panel"><h2>Budgeting</h2></section>; }
-function GoalsPage() { return <section className="panel"><h2>Goals</h2></section>; }
-function EditModal() { return null; }
-function QuickAddModal() { return null; }
-function ForecastDetailModal() { return null; }
+function Kpi({ icon, label, value, sub }) { return <article className="kpi"><span>{icon}</span><div><small>{label}</small><strong>{value || '—'}</strong><p>{sub}</p></div></article>; }
+function PanelHead({ title, meta }) { return <div className="panel-head"><div><h2>{title}</h2>{meta && <small>{meta}</small>}</div></div>; }
+
+function ForecastPage({ forecast, onView }) {
+  const rows = forecast?.events || [];
+  return <section className="panel"><PanelHead title="Cash Flow Forecast" meta={`${rows.length} events`}/><CashFlowChartV0174 baseline={forecast} expected={forecast} dateLabel={dateLabel} Empty={Empty}/>{rows.map((row, index) => <button type="button" className="list-row forecast-event-button" key={`${row.source_type}-${row.source_id}-${index}`} onClick={() => onView(row)}><span>{row.name}<small>{dateLabel(row.date)}</small></span><strong className={amountClass(row.amount)}>{money(row.amount)}</strong></button>)}</section>;
+}
+function CalendarPage({ command }) { const rows = command?.upcoming_commitments || command?.upcoming || command?.forecast?.expected?.events || []; return <section className="panel"><PanelHead title="Calendar" meta={`${rows.length} upcoming items`}/>{rows.map((row, index) => <div className="list-row" key={`${row.kind || row.source_type}-${row.id || row.source_id}-${index}`}><span>{row.name}<small>{dateLabel(row.date || row.expected_date)}</small></span><strong>{money(row.amount || row.expected_amount)}</strong></div>)}</section>; }
+function CsvImport({ state, setState, accounts, previewImport, commitImport }) { return <section className="panel"><PanelHead title="CSV Import" meta="Transaction data quality and reconciliation"/><form onSubmit={previewImport}><Field label="Account"><select value={state.account_id} onChange={(e) => setState({ ...state, account_id: e.target.value })}><option value="">Choose Account</option>{accounts.map((row) => <option value={row.id} key={row.id}>{row.name}</option>)}</select></Field><Field label="CSV data"><textarea value={state.csv_text} onChange={(e) => setState({ ...state, csv_text: e.target.value })}/></Field><button className="primary">Preview</button></form>{state.preview && <button onClick={commitImport}>Import Transactions</button>}</section>; }
+function ImportHistory({ rows }) { return <section className="panel"><PanelHead title="Import History" meta={`${rows.length} imports`}/>{rows.map((row) => <div className="list-row" key={row.id}><span>{row.filename || row.source_name}</span><strong>{row.status}</strong></div>)}</section>; }
+function ReviewQueue({ rows, acceptMatch }) { return <section className="panel"><PanelHead title="Payment Review" meta={`${rows.length} reconciliation items`}/>{rows.map((row) => <div className="list-row" key={row.id}><span>{row.description || row.merchant || `Review ${row.id}`}</span><button onClick={() => acceptMatch(row.id)}>Accept</button></div>)}</section>; }
+function Budgeting({ budgets, analysis, onEdit }) { return <section className="panel"><PanelHead title="Budgeting" meta={`${budgets.length} budgets`}/>{budgets.map((row) => <button type="button" className="list-row" key={row.id} onClick={() => onEdit(row)}><span>{row.name || row.category_name}</span><strong>{money(row.amount)}</strong></button>)}{analysis && <p className="muted">Budget analysis is available for the selected period.</p>}</section>; }
+function GoalsPage({ goals, onEdit, onAdd, onComplete }) { return <section className="panel"><div className="panel-head"><h2>Goals</h2><button onClick={onAdd}>+ Add Goal</button></div>{goals.map((row) => <div className="list-row" key={row.id}><button className="link-button" onClick={() => onEdit(row)}>{row.name}</button><button onClick={() => onComplete(row.id)}>Complete</button></div>)}</section>; }
+
+function EditModal({ edit, setEdit, onSubmit, data }) {
+  const values = edit.values || {};
+  const set = (key, value) => setEdit({ ...edit, values: { ...values, [key]: value } });
+  const billOrRecurring = ['bills', 'recurring'].includes(edit.type);
+  const selectedCard = data.cards.find((card) => Number(card.id) === Number(values.card_id));
+  return <div className="modal-backdrop" onMouseDown={(event) => event.target === event.currentTarget && setEdit(null)}><form className="modal" onSubmit={onSubmit}><div className="panel-head"><div><h2>{edit.label}</h2></div><button type="button" onClick={() => setEdit(null)}>×</button></div><div className="form-grid">
+    {values.name !== undefined && <Field label="Name"><input required value={values.name} onChange={(e) => set('name', e.target.value)}/></Field>}
+    {values.amount !== undefined && <Field label="Amount"><input value={values.amount ?? ''} onChange={(e) => set('amount', e.target.value)}/></Field>}
+    {values.due_date !== undefined && <Field label="Due Date"><input type="date" value={values.due_date || ''} onChange={(e) => set('due_date', e.target.value)}/></Field>}
+    {values.next_due_date !== undefined && <Field label="Next Due Date"><input type="date" value={values.next_due_date || ''} onChange={(e) => set('next_due_date', e.target.value)}/></Field>}
+    {values.provider !== undefined && <Field label="Provider"><input value={values.provider || ''} onChange={(e) => set('provider', e.target.value)}/></Field>}
+    {values.payee_merchant !== undefined && <Field label="Payee / Merchant"><input value={values.payee_merchant || ''} onChange={(e) => set('payee_merchant', e.target.value)}/></Field>}
+    {billOrRecurring && <RecurringPaymentFieldsV17 values={values} set={set} data={data}/>} 
+    {edit.type === 'bills' && selectedCard && values.payment_method === 'automatic_card_payment' && <small>Linked to account: <strong>{selectedCard.account_name}</strong></small>}
+    {values.notes !== undefined && <Field label="Notes" className="wide"><textarea value={values.notes || ''} onChange={(e) => set('notes', e.target.value)}/></Field>}
+  </div><div className="modal-actions"><button type="button" onClick={() => setEdit(null)}>Cancel</button><button className="primary">Save</button></div></form></div>;
+}
+function QuickAddModal({ onClose, onChoose }) { return <div className="modal-backdrop" onMouseDown={(event) => event.target === event.currentTarget && onClose()}><section className="modal"><div className="panel-head"><h2>Quick Add</h2><button onClick={onClose}>×</button></div>{quickAddOptions.map(([type, label, help]) => <button className="list-row" key={type} onClick={() => onChoose(type)}><span>{label}<small>{help}</small></span></button>)}</section></div>; }
+function ForecastDetailModal({ detail, onClose, onEdit }) { return <div className="modal-backdrop" onMouseDown={(event) => event.target === event.currentTarget && onClose()}><section className="modal"><div className="panel-head"><h2>{detail.event?.name || 'Forecast item'}</h2><button onClick={onClose}>×</button></div><div className="detail-grid"><div className="detail-item"><span>Date</span><strong>{dateLabel(detail.event?.date)}</strong></div><div className="detail-item"><span>Amount</span><strong>{money(detail.event?.amount)}</strong></div></div>{detail.record && <div className="modal-actions"><button onClick={onEdit}>Edit source</button><button onClick={onClose}>Close</button></div>}</section></div>; }
