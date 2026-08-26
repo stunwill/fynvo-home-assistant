@@ -1,8 +1,7 @@
 from datetime import date, timedelta
 
-from sqlalchemy import text
-
 from app.database import get_engine
+from sqlalchemy import text
 
 
 def setup_user(client):
@@ -195,11 +194,11 @@ def test_payment_centre_search_filters_and_mutually_exclusive_summary(client):
     assert any(row["source_type"] == "bill" and row["id"] == manual["id"] for row in data["rows"])
     assert any(row["source_type"] == "scheduled_payment" and row["name"] == "Netflix" for row in data["rows"])
     bucket_total = sum(
-        int(round(float(data["summary"][key]["amount"]) * 100))
-        for key in ("overdue", "requires_payment", "expected_automatically", "awaiting_confirmation", "paid", "skipped", "cancelled")
+        round(float(data["summary"][key]["amount"]) * 100)
+        for key in ("overdue", "requires_payment", "expected_automatically", "awaiting_confirmation", "upcoming", "paid", "skipped", "cancelled")
     )
-    total = int(round(float(data["summary"]["total_scheduled"]["amount"]) * 100))
-    assert bucket_total <= total
+    total = round(float(data["summary"]["total_scheduled"]["amount"]) * 100)
+    assert bucket_total == total
 
     searched = client.get("/api/payment-centre?date_range=next_30_days&search=Netflix")
     assert searched.status_code == 200
