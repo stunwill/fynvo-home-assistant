@@ -402,7 +402,7 @@ def create_override(payload: OccurrenceOverrideCreate, current_user: User = USER
 
 @router.post("/purchase-simulator")
 def purchase_simulator(payload: PurchaseSimulation, current_user: User = USER, db: DbSession = DB):
-    projection = cashflow_projection(db, current_user, payload.horizon, "expected")
+    projection = cashflow_projection(db, current_user, payload.horizon, "expected", payload.proposed_date)
     account_balances = {int(k): parse_money(v) for k, v in projection["account_starting_balances"].items()}
     if payload.account_id not in account_balances:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Account not found")
