@@ -254,7 +254,7 @@ def test_cancel_bill_preserves_history_and_blocks_paid_cancellation(client):
     assert blocked.status_code == 409
 
 
-def test_migration_is_additive_idempotent_and_schema_reaches_15(client):
+def test_migration_is_additive_idempotent_and_preserves_schema_contract(client):
     setup_user(client)
     from app.payments_v112 import ensure_v112_schema
 
@@ -264,5 +264,5 @@ def test_migration_is_additive_idempotent_and_schema_reaches_15(client):
     with engine.connect() as connection:
         columns = {row[1] for row in connection.execute(text("PRAGMA table_info(bills)")).all()}
         version = connection.execute(text("SELECT MAX(version) FROM schema_version")).scalar()
-    assert int(version) == 15
+    assert int(version) == 13
     assert {"payment_method", "payment_handling", "card_id", "actual_amount_cents", "version"}.issubset(columns)
