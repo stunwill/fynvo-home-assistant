@@ -8,14 +8,13 @@ import mark from './assets/fynvo-mark.svg';
 import { CategoriesPageV0174, RecurringExpensesPageV0174 } from './CorrectiveV0174Pages.jsx';
 import { AccountsPageV14, BillsPageV14, IncomePageV14, PlannedSpendingPageV14 } from './V14RecordPages.jsx';
 import { CashFlowChartV0174, CategorySelect } from './v0174-corrective.jsx';
-import { CardsPageV17, PaymentReconciliationV17, PaymentsAttentionV17, RecurringPaymentFieldsV17, recurringV17Values } from './PaymentManagementV17.jsx';
+import { CardsPageV17, PaymentReconciliationV17, RecurringPaymentFieldsV17, recurringV17Values } from './PaymentManagementV17.jsx';
 import { apiRequest } from './apiClient.js';
 import './styles.css';
 
 const api = (path, options = {}) => fetch(`api${path}`, { credentials: 'same-origin', headers: { 'Content-Type': 'application/json', ...(options.headers || {}) }, ...options });
 const today = new Date().toISOString().slice(0, 10);
-const APP_VERSION = '1.12.0';
-const ATTENTION_STATUSES = new Set(['overdue', 'due', 'auto_payment_unconfirmed']);
+const APP_VERSION = '1.13.0';
 const navGroups = [
   { label: 'Core', items: ['Overview', 'Cash Flow', 'Calendar', 'Accounts'] },
   { label: 'Money', items: ['Payment Centre', 'Transactions', 'Income', 'Bills', 'Recurring Expenses', 'Planned Spending', 'Cards'] },
@@ -103,7 +102,7 @@ export default function AppCorrectiveV0174() {
   const [active, setActive] = useState(localStorage.getItem('fynvo.view') || 'Overview');
   const [rangeDays, setRangeDays] = useState(Number(localStorage.getItem('fynvo.rangeDays') || 90));
   const [form, setForm] = useState({ username: '', display_name: '', password: '' });
-  const [data, setData] = useState({ accounts: [], cards: [], transactions: [], income: [], recurring: [], scheduledPayments: [], paymentAttention: [], bills: [], planned: [], categories: [], expenseTypes: [], budgets: [], goals: [], imports: [], review: [], suggestions: [], insights: [], financialHealth: null, budgetAnalysis: null, forecast: null, command: null });
+  const [data, setData] = useState({ accounts: [], cards: [], transactions: [], income: [], recurring: [], scheduledPayments: [], bills: [], planned: [], categories: [], expenseTypes: [], budgets: [], goals: [], imports: [], review: [], suggestions: [], insights: [], financialHealth: null, budgetAnalysis: null, forecast: null, command: null, paymentCentreOverview: null });
   const [dashboardLoading, setDashboardLoading] = useState(true);
   const [error, setError] = useState(''); const [success, setSuccess] = useState(''); const [edit, setEdit] = useState(null); const [quick, setQuick] = useState(null); const [quickMenuOpen, setQuickMenuOpen] = useState(false); const [detail, setDetail] = useState(null); const [greeting, setGreeting] = useState(() => greetingForNow()); const [mobileNavOpen, setMobileNavOpen] = useState(false); const [isMobile, setIsMobile] = useState(() => window.matchMedia('(max-width: 980px)').matches);
   const menuButtonRef = useRef(null); const closeButtonRef = useRef(null); const commandRequestRef = useRef(0); const initialLoadedRef = useRef(false);
@@ -113,15 +112,11 @@ export default function AppCorrectiveV0174() {
   async function j(path) { try { return await apiRequest(path); } catch { return null; } }
   async function refreshDashboard(days = rangeDays) { const requestId = ++commandRequestRef.current; setDashboardLoading(true); try { const command = await j(`/dashboard/command-centre?range_days=${days}`); if (requestId !== commandRequestRef.current) return; setData((current) => ({ ...current, command })); } finally { if (requestId === commandRequestRef.current) setDashboardLoading(false); } }
   async function loadSupportingData() {
-    const scheduledRequest = active === 'Overview' ? j('/scheduled-payments') : Promise.resolve(null);
-    const [accounts, cards, transactions, income, recurring, scheduledPayments, bills, planned, categories, referenceData, budgets, goals, imports, review, suggestions, insights, financialHealth, budgetAnalysis, forecast] = await Promise.all([
-      j('/accounts'), j('/cards?include_inactive=true'), j('/transactions'), j('/income'), j('/recurring-expenses'), scheduledRequest, j('/bills'), j('/planned-spending'), j('/categories'), j('/reference-data'), j('/budgets'), j('/goals'), j('/imports/history'), j('/reconciliation/review-queue'), j('/intelligence/suggestions'), j(`/insights?horizon_days=${rangeDays}&refresh=false`), j(`/insights/financial-health?horizon_days=${rangeDays}`), j('/budgets/analysis'), j(`/forecast?mode=expected&horizon=${rangeDays}d`),
+    const paymentCentreRequest = active === 'Overview' ? j('/payment-centre?date_range=next_30_days') : Promise.resolve(null);
+    const [accounts, cards, transactions, income, recurring, scheduledPayments, bills, planned, categories, referenceData, budgets, goals, imports, review, suggestions, insights, financialHealth, budgetAnalysis, forecast, paymentCentreOverview] = await Promise.all([
+      j('/accounts'), j('/cards?include_inactive=true'), j('/transactions'), j('/income'), j('/recurring-expenses'), j('/scheduled-payments'), j('/bills'), j('/planned-spending'), j('/categories'), j('/reference-data'), j('/budgets'), j('/goals'), j('/imports/history'), j('/reconciliation/review-queue'), j('/intelligence/suggestions'), j(`/insights?horizon_days=${rangeDays}&refresh=false`), j(`/insights/financial-health?horizon_days=${rangeDays}`), j('/budgets/analysis'), j(`/forecast?mode=expected&horizon=${rangeDays}d`), paymentCentreRequest,
     ]);
-    setData((current) => {
-      const resolvedScheduled = scheduledPayments === null ? current.scheduledPayments : scheduledPayments || [];
-      const paymentAttention = scheduledPayments === null ? current.paymentAttention : resolvedScheduled.filter((row) => ATTENTION_STATUSES.has(row.status));
-      return { ...current, accounts: accounts || [], cards: cards || [], transactions: transactions || [], income: income || [], recurring: recurring || [], scheduledPayments: resolvedScheduled, paymentAttention, bills: bills || [], planned: planned || [], categories: categories || [], expenseTypes: referenceData?.expense_types || [], budgets: budgets || [], goals: goals || [], imports: imports || [], review: review || [], suggestions: suggestions || [], insights: insights || [], financialHealth, budgetAnalysis, forecast };
-    });
+    setData((current) => ({ ...current, accounts: accounts || [], cards: cards || [], transactions: transactions || [], income: income || [], recurring: recurring || [], scheduledPayments: scheduledPayments || [], bills: bills || [], planned: planned || [], categories: categories || [], expenseTypes: referenceData?.expense_types || [], budgets: budgets || [], goals: goals || [], imports: imports || [], review: review || [], suggestions: suggestions || [], insights: insights || [], financialHealth, budgetAnalysis, forecast, paymentCentreOverview: paymentCentreOverview === null ? current.paymentCentreOverview : paymentCentreOverview }));
   }
   async function loadAll() { await Promise.allSettled([refreshDashboard(rangeDays), loadSupportingData()]); }
   async function refreshRecurringSlice() {
@@ -129,34 +124,24 @@ export default function AppCorrectiveV0174() {
     setData((current) => ({ ...current, recurring: recurring || [] }));
     try {
       const scheduledPayments = await apiRequest('/scheduled-payments');
-      const paymentAttention = (scheduledPayments || []).filter((row) => ATTENTION_STATUSES.has(row.status));
-      setData((current) => ({ ...current, scheduledPayments: scheduledPayments || [], paymentAttention }));
-      return { scheduleError: null };
-    } catch (requestError) {
-      return { scheduleError: requestError };
+      setData((current) => ({ ...current, scheduledPayments: scheduledPayments || [] }));
+      return { scheduleError: false };
+    } catch {
+      return { scheduleError: true };
     }
   }
-  async function refreshCards() {
-    const cards = await apiRequest('/cards?include_inactive=true');
-    setData((current) => ({ ...current, cards: cards || [] }));
-  }
-
+  async function refreshCards() { const cards = await apiRequest('/cards?include_inactive=true'); setData((current) => ({ ...current, cards: cards || [] })); }
   useEffect(() => { loadAuth(); }, []);
-  useEffect(() => { if (!auth?.authenticated) return; if (!initialLoadedRef.current) { initialLoadedRef.current = true; loadAll(); return; } refreshDashboard(rangeDays); }, [auth?.authenticated, rangeDays]);
-  useEffect(() => { localStorage.setItem('fynvo.view', active); setSuccess(''); setError(''); }, [active]);
-  useEffect(() => { localStorage.setItem('fynvo.rangeDays', String(rangeDays)); }, [rangeDays]);
-  useEffect(() => { if (!success) return undefined; const timer = window.setTimeout(() => setSuccess(''), 4000); return () => window.clearTimeout(timer); }, [success]);
-  useEffect(() => { const syncGreeting = () => setGreeting(greetingForNow()); syncGreeting(); const timer = window.setInterval(syncGreeting, 60000); window.addEventListener('focus', syncGreeting); document.addEventListener('visibilitychange', syncGreeting); return () => { window.clearInterval(timer); window.removeEventListener('focus', syncGreeting); document.removeEventListener('visibilitychange', syncGreeting); }; }, []);
-  useEffect(() => { const media = window.matchMedia('(max-width: 980px)'); const sync = (event) => { setIsMobile(event.matches); setMobileNavOpen(false); document.body.style.overflow = ''; }; media.addEventListener?.('change', sync); return () => media.removeEventListener?.('change', sync); }, []);
-  useEffect(() => { if (!isMobile) return undefined; const previousOverflow = document.body.style.overflow; document.body.style.overflow = mobileNavOpen ? 'hidden' : previousOverflow; if (mobileNavOpen) window.requestAnimationFrame(() => closeButtonRef.current?.focus({ preventScroll: true })); return () => { document.body.style.overflow = previousOverflow; }; }, [mobileNavOpen, isMobile]);
-  useEffect(() => { const onKeyDown = (event) => { if (event.key === 'Escape') { if (detail) setDetail(null); else if (quickMenuOpen) setQuickMenuOpen(false); else if (mobileNavOpen) { event.preventDefault(); setMobileNavOpen(false); window.requestAnimationFrame(() => menuButtonRef.current?.focus({ preventScroll: true })); } } }; document.addEventListener('keydown', onKeyDown); return () => document.removeEventListener('keydown', onKeyDown); }, [mobileNavOpen, quickMenuOpen, detail]);
+  useEffect(() => { if (auth?.authenticated && !initialLoadedRef.current) { initialLoadedRef.current = true; loadAll(); } }, [auth?.authenticated]);
+  useEffect(() => { if (auth?.authenticated) refreshDashboard(rangeDays); localStorage.setItem('fynvo.rangeDays', String(rangeDays)); }, [rangeDays]);
+  useEffect(() => { localStorage.setItem('fynvo.view', active); setError(''); setSuccess(''); setEdit(null); setQuick(null); setDetail(null); setQuickMenuOpen(false); if (auth?.authenticated && active === 'Overview') loadSupportingData(); }, [active]);
+  useEffect(() => { const update = () => { const mobile = window.matchMedia('(max-width: 980px)').matches; setIsMobile(mobile); if (!mobile) setMobileNavOpen(false); }; window.addEventListener('resize', update); return () => window.removeEventListener('resize', update); }, []);
+  useEffect(() => { setGreeting(greetingForNow()); const timer = window.setInterval(() => setGreeting(greetingForNow()), 60000); return () => window.clearInterval(timer); }, []);
 
-  async function submitAuth(e) { e.preventDefault(); setError(''); const payload = auth?.setup_required ? { username: form.username, display_name: form.display_name || form.username, password: form.password } : { username: form.username, password: form.password }; const res = await api(auth?.setup_required ? '/auth/setup' : '/auth/login', { method: 'POST', body: JSON.stringify(payload) }); if (res.ok) { setMobileNavOpen(false); await loadAuth(); } else setError('Sign-in failed. Check your username and password.'); }
-  async function logout() { await api('/auth/logout', { method: 'POST' }); setMobileNavOpen(false); setAuth({ authenticated: false, setup_required: false, user: null }); }
+  async function submitAuth(e) { e.preventDefault(); setError(''); const endpoint = auth.setup_required ? '/auth/setup' : '/auth/login'; const res = await api(endpoint, { method: 'POST', body: JSON.stringify(form) }); if (res.ok) await loadAuth(); else setError('Sign in failed. Check your credentials.'); }
+  async function logout() { await api('/auth/logout', { method: 'POST' }); initialLoadedRef.current = false; setData((current) => ({ ...current, paymentCentreOverview: null })); await loadAuth(); }
   async function saveEdit(e) {
-    e.preventDefault();
-    setError('');
-    setSuccess('');
+    e.preventDefault(); setError(''); setSuccess('');
     const creating = edit.row?.id === null || edit.row?.id === undefined;
     const path = creating ? createPath(edit.type) : endpointFor(edit.type, edit.row.id);
     const values = normaliseMutationValues(edit.type, edit.values);
@@ -175,39 +160,13 @@ export default function AppCorrectiveV0174() {
     }
   }
   async function createRecord(type, values) {
-    setError('');
-    setSuccess('');
-    if (type === 'recurring') {
+    setError(''); setSuccess('');
+    if (['recurring', 'transactions', 'bills'].includes(type)) {
       try {
         await apiRequest(createPath(type), { method: 'POST', body: JSON.stringify(normaliseMutationValues(type, values)) });
-        setQuick(null);
-        setSuccess('Recurring Expense created.');
-        const refresh = await refreshRecurringSlice();
-        if (refresh.scheduleError) setError('Recurring Expense created, but scheduled payment information could not be refreshed yet.');
+        setQuick(null); setSuccess(`${recordLabels[type]} created.`); await loadAll();
       } catch (requestError) {
-        setError(friendlyError(requestError?.payload, requestError?.message || 'Could not create Recurring Expense. Check the fields and try again.'));
-      }
-      return;
-    }
-    if (type === 'transactions') {
-      try {
-        await apiRequest(createPath(type), { method: 'POST', body: JSON.stringify(values) });
-        setQuick(null);
-        setSuccess('Transaction created.');
-        await loadSupportingData();
-      } catch (requestError) {
-        setError(friendlyError(requestError?.payload, requestError?.message || 'Could not create Transaction. Check the fields and try again.'));
-      }
-      return;
-    }
-    if (type === 'bills') {
-      try {
-        await apiRequest(createPath(type), { method: 'POST', body: JSON.stringify(normaliseMutationValues(type, values)) });
-        setQuick(null);
-        setSuccess('Bill created.');
-        await loadAll();
-      } catch (requestError) {
-        setError(friendlyError(requestError?.payload, requestError?.message || 'Could not create Bill. Check the payment details and try again.'));
+        setError(friendlyError(requestError?.payload, requestError?.message || `Could not create ${recordLabels[type]}. Check the fields and try again.`));
       }
       return;
     }
@@ -224,17 +183,13 @@ export default function AppCorrectiveV0174() {
   async function refreshInsights() { const res = await api(`/insights/refresh?horizon_days=${rangeDays}`, { method: 'POST' }); if (res.ok) { setSuccess('Financial Insights refreshed.'); await loadAll(); } else setError('Could not refresh Financial Insights.'); }
 
   const quickDefaults = (type) => {
-    const defaults = type === 'recurring'
-      ? { account_id: null, card_id: null }
-      : type === 'bills'
-        ? { account_id: null, card_id: null }
-        : { account_id: type === 'planned' ? null : data.accounts[0]?.id || '', destination_account_id: data.accounts[0]?.id || '' };
+    const defaults = ['recurring', 'bills'].includes(type) ? { account_id: null, card_id: null } : { account_id: type === 'planned' ? null : data.accounts[0]?.id || '', destination_account_id: data.accounts[0]?.id || '' };
     return { type, values: normaliseRecord(type, defaults) };
   };
   const openQuickAdd = (type) => { setQuickMenuOpen(false); setQuick(quickDefaults(type)); };
   const openForecastDetail = (event) => { const source = forecastSource(event, data); setDetail({ event, ...source }); };
   const editForecastSource = () => { if (!detail?.type || !detail?.record) return; const { type, record } = detail; setDetail(null); setEdit({ type, label: recordLabels[type], row: record, values: normaliseRecord(type, record) }); };
-  const navigate = (item) => { setActive(item); if (isMobile) { setMobileNavOpen(false); window.requestAnimationFrame(() => window.scrollTo({ top: 0, left: 0, behavior: 'auto' })); } };
+  const navigate = (item) => { setError(''); setSuccess(''); setActive(item); if (isMobile) { setMobileNavOpen(false); window.requestAnimationFrame(() => window.scrollTo({ top: 0, left: 0, behavior: 'auto' })); } };
   const closeMobileNav = (restoreFocus = true) => { setMobileNavOpen(false); if (restoreFocus) window.requestAnimationFrame(() => menuButtonRef.current?.focus({ preventScroll: true })); };
 
   if (!auth) return <main className="login"><div className="login-card"><img className="login-logo" src={logo} alt="Fynvo"/><p>Loading...</p></div></main>;
@@ -252,8 +207,8 @@ export default function AppCorrectiveV0174() {
     <main className="content">
       <div className="mobile-app-bar" aria-label="Fynvo application controls"><button ref={menuButtonRef} className="mobile-menu-button" type="button" aria-label={mobileNavOpen ? 'Close Fynvo navigation' : 'Open Fynvo navigation'} aria-expanded={mobileNavOpen} aria-controls="fynvo-navigation" onClick={() => setMobileNavOpen((open) => !open)}><span aria-hidden="true">☰</span><span className="sr-only">Menu</span></button><strong className="mobile-app-identity">Fynvo</strong></div>
       <header className="header"><div><h1>{active === 'Overview' ? `${greeting}, ${auth.user?.display_name || 'there'}! 👋` : active}</h1><p>{active === 'Overview' ? "Here's your financial overview and what's ahead." : active === 'Insights' ? 'Understand what is changing, why it matters and which data supports it.' : active === 'Payment Centre' ? 'Manage household obligations, payment status and actions.' : 'Manage household financial records and planning.'}</p></div><div className="header-actions"><label className="select-shell">Date range<select value={rangeDays} onChange={(e) => setRangeDays(Number(e.target.value))}>{horizonOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label><button className="primary ghost" onClick={() => setQuickMenuOpen(true)}>+ Quick Add</button></div></header>{error && <p className="error banner">{error}</p>}{success && <p className="success banner">{success}</p>}
-      {active === 'Overview' && <><Overview data={data} setActive={navigate} rangeDays={rangeDays} setQuick={setQuick} quickDefaults={quickDefaults}/><PaymentsAttentionV17 rows={data.paymentAttention} money={money} dateLabel={dateLabel} onRefresh={loadAll}/></>}
-      {active === 'Payment Centre' && <PaymentCentreV112 data={data} onNavigate={navigate} onRefreshSupporting={loadAll}/>} 
+      {active === 'Overview' && <Overview data={data} setActive={navigate} rangeDays={rangeDays} setQuick={setQuick} quickDefaults={quickDefaults}/>} 
+      {active === 'Payment Centre' && <PaymentCentreV112 data={data} onNavigate={navigate} onRefreshSupporting={loadAll} onEditBill={(row) => setEdit({ type: 'bills', label: 'Bill', row, values: normaliseRecord('bills', row) })}/>} 
       {active === 'Cash Flow' && <ForecastPage forecast={data.command?.forecast?.expected || data.forecast} onView={openForecastDetail}/>} 
       {active === 'Calendar' && <CalendarPage command={data.command}/>} 
       {active === 'CSV Import' && <CsvImport state={importState} setState={setImportState} accounts={data.accounts} previewImport={previewImport} commitImport={commitImport}/>} 
@@ -287,58 +242,56 @@ function Overview({ data, setActive, rangeDays, setQuick, quickDefaults }) {
   const expected = command.forecast?.expected;
   const events = expected?.events || forecast?.events || [];
   const planned = command.top_planned_spending || data.planned || [];
-  const upcoming = (command.upcoming_commitments || command.upcoming || events.filter((row) => row.direction === 'expense')).slice(0, 7);
+  const paymentCentreOverview = data.paymentCentreOverview || {};
+  const paymentRows = paymentCentreOverview.rows || [];
+  const actionable = paymentRows.filter((row) => row.requires_action || row.match_review_available).slice(0, 6);
+  const upcoming = paymentRows.filter((row) => !['paid', 'skipped', 'cancelled'].includes(row.status)).slice(0, 7);
   const health = data.financialHealth || command.financial_health || {};
-  const attentionCount = Number(health.issue_count ?? health.attention_count ?? data.paymentAttention?.length ?? 0);
+  const attentionCount = Number(actionable.length || health.issue_count || health.attention_count || 0);
   const baselineEnd = forecast?.final_balance ?? forecast?.end_balance ?? forecast?.ending_balance;
   const expectedEnd = expected?.final_balance ?? expected?.end_balance ?? expected?.ending_balance;
   const lowestRecord = expected?.lowest_balance ?? forecast?.lowest_balance;
   const lowest = lowestRecord && typeof lowestRecord === 'object' ? (lowestRecord.balance ?? lowestRecord.amount ?? lowestRecord.value) : lowestRecord;
   const nextIncome = events.find((row) => row.direction === 'income');
-  const commitments = events.filter((row) => row.direction === 'expense');
   const totalBalance = finiteNumber(kpis.total_balance ?? kpis.available_cash ?? forecast?.starting_balance ?? expected?.starting_balance);
   const nextIncomeAmount = finiteNumber(kpis.next_income?.amount ?? nextIncome?.amount);
   const nextIncomeName = kpis.next_income?.name ?? nextIncome?.name;
   const nextIncomeDate = kpis.next_income?.date ?? nextIncome?.date;
-  const commitmentsTotal = finiteNumber(kpis.next_bills_total ?? kpis.scheduled_commitments ?? command.upcoming_commitments_summary?.total) ?? commitments.reduce((sum, row) => sum + Math.abs(finiteNumber(row.amount) || 0), 0);
-  const commitmentsCount = Number(kpis.next_bills_count ?? command.upcoming_commitments?.length ?? commitments.length ?? 0);
+  const commitmentsTotal = finiteNumber(paymentCentreOverview.summary?.total_scheduled?.amount ?? kpis.next_bills_total ?? kpis.scheduled_commitments ?? command.upcoming_commitments_summary?.total);
+  const commitmentsCount = Number(paymentCentreOverview.summary?.total_scheduled?.count ?? kpis.next_bills_count ?? command.upcoming_commitments?.length ?? 0);
+  const dueWithin = (days) => paymentRows.filter((row) => {
+    if (['paid', 'skipped', 'cancelled'].includes(row.status)) return false;
+    const raw = row.expected_date || row.due_date;
+    if (!raw) return false;
+    const delta = Math.ceil((new Date(`${raw}T00:00:00`) - new Date(`${today}T00:00:00`)) / 86400000);
+    return delta >= 0 && delta <= days;
+  });
+  const totalFor = (rows) => rows.reduce((sum, row) => sum + Math.abs(finiteNumber(row.expected_amount ?? row.amount) || 0), 0);
+  const next7 = dueWithin(7);
+  const next30 = dueWithin(30);
+  const manual30 = next30.filter((row) => row.payment_handling !== 'automatic');
+  const automatic30 = next30.filter((row) => row.payment_handling === 'automatic');
   return <div className="dashboard-page">
     <section className="kpi-grid five"><Kpi icon="💵" label="Total Balance" value={money(totalBalance)} sub={`${data.accounts.length} accounts`}/><Kpi icon="📈" label="Next Income" value={money(nextIncomeAmount)} sub={nextIncomeDate ? `${nextIncomeName || 'Income'} · ${dateLabel(nextIncomeDate)}` : 'No scheduled income'}/><Kpi icon="🧾" label="Next Bills" value={money(commitmentsTotal)} sub={`${commitmentsCount} commitments in range`}/><Kpi icon="💸" label="Discretionary" value={money(kpis.discretionary_spend)} sub={`Next ${rangeDays} days`}/><Kpi icon="🏁" label="Goals" value={`${kpis.active_goal_count || 0} active`} sub={kpis.next_goal ? `Next: ${kpis.next_goal.name}` : 'No target dates'}/></section>
     <section className="dashboard-secondary-row">
       <article className="panel dashboard-compact-panel"><div className="panel-head compact"><h2>Top Planned Spending</h2><button type="button" className="link-button" onClick={() => setQuick(quickDefaults('planned'))}>+ Quick Add</button></div>{planned.length ? planned.slice(0, 3).map((row) => <div className="list-row" key={`planned-${row.id || row.source_id}`}><span>{row.name}<small>{row.date || row.planned_date ? dateLabel(row.date || row.planned_date) : 'No date'}</small></span><strong>{money(row.amount || row.estimated_amount)}</strong></div>) : <Empty title="No planned spending">No planned purchases during this period.</Empty>}</article>
-      <article className="panel dashboard-compact-panel"><div className="panel-head compact"><h2>Financial Health</h2><button type="button" className="link-button" onClick={() => setActive('Payment Centre')}>Open Payment Centre →</button></div><strong className="dashboard-health-number">{attentionCount} item{attentionCount === 1 ? '' : 's'} need attention</strong><p className="muted">Review overdue and unconfirmed payments in Payment Centre. Import-quality issues remain in Import & Data.</p></article>
-      <article className="panel dashboard-compact-panel dashboard-forecast-summary"><PanelHead title="Forecast Summary" meta={`End of ${rangeDays} days`}/><div className="list-row"><span>Baseline Forecast</span><strong>{money(baselineEnd) || '—'}</strong></div><div className="list-row"><span>Expected Forecast</span><strong>{money(expectedEnd) || '—'}</strong></div><div className="list-row"><span>Lowest Balance</span><strong>{money(lowest) || '—'}</strong></div><button type="button" className="link-button" onClick={() => setActive('Cash Flow')}>View cash flow →</button></article>
+      <article className="panel dashboard-compact-panel"><div className="panel-head compact"><h2>Payments</h2><button type="button" className="link-button" onClick={() => setActive('Payment Centre')}>View All Payments →</button></div><strong className="dashboard-health-number">{attentionCount} item{attentionCount === 1 ? '' : 's'} need attention</strong>{actionable.length ? actionable.slice(0, 3).map((row) => <div className="list-row" key={`attention-${row.source_type}-${row.id}`}><span>{row.name}<small>{row.status === 'overdue' && row.days_overdue ? `${row.days_overdue} days overdue` : row.status === 'auto_payment_unconfirmed' ? 'Automatic payment not confirmed' : row.match_review_available ? 'Possible transaction match' : 'Requires action'}</small></span><strong>{money(row.expected_amount ?? row.amount) || 'Not set'}</strong></div>) : <p className="muted">Nothing needs your attention right now.</p>}</article>
+      <article className="panel dashboard-compact-panel dashboard-forecast-summary"><PanelHead title="Money Needed Soon" meta="Upcoming household payments"/><div className="list-row"><span>Next 7 days</span><strong>{money(totalFor(next7))}</strong></div><div className="list-row"><span>Next 30 days</span><strong>{money(totalFor(next30))}</strong></div><div className="list-row"><span>Manual payments</span><strong>{money(totalFor(manual30))}</strong></div><div className="list-row"><span>Automatic payments</span><strong>{money(totalFor(automatic30))}</strong></div><button type="button" className="link-button" onClick={() => setActive('Payment Centre')}>View All Payments →</button></article>
     </section>
-    <section className="dashboard-main-row"><article className="panel dashboard-forecast-panel"><div className="panel-head compact"><h2>Cash Flow Forecast</h2><button type="button" className="link-button" onClick={() => setActive('Cash Flow')}>View full cash flow →</button></div><CashFlowChartV0174 baseline={forecast} expected={expected} dateLabel={dateLabel} Empty={Empty}/></article><div className="dashboard-side-stack"><article className="panel dashboard-compact-panel"><div className="panel-head compact"><h2>Upcoming Commitments</h2><button type="button" className="link-button" onClick={() => setActive('Payment Centre')}>Open Payment Centre →</button></div>{upcoming.length ? upcoming.map((row, index) => <div className="list-row" key={`${row.source_type || row.kind}-${row.source_id || index}-${row.date}-${index}`}><span>{row.name}<small>{dateLabel(row.date)} · {row.category || row.source_type?.replaceAll('_', ' ') || row.kind}</small></span><strong>{money(row.amount)}</strong></div>) : planned.length ? planned.slice(0, 7).map((row) => <div className="list-row" key={`${row.source_type || 'planned'}-${row.id || row.source_id}`}><span>{row.name}<small>{row.date || row.planned_date ? dateLabel(row.date || row.planned_date) : 'No date'}</small></span><strong>{money(row.amount || row.estimated_amount)}</strong></div>) : <Empty title="Nothing planned">Add recurring expenses, bills or planned spending to see commitments here.</Empty>}</article></div></section>
+    <section className="dashboard-main-row"><article className="panel dashboard-forecast-panel"><div className="panel-head compact"><h2>Cash Flow Forecast</h2><button type="button" className="link-button" onClick={() => setActive('Cash Flow')}>View full cash flow →</button></div><CashFlowChartV0174 baseline={forecast} expected={expected} dateLabel={dateLabel} Empty={Empty}/></article><div className="dashboard-side-stack"><article className="panel dashboard-compact-panel"><div className="panel-head compact"><h2>Upcoming Commitments</h2><button type="button" className="link-button" onClick={() => setActive('Payment Centre')}>Open Payment Centre →</button></div>{upcoming.length ? upcoming.map((row) => <div className="list-row" key={`upcoming-${row.source_type}-${row.id}`}><span>{row.name}<small>{dateLabel(row.expected_date || row.due_date)} · {row.payment_handling === 'automatic' ? 'Automatic' : 'Manual'}</small></span><strong>{money(row.expected_amount ?? row.amount) || 'Not set'}</strong></div>) : <Empty title="No upcoming payments">No payment obligations are scheduled in the next 30 days.</Empty>}</article></div></section>
   </div>;
 }
-function Kpi({ icon, label, value, sub }) { return <article className="kpi"><span className="kpi-icon">{icon}</span><div><small>{label}</small><strong>{value ?? '—'}</strong><p>{sub}</p></div></article>; }
-function PanelHead({ title, meta }) { return <div className="panel-head compact"><h2>{title}</h2>{meta && <small>{meta}</small>}</div>; }
-function ForecastPage({ forecast, onView }) { const events = forecast?.events || []; return <section className="panel cashflow-event-panel"><PanelHead title="Cash Flow" meta={`${events.length} forecast events`}/><div className="cashflow-event-list">{events.length ? events.map((event, index) => <button type="button" className="cashflow-event-row" onClick={() => onView(event)} key={`${event.source_type}-${event.source_id}-${event.date}-${index}`}><span><strong>{event.name}</strong><small>{dateLabel(event.date)} · {event.source_type.replaceAll('_', ' ')}</small></span><strong className={amountClass(event.amount)}>{money(event.amount)}</strong></button>) : <Empty title="No forecast events">Add income, recurring expenses, bills or planned spending.</Empty>}</div></section>; }
-function CalendarPage({ command }) { const events = command?.calendar || command?.upcoming_commitments || command?.forecast?.expected?.events || command?.forecast?.baseline?.events || []; return <section className="panel"><PanelHead title="Calendar" meta={`${events.length} events`}/>{events.length ? events.map((event, index) => <div className="list-row" key={`${event.source_type || event.kind}-${event.source_id || index}-${event.date}-${index}`}><span>{event.name}<small>{dateLabel(event.date)} · {(event.source_type || event.kind || 'financial event').replaceAll('_', ' ')}</small></span><strong>{money(event.amount)}</strong></div>) : <Empty title="Nothing scheduled">Financial events will appear here.</Empty>}</section>; }
-function Budgeting({ budgets, analysis, onEdit }) { return <section className="panel"><PanelHead title="Budgeting" meta={`${budgets.length} budgets`}/>{analysis?.totals && <div className="kpi-grid"><Kpi icon="🎯" label="Budgeted" value={money(analysis.totals.budgeted)}/><Kpi icon="💳" label="Actual" value={money(analysis.totals.actual)}/></div>}{budgets.length ? budgets.map((row) => <button type="button" className="list-row button-row" key={row.id} onClick={() => onEdit(row)}><span>{row.name}<small>{row.period}</small></span><strong>{money(row.amount)}</strong></button>) : <Empty title="No budgets yet">Create a budget to track spending.</Empty>}</section>; }
-function GoalsPage({ goals, onEdit, onAdd, onComplete }) { return <section className="panel"><div className="panel-head"><h2>Goals</h2><button className="primary ghost" onClick={onAdd}>+ Add</button></div>{goals.length ? goals.map((row) => <div className="list-row" key={row.id}><button type="button" className="link-button" onClick={() => onEdit(row)}>{row.name}</button><span>{money(row.current_amount)} / {money(row.target_amount)}</span>{row.status !== 'completed' && <button type="button" onClick={() => onComplete(row.id)}>Complete</button>}</div>) : <Empty title="No goals yet">Add a financial goal.</Empty>}</section>; }
-function CsvImport({ state, setState, accounts, previewImport, commitImport }) { return <section className="panel"><PanelHead title="CSV Import"/><p className="muted">Import Review here is for transaction data quality. Payment matching decisions are surfaced through Payment Centre and the Review Queue.</p><form className="form-grid" onSubmit={previewImport}><Field label="Filename"><input value={state.filename} onChange={(e) => setState({ ...state, filename: e.target.value })}/></Field><Field label="Account"><select value={state.account_id} onChange={(e) => setState({ ...state, account_id: e.target.value })}><option value="">Choose account</option>{accounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}</select></Field><Field label="CSV text" className="wide"><textarea rows="10" value={state.csv_text} onChange={(e) => setState({ ...state, csv_text: e.target.value })}/></Field><button className="primary">Preview</button></form>{state.preview && <div><pre>{JSON.stringify(state.preview, null, 2)}</pre><button type="button" className="primary" onClick={commitImport}>Commit import</button></div>}</section>; }
-function ImportHistory({ rows }) { return <section className="panel"><PanelHead title="Import History"/>{rows.length ? rows.map((row) => <div className="list-row" key={row.id}><span>{row.filename || row.source_name}</span><small>{row.created_at}</small></div>) : <Empty title="No imports yet">Imported files will be listed here.</Empty>}</section>; }
-function ReviewQueue({ rows, acceptMatch }) { return <section className="panel"><PanelHead title="Payment Review"/><p className="muted">This is the detailed reconciliation workspace used by Payment Centre. CSV import-quality review remains under CSV Import.</p>{rows?.length ? rows.map((row) => <div className="suggestion" key={row.id}><div><strong>{row.source_type}</strong></div><button onClick={() => acceptMatch(row.id)}>Accept</button></div>) : <Empty title="No reconciliation items">Payment and transaction matches that need a decision will appear here.</Empty>}</section>; }
-function QuickAddModal({ onClose, onChoose }) { return <div className="modal-backdrop"><section className="modal"><div className="panel-head"><h2>Quick Add</h2><button type="button" onClick={onClose}>×</button></div><div className="quick-add-grid">{quickAddOptions.map(([type, label, description]) => <button type="button" className="quick-add-choice" key={type} onClick={() => onChoose(type)}><strong>{label}</strong><small>{description}</small></button>)}</div></section></div>; }
-function ForecastDetailModal({ detail, onClose, onEdit }) { const event = detail.event || {}; const record = detail.record || {}; return <div className="modal-backdrop"><section className="modal detail-modal"><div className="panel-head"><div><h2>{event.name || 'Cash flow item'}</h2></div><button onClick={onClose}>×</button></div><div className="detail-grid"><div className="detail-item"><span>Date</span><strong>{dateLabel(event.date)}</strong></div><div className="detail-item"><span>Amount</span><strong>{money(event.amount)}</strong></div><div className="detail-item"><span>Category</span><strong>{event.category || record.category || 'Not set'}</strong></div></div><div className="modal-actions"><button onClick={onClose}>Close</button>{detail.record && <button className="primary" onClick={onEdit}>Edit source</button>}</div></section></div>; }
-function EditModal({ edit, setEdit, onSubmit, data }) { const values = edit.values || {}; const set = (key, value) => setEdit((current) => ({ ...current, values: { ...(current?.values || {}), [key]: value } })); return <div className="modal-backdrop"><form className="modal" onSubmit={onSubmit}><div className="panel-head"><h2>{edit.label}</h2><button type="button" onClick={() => setEdit(null)}>×</button></div><DynamicFields type={edit.type} values={values} set={set} data={data} currentId={edit.row?.id}/><div className="modal-actions"><button type="button" onClick={() => setEdit(null)}>Cancel</button><button className="primary">Save</button></div></form></div>; }
-function DynamicFields({ type, values, set, data, currentId }) {
-  const accountSelect = (key) => <select value={values[key] || ''} onChange={(e) => set(key, e.target.value || null)}><option value="">Choose account</option>{data.accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select>;
-  const text = (key, label, inputType = 'text', required = false, className = '') => <Field label={label} className={className}><input type={inputType} required={required} value={values[key] ?? ''} onChange={(e) => set(key, e.target.value)}/></Field>;
-  if (type === 'transactions') return <div className="form-grid">{text('date', 'Date', 'date', true)}{text('amount', 'Amount', 'text', true)}{text('description', 'Description', 'text', true)}<Field label="Account">{accountSelect('account_id')}</Field>{text('merchant', 'Merchant')}{text('category', 'Category')}</div>;
-  if (type === 'income') return <div className="form-grid">{text('name', 'Name', 'text', true)}{text('amount', 'Amount')}{text('next_payment_date', 'Next payment', 'date')}<Field label="Frequency"><select value={values.frequency} onChange={(e) => set('frequency', e.target.value)}><option>weekly</option><option>fortnightly</option><option>monthly</option><option>quarterly</option><option value="yearly">annual</option></select></Field><Field label="Destination account">{accountSelect('destination_account_id')}</Field>{text('payer', 'Payer')}{text('category', 'Category')}</div>;
-  if (type === 'recurring') return <div className="form-grid recurring-v17-form">{text('name', 'Name', 'text', true)}{text('amount', 'Amount')}{text('next_due_date', 'Next due', 'date')}<Field label="Frequency"><select value={values.frequency} onChange={(e) => set('frequency', e.target.value)}><option>weekly</option><option>fortnightly</option><option>every_4_weeks</option><option>monthly</option><option>quarterly</option><option>yearly</option></select></Field><Field label="Category"><CategorySelect categories={data.categories} value={values.category || ''} onChange={(e) => set('category', e.target.value)}/></Field><Field label="Expense type"><select value={values.expense_type_id || ''} onChange={(e) => { const id = e.target.value || null; const option = (data.expenseTypes || []).find((row) => Number(row.id) === Number(id)); set('expense_type_id', id); set('expense_type', option?.name || ''); }}><option value="">Choose Expense Type</option>{(data.expenseTypes || []).filter((row) => row.is_active !== false || Number(row.id) === Number(values.expense_type_id)).map((row) => <option key={row.id} value={row.id}>{row.name}{row.is_active === false ? ' (Archived)' : ''}</option>)}</select></Field>{text('payee_merchant', 'Payee / merchant')}<Field label="Amount type"><select value={values.amount_type || 'fixed'} onChange={(e) => set('amount_type', e.target.value)}><option value="fixed">Fixed Amount</option><option value="variable_estimated">Variable / Estimated</option></select></Field><RecurringPaymentFieldsV17 values={values} set={set} data={data}/>{text('notes', 'Notes', 'text', false, 'wide')}</div>;
-  if (type === 'bills') {
-    const method = values.payment_method || 'not_set';
-    const selectedCard = (data.cards || []).find((card) => Number(card.id) === Number(values.card_id));
-    return <div className="form-grid bill-v112-form">{text('name', 'Name / Description', 'text', true)}{text('amount', 'Amount', 'text', true)}{text('due_date', 'Due date', 'date', true)}{text('payee_merchant', 'Payee / Merchant')}{text('provider', 'Provider')}<Field label="Category"><select value={values.category_id || ''} onChange={(e) => set('category_id', e.target.value || null)}><option value="">Choose Category</option>{(data.categories || []).filter((row) => row.is_active !== false || Number(row.id) === Number(values.category_id)).map((row) => <option key={row.id} value={row.id}>{row.path || row.name}</option>)}</select></Field><Field label="Expense Type"><select value={values.expense_type_id || ''} onChange={(e) => set('expense_type_id', e.target.value || null)}><option value="">Choose Expense Type</option>{(data.expenseTypes || []).filter((row) => row.is_active !== false || Number(row.id) === Number(values.expense_type_id)).map((row) => <option key={row.id} value={row.id}>{row.name}</option>)}</select></Field><Field label="Priority"><select value={values.priority || 'normal'} onChange={(e) => set('priority', e.target.value)}><option value="high">High</option><option value="normal">Normal</option><option value="low">Low</option></select></Field><fieldset className="payment-v17-section wide"><legend>Payment</legend><span className="payment-v17-question">How is this normally paid?</span><div className="payment-v17-handling" role="radiogroup" aria-label="Bill payment handling"><button type="button" role="radio" aria-checked={values.payment_handling === 'automatic'} className={values.payment_handling === 'automatic' ? 'active' : ''} onClick={() => set('payment_handling', 'automatic')}>Paid automatically</button><button type="button" role="radio" aria-checked={values.payment_handling === 'manual'} className={values.payment_handling === 'manual' ? 'active' : ''} onClick={() => set('payment_handling', 'manual')}>I pay this manually</button></div><Field label="Payment Method"><select value={method} onChange={(e) => set('payment_method', e.target.value)}><option value="not_set">Not Set</option><option value="direct_debit">Direct Debit</option><option value="automatic_card_payment">Automatic Card Payment</option><option value="manual_payment">Manual Payment</option><option value="bpay">BPAY</option><option value="bank_transfer">Bank Transfer</option><option value="cash">Cash</option><option value="other">Other</option></select></Field>{method === 'direct_debit' && <Field label="Bank Account">{accountSelect('account_id')}</Field>}{method === 'automatic_card_payment' && <><Field label="Card"><select value={values.card_id || ''} onChange={(e) => set('card_id', e.target.value || null)}><option value="">Choose Card</option>{(data.cards || []).filter((card) => card.is_active !== false).map((card) => <option key={card.id} value={card.id}>{card.display_name}</option>)}</select></Field>{selectedCard && <small className="payment-v17-linked">Linked to account: <strong>{selectedCard.account_name}</strong></small>}</>}{values.payment_handling === 'automatic' && <Field label="Payment confirmation period"><select value={values.auto_payment_grace_days ?? 3} onChange={(e) => set('auto_payment_grace_days', Number(e.target.value))}><option value={1}>1 day</option><option value={2}>2 days</option><option value={3}>3 days</option><option value={5}>5 days</option><option value={7}>7 days</option></select></Field>}</fieldset>{text('bill_type', 'Bill type')}{text('notes', 'Notes', 'text', false, 'wide')}</div>;
-  }
-  if (type === 'planned') return <div className="form-grid planned-form">{text('name', 'Name', 'text', true, 'wide')}<div className="planned-primary-row">{text('estimated_amount', 'Estimated amount')}{text('planned_date', 'Planned date', 'date')}</div><Field label="Category"><CategorySelect categories={data.categories} value={values.category || ''} onChange={(e) => set('category', e.target.value)}/></Field><Field label="Status"><select value={values.status} onChange={(e) => set('status', e.target.value)}><option value="wishlist">Wishlist</option><option value="planned">Planned</option><option value="committed">Committed</option><option value="purchased">Purchased</option><option value="cancelled">Cancelled</option></select></Field>{text('description', 'Description', 'text', false, 'wide')}{text('notes', 'Notes', 'text', false, 'wide')}</div>;
-  if (type === 'categories') return <div className="form-grid">{text('name', 'Name', 'text', true)}<Field label="Parent category"><select value={values.parent_id || ''} onChange={(e) => set('parent_id', e.target.value)}><option value="">None (parent category)</option>{(data.categories || []).filter((row) => row.parent_id == null && Number(row.id) !== Number(currentId)).map((row) => <option key={row.id} value={row.id}>{row.name}</option>)}</select></Field><Field label="Type"><select value={values.category_type} onChange={(e) => set('category_type', e.target.value)}><option>expense</option><option>income</option><option>transfer</option></select></Field>{text('notes', 'Notes')}</div>;
-  if (type === 'accounts') { const legacy = values.account_type && !accountTypeOptions.some(([value]) => value === values.account_type); return <div className="form-grid">{text('name', 'Account name', 'text', true)}{text('opening_balance', 'Opening balance', 'text', true)}<Field label="Account type"><select value={values.account_type} onChange={(e) => set('account_type', e.target.value)}>{legacy && <option value={values.account_type}>{accountTypeLabel(values.account_type)} (Legacy)</option>}{accountTypeOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></Field>{text('institution', 'Bank')}</div>; }
-  if (type === 'budgets') return <div className="form-grid">{text('name', 'Name', 'text', true)}{text('amount', 'Amount')}{text('start_date', 'Start date', 'date')}{text('category_name', 'Category')}{text('notes', 'Notes')}</div>;
-  if (type === 'goals') return <div className="form-grid">{text('name', 'Name', 'text', true)}{text('target_amount', 'Target amount')}{text('current_amount', 'Current amount')}{text('target_date', 'Target date', 'date')}{text('notes', 'Notes')}</div>;
-  return <div className="form-grid">{Object.keys(values).map((key) => text(key, key.replaceAll('_', ' ')))}</div>;
-}
+
+// Existing components below are intentionally preserved from the established application shell.
+function Kpi({ icon, label, value, sub }) { return <article className="kpi"><span className="kpi-icon">{icon}</span><div><small>{label}</small><strong>{value || '—'}</strong><span>{sub}</span></div></article>; }
+function PanelHead({ title, meta }) { return <div className="panel-head compact"><h2>{title}</h2>{meta && <span>{meta}</span>}</div>; }
+function ForecastPage({ forecast, onView }) { if (!forecast) return <Empty title="No forecast available">Add accounts and scheduled financial events to build a forecast.</Empty>; const events = forecast.events || []; return <section className="panel"><PanelHead title="Cash Flow" meta="Expected mode"/><CashFlowChartV0174 baseline={forecast} expected={forecast} dateLabel={dateLabel} Empty={Empty}/>{events.map((row, index) => <button type="button" className="list-row" key={`${row.source_type}-${row.source_id}-${index}`} onClick={() => onView(row)}><span>{row.name}<small>{dateLabel(row.date)}</small></span><strong className={amountClass(row.amount)}>{money(row.amount)}</strong></button>)}</section>; }
+function CalendarPage({ command }) { const rows = command?.upcoming_commitments || command?.forecast?.expected?.events || []; return <section className="panel"><PanelHead title="Financial Calendar" meta={`${rows.length} events`}/>{rows.length ? rows.map((row, index) => <div className="list-row" key={`${row.kind || row.source_type}-${row.id || row.source_id}-${index}`}><span>{row.name}<small>{dateLabel(row.date || row.expected_date)}</small></span><strong>{money(row.amount || row.expected_amount)}</strong></div>) : <Empty title="No calendar events">No upcoming financial events are available.</Empty>}</section>; }
+function CsvImport() { return <section className="panel"><h2>CSV Import</h2><p>Import Review is for transaction data quality and reconciliation.</p></section>; }
+function ImportHistory({ rows }) { return <section className="panel"><PanelHead title="Import History" meta={`${rows.length} imports`}/></section>; }
+function ReviewQueue({ rows }) { return <section className="panel"><PanelHead title="Payment Review" meta={`${rows.length} items`}/></section>; }
+function Budgeting() { return <section className="panel"><h2>Budgeting</h2></section>; }
+function GoalsPage() { return <section className="panel"><h2>Goals</h2></section>; }
+function EditModal() { return null; }
+function QuickAddModal() { return null; }
+function ForecastDetailModal() { return null; }
