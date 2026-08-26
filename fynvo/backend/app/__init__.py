@@ -290,6 +290,7 @@ finance.list_bills = payments_v112.list_bills_v112
 payments_v17.ensure_scheduled_payments = v111.ensure_scheduled_payments
 
 v09.router.routes = [route for route in v09.router.routes if not (getattr(route, "path", None) == "/api/budgets/analysis" or (getattr(route, "path", None) == "/api/recurring-expenses/{expense_id}" and "PUT" in getattr(route, "methods", set())))]
+v09.router.routes = [route for route in v09.router.routes if not (getattr(route, "path", None) == "/api/bills/{bill_id}" and "PUT" in getattr(route, "methods", set()))]
 payments_v17.router.routes = [
     route for route in payments_v17.router.routes
     if getattr(route, "path", None) not in {"/scheduled-payments", "/payments/attention", "/payments/match-candidates", "/scheduled-payments/{payment_id}/skip"}
