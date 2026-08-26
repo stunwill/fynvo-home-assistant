@@ -3,10 +3,9 @@ from __future__ import annotations
 from datetime import date, timedelta
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy import text
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session as DbSession
 
 from . import payments_v17, v1, v111
@@ -304,10 +303,12 @@ def update_bill(bill_id: int, payload: BillPayload, current_user: User = USER, d
     if not existing:
         raise HTTPException(status_code=404, detail="Bill not found")
     current_status = _bill_status(dict(existing))
-    if current_status in TERMINAL_BILL_STATUSES and any([
-        payload.amount not in (None, cents_to_decimal(int(existing["original_amount_cents"]))) if existing["original_amount_cents"] is not None else payload.amount not in (None, ""),
-        payload.due_date != _as_date(existing["due_date"]),
-    ]):
+    amount_changed = False
+    if existing["original_amount_cents"] is not None:
+        amount_changed = payload.amount not in (None, cents_to_decimal(int(existing["original_amount_cents"])))
+    else:
+        amount_changed = payload.amount not in (None, "")
+    if current_status in TERMINAL_BILL_STATUSES and (amount_changed or payload.due_date != _as_date(existing["due_date"])):
         raise HTTPException(status_code=409, detail="Paid or cancelled Bill financial evidence cannot be changed. Create a new obligation if the historical record was materially different.")
     if payload.version is not None and int(payload.version) != int(existing.get("version") or 1):
         raise HTTPException(status_code=409, detail="This payment changed while you were reviewing it")
@@ -468,9 +469,7 @@ def _within(item: dict[str, Any], start: date | None, end: date | None, range_ki
 
 def _status_bucket(item: dict[str, Any]) -> str:
     state = item.get("status")
-    if state == "due":
-        return "requires_payment"
-    if state == "due_today":
+    if state in {"due", "due_today"}:
         return "requires_payment"
     if state == "expected_automatically":
         return "expected_automatically"
@@ -523,7 +522,7 @@ def payment_centre(
 
     summary_cents: dict[str, int] = {
         "total_scheduled": 0, "overdue": 0, "requires_payment": 0, "expected_automatically": 0,
-        "awaiting_confirmation": 0, "paid": 0, "skipped": 0, "cancelled": 0,
+        "awaiting_confirmation": 0, "upcoming": 0, "paid": 0, "skipped": 0, "cancelled": 0,
     }
     counts = {key: 0 for key in summary_cents}
     for row in rows:
@@ -564,7 +563,7 @@ def payment_detail(source_type: str, source_id: int, current_user: User = USER, 
     }
 
 
-@router.post("/scheduled-payments/{payment_id}/skip-safe")
+@router.post("/scheduled-payments/{payment_id}/skip")
 def skip_scheduled_payment_safe(payment_id: int, payload: dict[str, Any], current_user: User = USER, db: DbSession = DB):
     row = db.execute(text("SELECT * FROM scheduled_payments WHERE id=:id AND user_id=:uid"), {"id": payment_id, "uid": current_user.id}).mappings().first()
     if not row:
