@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import text
 from sqlalchemy.orm import Session as DbSession
 
-from . import payments_v17, v111
+from . import finance, forecast, payments_v17, v111
 from .auth import get_current_user
 from .database import get_db
 from .models import User
@@ -82,7 +82,6 @@ def _schedule_key(recurring_expense_id: int, occurrence_date: Any) -> tuple[int,
 
 
 def ensure_scheduled_payments(db: DbSession, user: User, horizon_days: int = 120, today: date | None = None) -> dict[str, int]:
-    """Materialise occurrences by immutable generated date while retaining an effective date."""
     today = today or date.today()
     end = today + timedelta(days=horizon_days)
     stats = {"rules": 0, "occurrences": 0, "inserted": 0, "updated": 0, "history": 0}
@@ -311,6 +310,7 @@ def wrap_schedule_events(original: Callable) -> Callable:
         original_rows = original(db, user, start, end)
         other_rows = [row for row in original_rows if row.get("kind") != "recurring_expense"]
         return sorted(other_rows + scheduled_occurrence_events(db, user, start, end), key=lambda item: (item["date"], item["kind"], item["name"]))
+    occurrence_aware._v114_occurrence_aware = True
     return occurrence_aware
 
 
@@ -330,4 +330,15 @@ def wrap_forecast_recurring_events(original: Callable) -> Callable:
             "scheduled_payment_id": row["scheduled_payment_id"],
         } for row in scheduled]
         return income + recurring
+    occurrence_aware._v114_occurrence_aware = True
     return occurrence_aware
+
+
+# Install the v1.14 occurrence model over existing call sites without replacing
+# the proven v1.11 reconciliation endpoints or recurrence calculations.
+v111.ensure_scheduled_payments = ensure_scheduled_payments
+payments_v17.ensure_scheduled_payments = ensure_scheduled_payments
+if not getattr(finance.schedule_events, "_v114_occurrence_aware", False):
+    finance.schedule_events = wrap_schedule_events(finance.schedule_events)
+if not getattr(forecast._recurring_events, "_v114_occurrence_aware", False):
+    forecast._recurring_events = wrap_forecast_recurring_events(forecast._recurring_events)
