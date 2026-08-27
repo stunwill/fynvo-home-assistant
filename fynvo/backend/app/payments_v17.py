@@ -202,9 +202,16 @@ def _scheduled_response(row: Any) -> dict[str, Any]:
     data = dict(row._mapping) if hasattr(row, "_mapping") else dict(row)
     expected = data.get("expected_amount_cents")
     actual = data.get("actual_amount_cents")
+    occurrence = data.get("occurrence_date") or data.get("expected_date")
+    effective = data.get("expected_date")
+    overridden = str(occurrence)[:10] != str(effective)[:10]
     return {
         "id": data["id"], "recurring_expense_id": data["recurring_expense_id"], "name": data.get("name"),
-        "expected_date": data["expected_date"], "expected_amount": cents_to_decimal(expected) if expected is not None else None,
+        "occurrence_date": occurrence, "original_expected_date": occurrence, "expected_date": effective,
+        "is_date_overridden": overridden, "override_reason": data.get("override_reason"),
+        "override_note": data.get("override_note"), "override_at": data.get("override_at"),
+        "version": int(data.get("version") or 1),
+        "expected_amount": cents_to_decimal(expected) if expected is not None else None,
         "status": data["status"], "payment_method": data["payment_method"],
         "payment_method_label": v1.PAYMENT_METHODS.get(data["payment_method"], data["payment_method"].replace("_", " ").title()),
         "payment_handling": data["payment_handling"], "account_id": data.get("account_id"), "account_name": data.get("account_name"),
@@ -289,173 +296,3 @@ def update_recurring_v17(expense_id: int, payload: dict[str, Any], current_user:
 def payment_methods(current_user: User = USER):
     del current_user
     return [{"id": key, "label": label, "default_handling": default_payment_handling(key)} for key, label in v1.PAYMENT_METHODS.items()]
-
-
-@router.get("/scheduled-payments")
-def scheduled_payments(status_filter: str | None = None, current_user: User = USER, db: DbSession = DB):
-    ensure_scheduled_payments(db, current_user)
-    sql = """
-        SELECT sp.*,r.name,a.name AS account_name,
-               CASE WHEN c.id IS NULL THEN NULL ELSE c.name || ' ••••' || c.last_four END AS card_name,
-               ca.name AS linked_account_name
-        FROM scheduled_payments sp JOIN recurring_expenses r ON r.id=sp.recurring_expense_id
-        LEFT JOIN accounts a ON a.id=sp.account_id LEFT JOIN cards c ON c.id=sp.card_id LEFT JOIN accounts ca ON ca.id=c.account_id
-        WHERE sp.user_id=:uid
-    """
-    params: dict[str, Any] = {"uid": current_user.id}
-    if status_filter:
-        sql += " AND sp.status=:status"
-        params["status"] = status_filter
-    sql += " ORDER BY sp.expected_date,sp.id"
-    return [_scheduled_response(row) for row in db.execute(text(sql), params).all()]
-
-
-@router.get("/payments/attention")
-def payment_attention(current_user: User = USER, db: DbSession = DB):
-    ensure_scheduled_payments(db, current_user)
-    rows = db.execute(text("""
-        SELECT sp.*,r.name,a.name AS account_name
-        FROM scheduled_payments sp JOIN recurring_expenses r ON r.id=sp.recurring_expense_id
-        LEFT JOIN accounts a ON a.id=sp.account_id
-        WHERE sp.user_id=:uid AND sp.status IN ('overdue','due','auto_payment_unconfirmed')
-        ORDER BY CASE sp.status WHEN 'overdue' THEN 0 WHEN 'due' THEN 1 ELSE 2 END,sp.expected_date
-    """), {"uid": current_user.id}).all()
-    return [_scheduled_response(row) for row in rows]
-
-
-class MarkPaidPayload(BaseModel):
-    paid_date: date | None = None
-    paid_amount: str | None = None
-    note: str | None = None
-
-
-@router.post("/scheduled-payments/{payment_id}/mark-paid")
-def mark_paid(payment_id: int, payload: MarkPaidPayload, current_user: User = USER, db: DbSession = DB):
-    row = db.execute(text("SELECT * FROM scheduled_payments WHERE id=:id AND user_id=:uid"), {"id": payment_id, "uid": current_user.id}).mappings().first()
-    if not row:
-        raise HTTPException(status_code=404, detail="Scheduled Payment not found")
-    if row["status"] in {"paid", "skipped", "cancelled"}:
-        raise HTTPException(status_code=409, detail="This Scheduled Payment is already resolved")
-    actual = parse_money(payload.paid_amount) if payload.paid_amount not in (None, "") else row["expected_amount_cents"]
-    now = utcnow()
-    paid_date = payload.paid_date or date.today()
-    db.execute(text("UPDATE scheduled_payments SET status='paid',actual_date=:actual_date,actual_amount_cents=:actual,confirmation_source='manual',note=:note,updated_at=:now WHERE id=:id"), {"actual_date": paid_date, "actual": actual, "note": payload.note, "now": now, "id": payment_id})
-    db.execute(text("INSERT INTO scheduled_payment_history(user_id,scheduled_payment_id,from_status,to_status,source,note,created_at) VALUES(:uid,:sid,:from_status,'paid','manual',:note,:now)"), {"uid": current_user.id, "sid": payment_id, "from_status": row["status"], "note": payload.note, "now": now})
-    db.commit()
-    return {"status": "paid", "scheduled_payment_id": payment_id, "actual_amount": cents_to_decimal(actual), "actual_date": paid_date}
-
-
-@router.post("/scheduled-payments/{payment_id}/skip")
-def skip_payment(payment_id: int, payload: dict[str, Any], current_user: User = USER, db: DbSession = DB):
-    row = db.execute(text("SELECT * FROM scheduled_payments WHERE id=:id AND user_id=:uid"), {"id": payment_id, "uid": current_user.id}).mappings().first()
-    if not row:
-        raise HTTPException(status_code=404, detail="Scheduled Payment not found")
-    if row["status"] == "paid":
-        raise HTTPException(status_code=409, detail="Paid Scheduled Payments cannot be skipped")
-    now = utcnow()
-    db.execute(text("UPDATE scheduled_payments SET status='skipped',note=:note,updated_at=:now WHERE id=:id"), {"note": payload.get("note"), "now": now, "id": payment_id})
-    db.execute(text("INSERT INTO scheduled_payment_history(user_id,scheduled_payment_id,from_status,to_status,source,note,created_at) VALUES(:uid,:sid,:from_status,'skipped','manual',:note,:now)"), {"uid": current_user.id, "sid": payment_id, "from_status": row["status"], "note": payload.get("note"), "now": now})
-    db.commit()
-    return {"status": "skipped", "scheduled_payment_id": payment_id}
-
-
-@router.get("/payments/match-candidates")
-def payment_match_candidates(date_tolerance_days: int = Query(default=7, ge=1, le=31), current_user: User = USER, db: DbSession = DB):
-    ensure_scheduled_payments(db, current_user)
-    tx_rows = db.execute(text("SELECT * FROM transactions WHERE user_id=:uid AND transaction_type='expense' AND COALESCE(reconciliation_status,'unmatched') NOT IN ('matched','ignored','duplicate') ORDER BY transaction_date DESC,id DESC"), {"uid": current_user.id}).mappings().all()
-    mapping_rows = db.execute(text("SELECT * FROM recurring_match_mappings WHERE user_id=:uid"), {"uid": current_user.id}).mappings().all()
-    mappings = {(int(row["recurring_expense_id"]), row["merchant_key"], int(row["account_id"]) if row["account_id"] is not None else None): row for row in mapping_rows}
-    decisions = db.execute(text("SELECT transaction_id,scheduled_payment_id,decision FROM scheduled_payment_match_decisions WHERE user_id=:uid"), {"uid": current_user.id}).mappings().all()
-    rejected = {(int(row["transaction_id"]), int(row["scheduled_payment_id"])) for row in decisions if row["decision"] == "rejected" and row["scheduled_payment_id"] is not None}
-    ignored = {int(row["transaction_id"]) for row in decisions if row["decision"] == "ignored"}
-    scheduled = db.execute(text("""
-        SELECT sp.*,r.name,r.payee_merchant,r.amount_type
-        FROM scheduled_payments sp JOIN recurring_expenses r ON r.id=sp.recurring_expense_id
-        WHERE sp.user_id=:uid AND sp.status NOT IN ('paid','skipped','cancelled') AND sp.matched_transaction_id IS NULL
-    """), {"uid": current_user.id}).mappings().all()
-    candidates = []
-    for tx in tx_rows:
-        if int(tx["id"]) in ignored:
-            continue
-        tx_date = tx["transaction_date"] if isinstance(tx["transaction_date"], date) else date.fromisoformat(str(tx["transaction_date"])[:10])
-        merchant_key = " ".join(str(tx.get("merchant") or tx.get("description") or "").strip().lower().split())
-        for sp in scheduled:
-            if (int(tx["id"]), int(sp["id"])) in rejected:
-                continue
-            expected_date = sp["expected_date"] if isinstance(sp["expected_date"], date) else date.fromisoformat(str(sp["expected_date"])[:10])
-            day_delta = abs((tx_date - expected_date).days)
-            if day_delta > date_tolerance_days:
-                continue
-            if sp["account_id"] and tx.get("account_id") and int(sp["account_id"]) != int(tx["account_id"]):
-                continue
-            expected = int(sp["expected_amount_cents"] or 0)
-            actual = abs(int(tx["amount_cents"] or 0))
-            variance = abs(expected - actual)
-            if sp["amount_type"] == "fixed":
-                allowed = max(100, round(expected * 0.05))
-            else:
-                allowed = max(1000, round(expected * 0.30))
-            learned = mappings.get((int(sp["recurring_expense_id"]), merchant_key, int(tx["account_id"]) if tx.get("account_id") is not None else None))
-            payee = " ".join(str(sp.get("payee_merchant") or sp.get("name") or "").strip().lower().split())
-            merchant_match = bool(payee and (payee in merchant_key or merchant_key in payee))
-            if variance > allowed and not learned:
-                continue
-            score = 35 if variance == 0 else 25 if variance <= allowed else 0
-            score += 30 if day_delta <= 1 else 20 if day_delta <= 3 else 10
-            score += 30 if merchant_match else 20 if learned else 0
-            confidence = "high" if score >= 80 else "medium" if score >= 55 else "low"
-            candidates.append({"transaction_id": tx["id"], "transaction_date": tx_date, "description": tx["description"], "merchant": tx.get("merchant"), "actual_amount": cents_to_decimal(actual), "scheduled_payment_id": sp["id"], "recurring_expense_id": sp["recurring_expense_id"], "recurring_name": sp["name"], "expected_date": expected_date, "expected_amount": cents_to_decimal(expected), "variance": cents_to_decimal(actual - expected), "confidence": confidence, "learned_match": bool(learned)})
-    return sorted(candidates, key=lambda item: ({"high": 0, "medium": 1, "low": 2}[item["confidence"]], item["expected_date"], item["recurring_name"]))
-
-
-class ConfirmMatchPayload(BaseModel):
-    transaction_id: int
-    confidence: str | None = None
-
-
-@router.post("/scheduled-payments/{payment_id}/match")
-def confirm_payment_match(payment_id: int, payload: ConfirmMatchPayload, current_user: User = USER, db: DbSession = DB):
-    payment = db.execute(text("SELECT * FROM scheduled_payments WHERE id=:id AND user_id=:uid"), {"id": payment_id, "uid": current_user.id}).mappings().first()
-    transaction = db.execute(text("SELECT * FROM transactions WHERE id=:id AND user_id=:uid"), {"id": payload.transaction_id, "uid": current_user.id}).mappings().first()
-    if not payment or not transaction:
-        raise HTTPException(status_code=404, detail="Scheduled Payment or Transaction not found")
-    already = db.execute(text("SELECT id FROM scheduled_payments WHERE user_id=:uid AND matched_transaction_id=:txid AND id<>:id"), {"uid": current_user.id, "txid": payload.transaction_id, "id": payment_id}).scalar()
-    if already:
-        raise HTTPException(status_code=409, detail="Transaction is already matched to another Scheduled Payment")
-    actual = abs(int(transaction["amount_cents"] or 0))
-    tx_date = transaction["transaction_date"]
-    now = utcnow()
-    db.execute(text("UPDATE scheduled_payments SET status='paid',actual_date=:actual_date,actual_amount_cents=:actual,matched_transaction_id=:txid,match_confidence=:confidence,confirmation_source='csv_match',updated_at=:now WHERE id=:id"), {"actual_date": tx_date, "actual": actual, "txid": payload.transaction_id, "confidence": payload.confidence or "confirmed", "now": now, "id": payment_id})
-    db.execute(text("UPDATE transactions SET reconciliation_status='matched',matched_type='scheduled_payment',matched_id=:sid,updated_at=:now WHERE id=:txid AND user_id=:uid"), {"sid": payment_id, "now": now, "txid": payload.transaction_id, "uid": current_user.id})
-    db.execute(text("INSERT INTO scheduled_payment_history(user_id,scheduled_payment_id,from_status,to_status,source,note,created_at) VALUES(:uid,:sid,:from_status,'paid','csv_match',:note,:now)"), {"uid": current_user.id, "sid": payment_id, "from_status": payment["status"], "note": f"Matched Transaction #{payload.transaction_id}", "now": now})
-    merchant_key = " ".join(str(transaction.get("merchant") or transaction.get("description") or "").strip().lower().split())
-    if merchant_key:
-        db.execute(text("""
-            INSERT INTO recurring_match_mappings(user_id,recurring_expense_id,merchant_key,account_id,confirmed_count,last_confirmed_at)
-            VALUES(:uid,:rid,:merchant,:account,1,:now)
-            ON CONFLICT(user_id,recurring_expense_id,merchant_key,account_id)
-            DO UPDATE SET confirmed_count=confirmed_count+1,last_confirmed_at=:now
-        """), {"uid": current_user.id, "rid": payment["recurring_expense_id"], "merchant": merchant_key, "account": transaction.get("account_id"), "now": now})
-    db.commit()
-    return {"status": "matched", "scheduled_payment_id": payment_id, "transaction_id": payload.transaction_id, "actual_amount": cents_to_decimal(actual)}
-
-
-@router.post("/scheduled-payments/{payment_id}/reject-match")
-def reject_payment_match(payment_id: int, payload: dict[str, Any], current_user: User = USER, db: DbSession = DB):
-    transaction_id = int(payload.get("transaction_id") or 0)
-    if not transaction_id:
-        raise HTTPException(status_code=400, detail="Transaction is required")
-    db.execute(text("INSERT OR IGNORE INTO scheduled_payment_match_decisions(user_id,transaction_id,scheduled_payment_id,decision,created_at) VALUES(:uid,:tx,:sid,'rejected',:now)"), {"uid": current_user.id, "tx": transaction_id, "sid": payment_id, "now": utcnow()})
-    db.commit()
-    return {"status": "rejected"}
-
-
-@router.post("/payments/transactions/{transaction_id}/ignore")
-def ignore_payment_transaction(transaction_id: int, current_user: User = USER, db: DbSession = DB):
-    row = db.execute(text("SELECT id FROM transactions WHERE id=:id AND user_id=:uid"), {"id": transaction_id, "uid": current_user.id}).first()
-    if not row:
-        raise HTTPException(status_code=404, detail="Transaction not found")
-    db.execute(text("INSERT OR IGNORE INTO scheduled_payment_match_decisions(user_id,transaction_id,scheduled_payment_id,decision,created_at) VALUES(:uid,:tx,NULL,'ignored',:now)"), {"uid": current_user.id, "tx": transaction_id, "now": utcnow()})
-    db.execute(text("UPDATE transactions SET reconciliation_status='ignored',updated_at=:now WHERE id=:id AND user_id=:uid"), {"id": transaction_id, "uid": current_user.id, "now": utcnow()})
-    db.commit()
-    return {"status": "ignored"}
