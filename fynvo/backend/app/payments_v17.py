@@ -163,7 +163,7 @@ def create_recurring_v17(db: DbSession, user: User, payload: RecurringExpenseCre
 
 def _status_for(expected_date: date, handling: str, grace_days: int, today: date) -> str:
     if expected_date > today:
-        return "upcoming"
+        return "expected_automatically" if handling == "automatic" else "upcoming"
     if handling == "automatic":
         if expected_date + timedelta(days=grace_days) < today:
             return "auto_payment_unconfirmed"
@@ -202,9 +202,15 @@ def _scheduled_response(row: Any) -> dict[str, Any]:
     data = dict(row._mapping) if hasattr(row, "_mapping") else dict(row)
     expected = data.get("expected_amount_cents")
     actual = data.get("actual_amount_cents")
+    occurrence = data.get("occurrence_date") or data.get("expected_date")
+    effective = data.get("expected_date")
     return {
         "id": data["id"], "recurring_expense_id": data["recurring_expense_id"], "name": data.get("name"),
-        "expected_date": data["expected_date"], "expected_amount": cents_to_decimal(expected) if expected is not None else None,
+        "occurrence_date": occurrence, "original_expected_date": occurrence, "expected_date": effective,
+        "is_date_overridden": str(occurrence)[:10] != str(effective)[:10],
+        "override_reason": data.get("override_reason"), "override_note": data.get("override_note"),
+        "override_at": data.get("override_at"), "version": int(data.get("version") or 1),
+        "expected_amount": cents_to_decimal(expected) if expected is not None else None,
         "status": data["status"], "payment_method": data["payment_method"],
         "payment_method_label": v1.PAYMENT_METHODS.get(data["payment_method"], data["payment_method"].replace("_", " ").title()),
         "payment_handling": data["payment_handling"], "account_id": data.get("account_id"), "account_name": data.get("account_name"),
