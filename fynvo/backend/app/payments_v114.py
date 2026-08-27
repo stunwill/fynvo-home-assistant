@@ -71,11 +71,9 @@ def ensure_v114_schema(engine) -> None:
         for definition in ("previous_expected_date DATE", "new_expected_date DATE", "reason VARCHAR(120)"):
             _add_column(connection, "scheduled_payment_history", definition, history_columns)
 
-        current = connection.execute(text("SELECT MAX(version) FROM schema_version")).scalar()
-        if current is None:
-            connection.execute(text("INSERT INTO schema_version(version) VALUES (14)"))
-        elif int(current) < 14:
-            connection.execute(text("UPDATE schema_version SET version=14"))
+        # Fynvo's additive feature migrations preserve the established global
+        # schema_version contract. The v1.14 occurrence-override columns are
+        # added idempotently above without advancing the core marker from 13.
 
 
 def _schedule_key(recurring_expense_id: int, occurrence_date: Any) -> tuple[int, str]:
