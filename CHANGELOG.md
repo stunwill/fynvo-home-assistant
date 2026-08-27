@@ -2,6 +2,46 @@
 
 All notable Fynvo changes are documented here. Starting with v0.3.0, every release must include a user-readable changelog entry, Home Assistant-visible release notes and GitHub release notes.
 
+## v1.14.0 - Recurring Payment Occurrence Overrides
+
+### One-off scheduled payment dates
+- Added first-class `Change payment date` support for an individual Scheduled Payment without modifying the parent Recurring Expense rule.
+- Added an immutable generated occurrence date alongside the effective expected date so a moved payment remains the same logical occurrence and cannot be regenerated on its original date.
+- Added `Restore original date` for unresolved overridden payments without creating replacement Scheduled Payments.
+- Preserved future recurrence generation from the authoritative recurring rule. Moving one monthly, fortnightly, 28-day or custom occurrence does not re-anchor later dates.
+
+### Failed and unconfirmed automatic payments
+- Automatic Direct Debit and Automatic Card Payment occurrences can be moved to a later retry date while remaining unpaid.
+- Status is recalculated from the effective expected date, so an unconfirmed past automatic payment moved into the future returns to an appropriate expected-automatic state rather than remaining overdue solely because its original date passed.
+- Payments Requiring Attention and Payment Centre both expose the one-off date-change workflow.
+
+### Expected versus actual history
+- Scheduled Payments retain the original expected date, effective expected date and actual payment date as separate financial facts.
+- Date changes write auditable history containing the previous date, new date, source, optional reason/note and timestamp.
+- Paid, matched and other completed financial history cannot be silently rescheduled. Matched payments must be unmatched before an expected-date correction.
+- Rescheduling never changes `actual_date` or a matched Transaction date and never marks a payment paid.
+
+### Schedule, forecast and reconciliation consistency
+- Schedule materialisation now keys logical occurrence identity from the immutable generated date while using the effective expected date for current status.
+- Repeated generation remains idempotent after an override and cannot recreate the original-date occurrence.
+- Calendar, Overview commitments, Cash Flow and Forecast recurring events now consume effective Scheduled Payment dates so a moved occurrence appears once on the new date.
+- Transaction matching continues to use the effective expected date for date proximity while preserving existing amount, account, merchant, learned-mapping and one-to-one safeguards.
+
+### Payment Centre and mobile UX
+- Payment Centre shows a subtle `Date changed` indicator only for overridden Scheduled Payments and displays `Usual payment date` and `Expected this time` in payment detail.
+- Added optional reasons including failed payment, provider date change, insufficient funds, deferred payment and user-requested date changes.
+- The occurrence editor uses the existing top-layer modal protections, closes the originating payment detail before opening, prevents mobile horizontal overflow and keeps Save/Cancel controls accessible in Home Assistant and iPhone-sized viewports.
+
+### Data migration and regression protection
+- Added an additive, idempotent schema migration that backfills existing Scheduled Payments with their current expected date as the original occurrence identity. Existing payment status, reconciliation links and household records are preserved.
+- Added backend regression coverage for future monthly overrides, repeated generation, failed automatic retries, restore behaviour, audit history, completed-payment protection, effective-date matching and cross-screen consistency.
+- Added frontend regression coverage for Payment Centre and Payments Requiring Attention date-change actions plus mobile modal containment.
+
+### Versioning
+- Selected v1.14.0 from the merged v1.13.0 baseline after confirming PR #53 was merged and no overlapping Fynvo PR remained open.
+- Corrected inherited metadata drift and aligned Home Assistant add-on, backend, frontend package and production-shell versioning to v1.14.0.
+- Installed Home Assistant and iPhone verification remains required before merge and is not represented as completed by repository CI.
+
 ## v1.10.1 - Installed Reliability, API & Workflow Hardening
 
 ### Recurring Expense persistence
