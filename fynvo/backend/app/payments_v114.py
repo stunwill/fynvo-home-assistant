@@ -285,25 +285,50 @@ def restore_scheduled_payment_date(payment_id: int, payload: ScheduledPaymentRes
     return _mutate_expected_date(db, current_user, row, occurrence_date, None, payload.note, restoring=True)
 
 
+def _linked_bill_keys(db: DbSession, user: User) -> set[tuple[int, str]]:
+    rows = db.execute(text("""
+        SELECT recurring_expense_id,due_date FROM bills
+        WHERE user_id=:uid AND is_active=1 AND recurring_expense_id IS NOT NULL
+          AND due_date IS NOT NULL AND paid_at IS NULL AND resolved_at IS NULL
+    """), {"uid": user.id}).all()
+    return {(int(row.recurring_expense_id), str(row.due_date)[:10]) for row in rows}
+
+
 def scheduled_occurrence_events(db: DbSession, user: User, start: date, end: date) -> list[dict[str, Any]]:
     horizon = max(120, (end - date.today()).days + 7)
     ensure_scheduled_payments(db, user, horizon_days=horizon)
+    linked_bills = _linked_bill_keys(db, user)
     rows = db.execute(text("""
-        SELECT sp.id AS scheduled_payment_id,sp.recurring_expense_id,sp.expected_date,sp.expected_amount_cents,
-               sp.status,r.name,r.category,r.expense_type,r.source_account_text,r.account_id
+        SELECT sp.id AS scheduled_payment_id,sp.recurring_expense_id,
+               COALESCE(sp.occurrence_date,sp.expected_date) AS occurrence_date,
+               sp.expected_date,sp.expected_amount_cents,sp.status,
+               r.name,r.category,r.expense_type,r.source_account_text,r.account_id
         FROM scheduled_payments sp JOIN recurring_expenses r ON r.id=sp.recurring_expense_id AND r.user_id=sp.user_id
         WHERE sp.user_id=:uid AND sp.expected_date BETWEEN :start AND :end
           AND sp.status NOT IN ('skipped','cancelled')
         ORDER BY sp.expected_date,sp.id
     """), {"uid": user.id, "start": start, "end": end}).mappings().all()
-    return [{
-        "date": v111._as_date(row["expected_date"]).isoformat(), "name": row["name"],
-        "amount_cents": int(row["expected_amount_cents"] or 0), "amount": cents_to_decimal(int(row["expected_amount_cents"] or 0)),
-        "kind": "recurring_expense", "category": row["category"] or "Miscellaneous",
-        "provider": row["expense_type"], "account": row["source_account_text"], "source": "recurring_expense",
-        "source_id": int(row["recurring_expense_id"]), "scheduled_payment_id": int(row["scheduled_payment_id"]),
-        "status": row["status"],
-    } for row in rows]
+    events = []
+    for row in rows:
+        occurrence_date = v111._as_date(row["occurrence_date"])
+        if (int(row["recurring_expense_id"]), occurrence_date.isoformat()) in linked_bills:
+            continue
+        effective_date = v111._as_date(row["expected_date"])
+        amount, _ = forecast.amount_at(
+            db, user, "recurring_expense", int(row["recurring_expense_id"]),
+            int(row["expected_amount_cents"] or 0), effective_date,
+        )
+        if amount is None:
+            continue
+        events.append({
+            "date": effective_date.isoformat(), "occurrence_date": occurrence_date.isoformat(), "name": row["name"],
+            "amount_cents": int(amount), "amount": cents_to_decimal(int(amount)),
+            "kind": "recurring_expense", "category": row["category"] or "Miscellaneous",
+            "provider": row["expense_type"], "account": row["source_account_text"], "source": "recurring_expense",
+            "source_id": int(row["recurring_expense_id"]), "scheduled_payment_id": int(row["scheduled_payment_id"]),
+            "status": row["status"],
+        })
+    return events
 
 
 def wrap_schedule_events(original: Callable) -> Callable:
@@ -321,22 +346,27 @@ def wrap_forecast_recurring_events(original: Callable) -> Callable:
         income = [row for row in base if row.get("source_type") != "recurring_expense"]
         scenario = scenario or {}
         removed = set(scenario.get("remove_recurring_ids", []))
+        virtual_changes = scenario.get("amount_changes", {})
         scheduled = [row for row in scheduled_occurrence_events(db, user, start, end) if row["source_id"] not in removed]
-        recurring = [{
-            "date": row["date"], "name": row["name"], "amount_cents": -abs(int(row["amount_cents"])),
-            "amount": cents_to_decimal(-abs(int(row["amount_cents"]))), "direction": "expense",
-            "source_type": "recurring_expense", "source_id": row["source_id"], "category": row["category"],
-            "account_id": None, "confidence": "confirmed", "financial_layer": "committed", "estimated": False,
-            "explanation": "Scheduled recurring payment; effective occurrence date",
-            "scheduled_payment_id": row["scheduled_payment_id"],
-        } for row in scheduled]
+        recurring = []
+        for row in scheduled:
+            amount = int(row["amount_cents"])
+            occurrence_date = row.get("occurrence_date") or row["date"]
+            amount = virtual_changes.get(f"recurring_expense:{row['source_id']}:{occurrence_date}", amount)
+            amount = virtual_changes.get(f"recurring_expense:{row['source_id']}:{row['date']}", amount)
+            recurring.append({
+                "date": row["date"], "name": row["name"], "amount_cents": -abs(int(amount)),
+                "amount": cents_to_decimal(-abs(int(amount))), "direction": "expense",
+                "source_type": "recurring_expense", "source_id": row["source_id"], "category": row["category"],
+                "account_id": None, "confidence": "confirmed", "financial_layer": "committed", "estimated": False,
+                "explanation": "Scheduled recurring payment; effective occurrence date",
+                "scheduled_payment_id": row["scheduled_payment_id"],
+            })
         return income + recurring
     occurrence_aware._v114_occurrence_aware = True
     return occurrence_aware
 
 
-# Install the v1.14 occurrence model over existing call sites without replacing
-# the proven v1.11 reconciliation endpoints or recurrence calculations.
 v111.ensure_scheduled_payments = ensure_scheduled_payments
 payments_v17.ensure_scheduled_payments = ensure_scheduled_payments
 if not getattr(finance.schedule_events, "_v114_occurrence_aware", False):
