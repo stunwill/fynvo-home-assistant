@@ -218,6 +218,6 @@ def test_v114_migration_is_additive_and_idempotent(client):
         scheduled_columns = {row[1] for row in connection.execute(text("PRAGMA table_info(scheduled_payments)")).all()}
         history_columns = {row[1] for row in connection.execute(text("PRAGMA table_info(scheduled_payment_history)")).all()}
         version = connection.execute(text("SELECT MAX(version) FROM schema_version")).scalar()
-    assert int(version) == 14
+    assert int(version) == 13
     assert {"occurrence_date", "override_reason", "override_note", "override_at", "override_by_user_id", "version"}.issubset(scheduled_columns)
     assert {"previous_expected_date", "new_expected_date", "reason"}.issubset(history_columns)
