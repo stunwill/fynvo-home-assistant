@@ -1,9 +1,8 @@
 from datetime import date, timedelta
 
-from sqlalchemy import text
-
 from app.database import get_engine
 from app.payments_v114 import ensure_v114_schema
+from sqlalchemy import text
 
 
 def setup_user(client):
