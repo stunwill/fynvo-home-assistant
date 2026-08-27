@@ -10,12 +10,13 @@ export const PAYMENT_DATE_RANGES = [
 ];
 
 export const PAYMENT_STATUS_LABELS = {
+  unknown: 'Needs information',
   overdue: 'Overdue',
   due: 'Requires payment',
   due_today: 'Due today',
   upcoming: 'Upcoming',
   expected_automatically: 'Expected automatically',
-  auto_payment_unconfirmed: 'Automatic payment not confirmed',
+  auto_payment_unconfirmed: 'Awaiting confirmation',
   paid: 'Paid',
   skipped: 'Skipped',
   cancelled: 'Cancelled',
@@ -40,14 +41,43 @@ export function paymentSourceLabel(row) {
   return row?.source_type === 'bill' ? 'Bill' : 'Recurring Expense';
 }
 
+export function paymentAttentionReason(row) {
+  if (!row) return '';
+  if (row.match_review_available) return 'Possible transaction match found';
+  if (row.status === 'auto_payment_unconfirmed') return 'Automatic payment has not been confirmed';
+  if (row.status === 'overdue') {
+    const days = Number(row.days_overdue || 0);
+    return days > 0 ? `Payment is ${days} day${days === 1 ? '' : 's'} overdue` : 'Payment is overdue';
+  }
+  if (row.status === 'due' || row.status === 'due_today') return 'Payment is due and requires payment';
+  if (row.status === 'unknown' || row.expected_amount == null && row.amount == null) return 'Payment amount is missing';
+  return row.attention_reason || '';
+}
+
 export function paymentNeedsAction(row) {
-  return Boolean(row?.requires_action || row?.match_review_available);
+  return Boolean(row?.requires_action || row?.match_review_available || paymentAttentionReason(row));
+}
+
+export function paymentAvailableActions(row) {
+  if (!row) return [];
+  const actions = ['view'];
+  if (['paid', 'skipped', 'cancelled'].includes(row.status)) return actions;
+  if (row.match_review_available || row.status === 'auto_payment_unconfirmed') actions.push('review');
+  if (row.payment_handling === 'manual' || ['due', 'due_today', 'overdue'].includes(row.status)) actions.push('mark_paid');
+  if (row.source_type === 'bill') {
+    actions.push('edit');
+    actions.push('cancel');
+  } else {
+    actions.push('skip');
+    if (row.recurring_expense_id) actions.push('open_recurring');
+  }
+  return [...new Set(actions)];
 }
 
 export function paymentPrimaryAction(row) {
-  if (!row || ['paid', 'skipped', 'cancelled'].includes(row.status)) return 'view';
-  if (row.match_review_available || row.status === 'auto_payment_unconfirmed') return 'review';
-  if (row.payment_handling === 'manual' || ['due', 'due_today', 'overdue'].includes(row.status)) return 'mark_paid';
+  const actions = paymentAvailableActions(row);
+  if (actions.includes('review')) return 'review';
+  if (actions.includes('mark_paid')) return 'mark_paid';
   return 'view';
 }
 

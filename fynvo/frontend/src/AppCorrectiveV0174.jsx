@@ -14,8 +14,8 @@ import './styles.css';
 
 const api = (path, options = {}) => fetch(`api${path}`, { credentials: 'same-origin', headers: { 'Content-Type': 'application/json', ...(options.headers || {}) }, ...options });
 const today = new Date().toISOString().slice(0, 10);
-const APP_VERSION = '1.12.0';
-const ATTENTION_STATUSES = new Set(['overdue', 'due', 'auto_payment_unconfirmed']);
+const APP_VERSION = '1.13.0';
+const ATTENTION_STATUSES = new Set(['overdue', 'due', 'due_today', 'auto_payment_unconfirmed', 'unknown']);
 const navGroups = [
   { label: 'Core', items: ['Overview', 'Cash Flow', 'Calendar', 'Accounts'] },
   { label: 'Money', items: ['Payment Centre', 'Transactions', 'Income', 'Bills', 'Recurring Expenses', 'Planned Spending', 'Cards'] },
@@ -103,7 +103,7 @@ export default function AppCorrectiveV0174() {
   const [active, setActive] = useState(localStorage.getItem('fynvo.view') || 'Overview');
   const [rangeDays, setRangeDays] = useState(Number(localStorage.getItem('fynvo.rangeDays') || 90));
   const [form, setForm] = useState({ username: '', display_name: '', password: '' });
-  const [data, setData] = useState({ accounts: [], cards: [], transactions: [], income: [], recurring: [], scheduledPayments: [], paymentAttention: [], bills: [], planned: [], categories: [], expenseTypes: [], budgets: [], goals: [], imports: [], review: [], suggestions: [], insights: [], financialHealth: null, budgetAnalysis: null, forecast: null, command: null });
+  const [data, setData] = useState({ accounts: [], cards: [], transactions: [], income: [], recurring: [], scheduledPayments: [], paymentAttention: [], bills: [], planned: [], categories: [], expenseTypes: [], budgets: [], goals: [], imports: [], review: [], suggestions: [], insights: [], financialHealth: null, budgetAnalysis: null, forecast: null, command: null, paymentCentreOverview: null });
   const [dashboardLoading, setDashboardLoading] = useState(true);
   const [error, setError] = useState(''); const [success, setSuccess] = useState(''); const [edit, setEdit] = useState(null); const [quick, setQuick] = useState(null); const [quickMenuOpen, setQuickMenuOpen] = useState(false); const [detail, setDetail] = useState(null); const [greeting, setGreeting] = useState(() => greetingForNow()); const [mobileNavOpen, setMobileNavOpen] = useState(false); const [isMobile, setIsMobile] = useState(() => window.matchMedia('(max-width: 980px)').matches);
   const menuButtonRef = useRef(null); const closeButtonRef = useRef(null); const commandRequestRef = useRef(0); const initialLoadedRef = useRef(false);
@@ -114,13 +114,14 @@ export default function AppCorrectiveV0174() {
   async function refreshDashboard(days = rangeDays) { const requestId = ++commandRequestRef.current; setDashboardLoading(true); try { const command = await j(`/dashboard/command-centre?range_days=${days}`); if (requestId !== commandRequestRef.current) return; setData((current) => ({ ...current, command })); } finally { if (requestId === commandRequestRef.current) setDashboardLoading(false); } }
   async function loadSupportingData() {
     const scheduledRequest = active === 'Overview' ? j('/scheduled-payments') : Promise.resolve(null);
-    const [accounts, cards, transactions, income, recurring, scheduledPayments, bills, planned, categories, referenceData, budgets, goals, imports, review, suggestions, insights, financialHealth, budgetAnalysis, forecast] = await Promise.all([
-      j('/accounts'), j('/cards?include_inactive=true'), j('/transactions'), j('/income'), j('/recurring-expenses'), scheduledRequest, j('/bills'), j('/planned-spending'), j('/categories'), j('/reference-data'), j('/budgets'), j('/goals'), j('/imports/history'), j('/reconciliation/review-queue'), j('/intelligence/suggestions'), j(`/insights?horizon_days=${rangeDays}&refresh=false`), j(`/insights/financial-health?horizon_days=${rangeDays}`), j('/budgets/analysis'), j(`/forecast?mode=expected&horizon=${rangeDays}d`),
+    const paymentCentreRequest = active === 'Overview' ? j('/payment-centre?date_range=next_30_days') : Promise.resolve(null);
+    const [accounts, cards, transactions, income, recurring, scheduledPayments, bills, planned, categories, referenceData, budgets, goals, imports, review, suggestions, insights, financialHealth, budgetAnalysis, forecast, paymentCentreOverview] = await Promise.all([
+      j('/accounts'), j('/cards?include_inactive=true'), j('/transactions'), j('/income'), j('/recurring-expenses'), scheduledRequest, j('/bills'), j('/planned-spending'), j('/categories'), j('/reference-data'), j('/budgets'), j('/goals'), j('/imports/history'), j('/reconciliation/review-queue'), j('/intelligence/suggestions'), j(`/insights?horizon_days=${rangeDays}&refresh=false`), j(`/insights/financial-health?horizon_days=${rangeDays}`), j('/budgets/analysis'), j(`/forecast?mode=expected&horizon=${rangeDays}d`), paymentCentreRequest,
     ]);
     setData((current) => {
       const resolvedScheduled = scheduledPayments === null ? current.scheduledPayments : scheduledPayments || [];
-      const paymentAttention = scheduledPayments === null ? current.paymentAttention : resolvedScheduled.filter((row) => ATTENTION_STATUSES.has(row.status));
-      return { ...current, accounts: accounts || [], cards: cards || [], transactions: transactions || [], income: income || [], recurring: recurring || [], scheduledPayments: resolvedScheduled, paymentAttention, bills: bills || [], planned: planned || [], categories: categories || [], expenseTypes: referenceData?.expense_types || [], budgets: budgets || [], goals: goals || [], imports: imports || [], review: review || [], suggestions: suggestions || [], insights: insights || [], financialHealth, budgetAnalysis, forecast };
+      const derivedAttention = paymentCentreOverview?.rows?.filter((row) => row.requires_action || ATTENTION_STATUSES.has(row.status)) || (scheduledPayments === null ? current.paymentAttention : resolvedScheduled.filter((row) => ATTENTION_STATUSES.has(row.status)));
+      return { ...current, accounts: accounts || [], cards: cards || [], transactions: transactions || [], income: income || [], recurring: recurring || [], scheduledPayments: resolvedScheduled, paymentAttention: derivedAttention, bills: bills || [], planned: planned || [], categories: categories || [], expenseTypes: referenceData?.expense_types || [], budgets: budgets || [], goals: goals || [], imports: imports || [], review: review || [], suggestions: suggestions || [], insights: insights || [], financialHealth, budgetAnalysis, forecast, paymentCentreOverview: paymentCentreOverview === null ? current.paymentCentreOverview : paymentCentreOverview };
     });
   }
   async function loadAll() { await Promise.allSettled([refreshDashboard(rangeDays), loadSupportingData()]); }
@@ -175,40 +176,24 @@ export default function AppCorrectiveV0174() {
     }
   }
   async function createRecord(type, values) {
-    setError('');
-    setSuccess('');
+    setError(''); setSuccess('');
     if (type === 'recurring') {
       try {
         await apiRequest(createPath(type), { method: 'POST', body: JSON.stringify(normaliseMutationValues(type, values)) });
-        setQuick(null);
-        setSuccess('Recurring Expense created.');
+        setQuick(null); setSuccess('Recurring Expense created.');
         const refresh = await refreshRecurringSlice();
         if (refresh.scheduleError) setError('Recurring Expense created, but scheduled payment information could not be refreshed yet.');
-      } catch (requestError) {
-        setError(friendlyError(requestError?.payload, requestError?.message || 'Could not create Recurring Expense. Check the fields and try again.'));
-      }
+      } catch (requestError) { setError(friendlyError(requestError?.payload, requestError?.message || 'Could not create Recurring Expense. Check the fields and try again.')); }
       return;
     }
     if (type === 'transactions') {
-      try {
-        await apiRequest(createPath(type), { method: 'POST', body: JSON.stringify(values) });
-        setQuick(null);
-        setSuccess('Transaction created.');
-        await loadSupportingData();
-      } catch (requestError) {
-        setError(friendlyError(requestError?.payload, requestError?.message || 'Could not create Transaction. Check the fields and try again.'));
-      }
+      try { await apiRequest(createPath(type), { method: 'POST', body: JSON.stringify(values) }); setQuick(null); setSuccess('Transaction created.'); await loadSupportingData(); }
+      catch (requestError) { setError(friendlyError(requestError?.payload, requestError?.message || 'Could not create Transaction. Check the fields and try again.')); }
       return;
     }
     if (type === 'bills') {
-      try {
-        await apiRequest(createPath(type), { method: 'POST', body: JSON.stringify(normaliseMutationValues(type, values)) });
-        setQuick(null);
-        setSuccess('Bill created.');
-        await loadAll();
-      } catch (requestError) {
-        setError(friendlyError(requestError?.payload, requestError?.message || 'Could not create Bill. Check the payment details and try again.'));
-      }
+      try { await apiRequest(createPath(type), { method: 'POST', body: JSON.stringify(normaliseMutationValues(type, values)) }); setQuick(null); setSuccess('Bill created.'); await loadAll(); }
+      catch (requestError) { setError(friendlyError(requestError?.payload, requestError?.message || 'Could not create Bill. Check the payment details and try again.')); }
       return;
     }
     const res = await api(createPath(type), { method: 'POST', body: JSON.stringify(values) });
@@ -252,8 +237,8 @@ export default function AppCorrectiveV0174() {
     <main className="content">
       <div className="mobile-app-bar" aria-label="Fynvo application controls"><button ref={menuButtonRef} className="mobile-menu-button" type="button" aria-label={mobileNavOpen ? 'Close Fynvo navigation' : 'Open Fynvo navigation'} aria-expanded={mobileNavOpen} aria-controls="fynvo-navigation" onClick={() => setMobileNavOpen((open) => !open)}><span aria-hidden="true">☰</span><span className="sr-only">Menu</span></button><strong className="mobile-app-identity">Fynvo</strong></div>
       <header className="header"><div><h1>{active === 'Overview' ? `${greeting}, ${auth.user?.display_name || 'there'}! 👋` : active}</h1><p>{active === 'Overview' ? "Here's your financial overview and what's ahead." : active === 'Insights' ? 'Understand what is changing, why it matters and which data supports it.' : active === 'Payment Centre' ? 'Manage household obligations, payment status and actions.' : 'Manage household financial records and planning.'}</p></div><div className="header-actions"><label className="select-shell">Date range<select value={rangeDays} onChange={(e) => setRangeDays(Number(e.target.value))}>{horizonOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label><button className="primary ghost" onClick={() => setQuickMenuOpen(true)}>+ Quick Add</button></div></header>{error && <p className="error banner">{error}</p>}{success && <p className="success banner">{success}</p>}
-      {active === 'Overview' && <><Overview data={data} setActive={navigate} rangeDays={rangeDays} setQuick={setQuick} quickDefaults={quickDefaults}/><PaymentsAttentionV17 rows={data.paymentAttention} money={money} dateLabel={dateLabel} onRefresh={loadAll}/></>}
-      {active === 'Payment Centre' && <PaymentCentreV112 data={data} onNavigate={navigate} onRefreshSupporting={loadAll}/>} 
+      {active === 'Overview' && <><Overview data={data} setActive={navigate} rangeDays={rangeDays} setQuick={setQuick} quickDefaults={quickDefaults}/><PaymentsAttentionV17 rows={data.paymentAttention.filter((row) => row.source_type !== 'bill')} money={money} dateLabel={dateLabel} onRefresh={loadAll}/></>}
+      {active === 'Payment Centre' && <PaymentCentreV112 data={data} onNavigate={navigate} onRefreshSupporting={loadAll} onEditBill={(row) => setEdit({ type: 'bills', label: 'Bill', row, values: normaliseRecord('bills', row) })}/>} 
       {active === 'Cash Flow' && <ForecastPage forecast={data.command?.forecast?.expected || data.forecast} onView={openForecastDetail}/>} 
       {active === 'Calendar' && <CalendarPage command={data.command}/>} 
       {active === 'CSV Import' && <CsvImport state={importState} setState={setImportState} accounts={data.accounts} previewImport={previewImport} commitImport={commitImport}/>} 
@@ -287,9 +272,12 @@ function Overview({ data, setActive, rangeDays, setQuick, quickDefaults }) {
   const expected = command.forecast?.expected;
   const events = expected?.events || forecast?.events || [];
   const planned = command.top_planned_spending || data.planned || [];
-  const upcoming = (command.upcoming_commitments || command.upcoming || events.filter((row) => row.direction === 'expense')).slice(0, 7);
+  const paymentCentreOverview = data.paymentCentreOverview || {};
+  const paymentRows = paymentCentreOverview.rows || [];
+  const actionable = paymentRows.filter((row) => row.requires_action || row.match_review_available).slice(0, 6);
+  const upcoming = paymentRows.length ? paymentRows.filter((row) => !['paid', 'skipped', 'cancelled'].includes(row.status)).slice(0, 7) : (command.upcoming_commitments || command.upcoming || events.filter((row) => row.direction === 'expense')).slice(0, 7);
   const health = data.financialHealth || command.financial_health || {};
-  const attentionCount = Number(health.issue_count ?? health.attention_count ?? data.paymentAttention?.length ?? 0);
+  const attentionCount = Number(actionable.length || (health.issue_count ?? health.attention_count ?? data.paymentAttention?.length ?? 0));
   const baselineEnd = forecast?.final_balance ?? forecast?.end_balance ?? forecast?.ending_balance;
   const expectedEnd = expected?.final_balance ?? expected?.end_balance ?? expected?.ending_balance;
   const lowestRecord = expected?.lowest_balance ?? forecast?.lowest_balance;
@@ -300,16 +288,21 @@ function Overview({ data, setActive, rangeDays, setQuick, quickDefaults }) {
   const nextIncomeAmount = finiteNumber(kpis.next_income?.amount ?? nextIncome?.amount);
   const nextIncomeName = kpis.next_income?.name ?? nextIncome?.name;
   const nextIncomeDate = kpis.next_income?.date ?? nextIncome?.date;
-  const commitmentsTotal = finiteNumber(kpis.next_bills_total ?? kpis.scheduled_commitments ?? command.upcoming_commitments_summary?.total) ?? commitments.reduce((sum, row) => sum + Math.abs(finiteNumber(row.amount) || 0), 0);
-  const commitmentsCount = Number(kpis.next_bills_count ?? command.upcoming_commitments?.length ?? commitments.length ?? 0);
+  const commitmentsTotal = finiteNumber(paymentCentreOverview.summary?.total_scheduled?.amount ?? kpis.next_bills_total ?? kpis.scheduled_commitments ?? command.upcoming_commitments_summary?.total) ?? commitments.reduce((sum, row) => sum + Math.abs(finiteNumber(row.amount) || 0), 0);
+  const commitmentsCount = Number(paymentCentreOverview.summary?.total_scheduled?.count ?? kpis.next_bills_count ?? command.upcoming_commitments?.length ?? commitments.length ?? 0);
+  const dateDistance = (value) => value ? Math.round((new Date(`${String(value).slice(0, 10)}T00:00:00`) - new Date(`${today}T00:00:00`)) / 86400000) : null;
+  const withinDays = (days) => paymentRows.filter((row) => { const delta = dateDistance(row.expected_date || row.due_date); return delta !== null && delta >= 0 && delta <= days && !['paid', 'skipped', 'cancelled'].includes(row.status); });
+  const paymentTotal = (rows) => rows.reduce((sum, row) => sum + Math.abs(finiteNumber(row.expected_amount ?? row.amount) || 0), 0);
+  const next7 = withinDays(7); const next30 = withinDays(30); const manual30 = next30.filter((row) => row.payment_handling !== 'automatic'); const automatic30 = next30.filter((row) => row.payment_handling === 'automatic');
   return <div className="dashboard-page">
     <section className="kpi-grid five"><Kpi icon="💵" label="Total Balance" value={money(totalBalance)} sub={`${data.accounts.length} accounts`}/><Kpi icon="📈" label="Next Income" value={money(nextIncomeAmount)} sub={nextIncomeDate ? `${nextIncomeName || 'Income'} · ${dateLabel(nextIncomeDate)}` : 'No scheduled income'}/><Kpi icon="🧾" label="Next Bills" value={money(commitmentsTotal)} sub={`${commitmentsCount} commitments in range`}/><Kpi icon="💸" label="Discretionary" value={money(kpis.discretionary_spend)} sub={`Next ${rangeDays} days`}/><Kpi icon="🏁" label="Goals" value={`${kpis.active_goal_count || 0} active`} sub={kpis.next_goal ? `Next: ${kpis.next_goal.name}` : 'No target dates'}/></section>
     <section className="dashboard-secondary-row">
       <article className="panel dashboard-compact-panel"><div className="panel-head compact"><h2>Top Planned Spending</h2><button type="button" className="link-button" onClick={() => setQuick(quickDefaults('planned'))}>+ Quick Add</button></div>{planned.length ? planned.slice(0, 3).map((row) => <div className="list-row" key={`planned-${row.id || row.source_id}`}><span>{row.name}<small>{row.date || row.planned_date ? dateLabel(row.date || row.planned_date) : 'No date'}</small></span><strong>{money(row.amount || row.estimated_amount)}</strong></div>) : <Empty title="No planned spending">No planned purchases during this period.</Empty>}</article>
-      <article className="panel dashboard-compact-panel"><div className="panel-head compact"><h2>Financial Health</h2><button type="button" className="link-button" onClick={() => setActive('Payment Centre')}>Open Payment Centre →</button></div><strong className="dashboard-health-number">{attentionCount} item{attentionCount === 1 ? '' : 's'} need attention</strong><p className="muted">Review overdue and unconfirmed payments in Payment Centre. Import-quality issues remain in Import & Data.</p></article>
+      <article className="panel dashboard-compact-panel"><div className="panel-head compact"><h2>Financial Health</h2><button type="button" className="link-button" onClick={() => setActive('Payment Centre')}>View All Payments →</button></div><strong className="dashboard-health-number">{attentionCount} item{attentionCount === 1 ? '' : 's'} need attention</strong><p className="muted">Review overdue and unconfirmed payments in Payment Centre. Import-quality issues remain in Import & Data.</p></article>
       <article className="panel dashboard-compact-panel dashboard-forecast-summary"><PanelHead title="Forecast Summary" meta={`End of ${rangeDays} days`}/><div className="list-row"><span>Baseline Forecast</span><strong>{money(baselineEnd) || '—'}</strong></div><div className="list-row"><span>Expected Forecast</span><strong>{money(expectedEnd) || '—'}</strong></div><div className="list-row"><span>Lowest Balance</span><strong>{money(lowest) || '—'}</strong></div><button type="button" className="link-button" onClick={() => setActive('Cash Flow')}>View cash flow →</button></article>
+      <article className="panel dashboard-compact-panel dashboard-forecast-summary"><PanelHead title="Money Needed Soon" meta="Upcoming household payments"/><div className="list-row"><span>Next 7 days</span><strong>{money(paymentTotal(next7)) || '—'}</strong></div><div className="list-row"><span>Next 30 days</span><strong>{money(paymentTotal(next30)) || '—'}</strong></div><div className="list-row"><span>Manual payments</span><strong>{money(paymentTotal(manual30)) || '—'}</strong></div><div className="list-row"><span>Automatic payments</span><strong>{money(paymentTotal(automatic30)) || '—'}</strong></div><button type="button" className="link-button" onClick={() => setActive('Payment Centre')}>View All Payments →</button></article>
     </section>
-    <section className="dashboard-main-row"><article className="panel dashboard-forecast-panel"><div className="panel-head compact"><h2>Cash Flow Forecast</h2><button type="button" className="link-button" onClick={() => setActive('Cash Flow')}>View full cash flow →</button></div><CashFlowChartV0174 baseline={forecast} expected={expected} dateLabel={dateLabel} Empty={Empty}/></article><div className="dashboard-side-stack"><article className="panel dashboard-compact-panel"><div className="panel-head compact"><h2>Upcoming Commitments</h2><button type="button" className="link-button" onClick={() => setActive('Payment Centre')}>Open Payment Centre →</button></div>{upcoming.length ? upcoming.map((row, index) => <div className="list-row" key={`${row.source_type || row.kind}-${row.source_id || index}-${row.date}-${index}`}><span>{row.name}<small>{dateLabel(row.date)} · {row.category || row.source_type?.replaceAll('_', ' ') || row.kind}</small></span><strong>{money(row.amount)}</strong></div>) : planned.length ? planned.slice(0, 7).map((row) => <div className="list-row" key={`${row.source_type || 'planned'}-${row.id || row.source_id}`}><span>{row.name}<small>{row.date || row.planned_date ? dateLabel(row.date || row.planned_date) : 'No date'}</small></span><strong>{money(row.amount || row.estimated_amount)}</strong></div>) : <Empty title="Nothing planned">Add recurring expenses, bills or planned spending to see commitments here.</Empty>}</article></div></section>
+    <section className="dashboard-main-row"><article className="panel dashboard-forecast-panel"><div className="panel-head compact"><h2>Cash Flow Forecast</h2><button type="button" className="link-button" onClick={() => setActive('Cash Flow')}>View full cash flow →</button></div><CashFlowChartV0174 baseline={forecast} expected={expected} dateLabel={dateLabel} Empty={Empty}/></article><div className="dashboard-side-stack"><article className="panel dashboard-compact-panel"><div className="panel-head compact"><h2>Upcoming Commitments</h2><button type="button" className="link-button" onClick={() => setActive('Payment Centre')}>Open Payment Centre →</button></div>{upcoming.length ? upcoming.map((row, index) => <div className="list-row" key={`${row.source_type || row.kind || 'payment'}-${row.id || row.source_id || index}-${row.date || row.expected_date || index}`}><span>{row.name}<small>{dateLabel(row.expected_date || row.due_date || row.date)} · {row.category || row.source_type?.replaceAll('_', ' ') || row.kind || 'payment'}</small></span><strong>{money(row.expected_amount ?? row.amount)}</strong></div>) : planned.length ? planned.slice(0, 7).map((row) => <div className="list-row" key={`${row.source_type || 'planned'}-${row.id || row.source_id}`}><span>{row.name}<small>{row.date || row.planned_date ? dateLabel(row.date || row.planned_date) : 'No date'}</small></span><strong>{money(row.amount || row.estimated_amount)}</strong></div>) : <Empty title="Nothing planned">Add recurring expenses, bills or planned spending to see commitments here.</Empty>}</article></div></section>
   </div>;
 }
 function Kpi({ icon, label, value, sub }) { return <article className="kpi"><span className="kpi-icon">{icon}</span><div><small>{label}</small><strong>{value ?? '—'}</strong><p>{sub}</p></div></article>; }
