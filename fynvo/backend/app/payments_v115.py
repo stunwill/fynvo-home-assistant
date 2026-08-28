@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import text
 from sqlalchemy.orm import Session as DbSession
 
-from . import payments_v17, payments_v114, v111
+from . import payments_v17, payments_v112, payments_v114, v111
 from .auth import get_current_user
 from .database import get_db
 from .models import User
@@ -53,6 +53,17 @@ def _row(db: DbSession, user: User, payment_id: int) -> dict[str, Any]:
     return payments_v114._payment_row(db, user, payment_id)
 
 
+def _response(row: Any) -> dict[str, Any]:
+    data = dict(row._mapping) if hasattr(row, "_mapping") else dict(row)
+    result = payments_v17._scheduled_response(data)
+    result.update({
+        "skip_reason": data.get("skip_reason"),
+        "skip_note": data.get("skip_note"),
+        "skipped_at": data.get("skipped_at"),
+    })
+    return result
+
+
 def _assert_unmatched(row: dict[str, Any]) -> None:
     if row.get("matched_transaction_id") is not None:
         raise HTTPException(status_code=409, detail="Unmatch the Transaction before changing this payment")
@@ -86,7 +97,7 @@ def skip_payment(payment_id: int, payload: SkipPaymentPayload, current_user: Use
     payments_v114._assert_version(row, payload.version)
     _assert_unmatched(row)
     if row["status"] == "skipped":
-        return payments_v17._scheduled_response(row)
+        return _response(row)
     if row["status"] not in PENDING_STATUSES:
         raise HTTPException(status_code=409, detail="Only unresolved Scheduled Payments can be skipped")
     reason = _normalise_reason(payload.reason)
@@ -104,7 +115,7 @@ def skip_payment(payment_id: int, payload: SkipPaymentPayload, current_user: Use
         raise HTTPException(status_code=409, detail="This payment changed since it was opened. Refresh and try again")
     _history(db, current_user, payment_id, row["status"], "skipped", payload.note or "Payment skipped", reason)
     db.commit()
-    return payments_v17._scheduled_response(_row(db, current_user, payment_id))
+    return _response(_row(db, current_user, payment_id))
 
 
 @router.post("/scheduled-payments/{payment_id}/restore")
@@ -126,4 +137,36 @@ def restore_payment(payment_id: int, payload: RestorePaymentPayload, current_use
         raise HTTPException(status_code=409, detail="This payment changed since it was opened. Refresh and try again")
     _history(db, current_user, payment_id, "skipped", status_name, payload.note or "Skipped payment restored", row.get("skip_reason"))
     db.commit()
-    return payments_v17._scheduled_response(_row(db, current_user, payment_id))
+    return _response(_row(db, current_user, payment_id))
+
+
+@router.get("/payment-centre/scheduled_payment/{payment_id}")
+def payment_detail(payment_id: int, current_user: User = USER, db: DbSession = DB):
+    rows = payments_v112._scheduled_payment_rows(db, current_user)
+    row = next((item for item in rows if int(item["id"]) == payment_id), None)
+    if not row:
+        raise HTTPException(status_code=404, detail="Scheduled Payment not found")
+    raw = _row(db, current_user, payment_id)
+    history = db.execute(text("""
+        SELECT from_status,to_status,source,note,reason,previous_expected_date,new_expected_date,created_at
+        FROM scheduled_payment_history
+        WHERE user_id=:uid AND scheduled_payment_id=:sid ORDER BY created_at,id
+    """), {"uid": current_user.id, "sid": payment_id}).mappings().all()
+    transaction = None
+    if row.get("matched_transaction_id"):
+        transaction = db.execute(text("""
+            SELECT id,transaction_date,amount_cents,description,merchant FROM transactions
+            WHERE id=:id AND user_id=:uid
+        """), {"id": row["matched_transaction_id"], "uid": current_user.id}).mappings().first()
+    return {
+        **row,
+        "skip_reason": raw.get("skip_reason"),
+        "skip_note": raw.get("skip_note"),
+        "skipped_at": raw.get("skipped_at"),
+        "history": [dict(item) for item in history],
+        "matched_transaction": None if transaction is None else {
+            "id": transaction["id"], "date": payments_v112._as_date(transaction["transaction_date"]).isoformat(),
+            "amount": payments_v112.cents_to_decimal(abs(int(transaction["amount_cents"] or 0))),
+            "description": transaction["description"], "merchant": transaction["merchant"],
+        },
+    }
