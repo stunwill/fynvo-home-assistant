@@ -173,3 +173,21 @@ def payment_detail(payment_id: int, current_user: User = USER, db: DbSession = D
             "description": transaction["description"], "merchant": transaction["merchant"],
         },
     }
+
+
+def _bind_existing_skip_routes() -> None:
+    """Point pre-existing skip routes at the v1.15 lifecycle implementation.
+
+    payments_v112 registers the same path before this router is mounted. FastAPI
+    resolves the first matching route, so replacing the endpoint on that existing
+    route guarantees callers receive v1.15 skip semantics regardless of mount order.
+    """
+    for route in payments_v112.router.routes:
+        if (
+            getattr(route, "path", None) == "/scheduled-payments/{payment_id}/skip"
+            and "POST" in getattr(route, "methods", set())
+        ):
+            route.endpoint = skip_payment
+
+
+_bind_existing_skip_routes()
