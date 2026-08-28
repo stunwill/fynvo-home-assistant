@@ -128,7 +128,7 @@ export default function PaymentCentreV112({ data, onNavigate, onRefreshSupportin
   const query = useMemo(() => buildPaymentCentreQuery(filters), [filters]);
   const load = async () => { setLoading(true); setError(''); try { setResult(await apiRequest(query)); } catch (requestError) { setError(requestError.message || 'Could not load the Payment Centre.'); } finally { setLoading(false); } };
   useEffect(() => { const timer = window.setTimeout(load, filters.search ? 180 : 0); return () => window.clearTimeout(timer); }, [query]);
-  const open = async (row) => { setActionError(''); try { setDetail(await apiRequest(`/payment-centre/${row.source_type}/${row.id}`)); } catch (requestError) { setActionError(requestError.message || 'Could not load payment detail.'); } };
+  const open = async (row) => { setActionError(''); try { const path = row.source_type === 'scheduled_payment' ? `/scheduled-payments/${row.id}/detail` : `/payment-centre/${row.source_type}/${row.id}`; setDetail(await apiRequest(path)); } catch (requestError) { setActionError(requestError.message || 'Could not load payment detail.'); } };
   const refreshed = async () => { setMarkingPaid(null); setRescheduling(null); setSkipping(null); setDetail(null); setActionError(''); await Promise.allSettled([load(), onRefreshSupporting?.()]); };
   const cancelBill = async (row) => { setActionError(''); try { await apiRequest(`/bills/${row.id}/cancel`, { method: 'POST', body: JSON.stringify({ version: row.version }) }); await refreshed(); } catch (requestError) { setActionError(requestError.message || 'Could not cancel this Bill.'); } };
   const startSkip = (row) => { setDetail(null); setActionError(''); setSkipping(row); };
