@@ -114,7 +114,7 @@ def test_skip_audit_and_payment_centre_detail_retain_reason(client):
     )
     assert response.status_code == 200
 
-    detail = client.get(f"/api/payment-centre/scheduled_payment/{payment['id']}")
+    detail = client.get(f"/api/scheduled-payments/{payment['id']}/detail")
     assert detail.status_code == 200
     payload = detail.json()
     assert payload["status"] == "skipped"
