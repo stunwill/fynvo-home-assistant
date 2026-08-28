@@ -276,6 +276,7 @@ from . import (
     payments_v17,
     payments_v112,
     payments_v114,
+    payments_v115,
     scenarios,
     v09,
     v11,
@@ -312,16 +313,18 @@ v09.router.include_router(payments_v17.router)
 v09.router.include_router(v111.router)
 v09.router.include_router(payments_v112.router)
 v09.router.include_router(payments_v114.router)
+v09.router.include_router(payments_v115.router)
 
 _legacy_run_migrations_v12_plus = database.run_migrations
 
 
-def _run_migrations_v114() -> None:
+def _run_migrations_v115() -> None:
     _legacy_run_migrations_v12_plus()
     v13_cashflow.run_v13_migrations(database.get_engine())
     payments_v17.ensure_payment_schema(database.get_engine())
     payments_v112.ensure_v112_schema(database.get_engine())
     payments_v114.ensure_v114_schema(database.get_engine())
+    payments_v115.ensure_v115_schema(database.get_engine())
 
 
-database.run_migrations = _run_migrations_v114
+database.run_migrations = _run_migrations_v115
