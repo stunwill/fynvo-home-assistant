@@ -16,7 +16,7 @@ export const PAYMENT_STATUS_LABELS = {
   due_today: 'Due today',
   upcoming: 'Upcoming',
   expected_automatically: 'Expected automatically',
-  auto_payment_unconfirmed: 'Awaiting confirmation',
+  auto_payment_unconfirmed: 'Auto payment unconfirmed',
   paid: 'Paid',
   skipped: 'Skipped',
   cancelled: 'Cancelled',
@@ -61,13 +61,15 @@ export function paymentNeedsAction(row) {
 export function paymentAvailableActions(row) {
   if (!row) return [];
   const actions = ['view'];
-  if (['paid', 'skipped', 'cancelled'].includes(row.status)) return actions;
+  if (row.status === 'skipped' && row.source_type === 'scheduled_payment') return [...actions, 'restore'];
+  if (['paid', 'cancelled'].includes(row.status)) return actions;
   if (row.match_review_available || row.status === 'auto_payment_unconfirmed') actions.push('review');
   if (row.payment_handling === 'manual' || ['due', 'due_today', 'overdue'].includes(row.status)) actions.push('mark_paid');
   if (row.source_type === 'bill') {
     actions.push('edit');
     actions.push('cancel');
   } else {
+    actions.push('change_date');
     actions.push('skip');
     if (row.recurring_expense_id) actions.push('open_recurring');
   }
