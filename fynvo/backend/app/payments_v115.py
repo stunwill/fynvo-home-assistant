@@ -96,7 +96,7 @@ def skip_payment(payment_id: int, payload: SkipPaymentPayload, current_user: Use
     row = _row(db, current_user, payment_id)
     _assert_unmatched(row)
     if row["status"] == "skipped":
-        return _response(row)
+        raise HTTPException(status_code=409, detail="This payment has already been skipped")
     payments_v114._assert_version(row, payload.version)
     if row["status"] not in PENDING_STATUSES:
         raise HTTPException(status_code=409, detail="Only unresolved Scheduled Payments can be skipped")
