@@ -2,6 +2,46 @@
 
 All notable Fynvo changes are documented here. Starting with v0.3.0, every release must include a user-readable changelog entry, Home Assistant-visible release notes and GitHub release notes.
 
+## v1.15.0 - Recurring Payment Scheduling & Lifecycle
+
+### Scheduled Payment lifecycle
+- Formalised occurrence-level lifecycle behaviour around the existing Scheduled Payment model without introducing another recurrence engine.
+- Completed occurrence-safe `Skip Payment` handling for unresolved Scheduled Payments. Skipping one payment does not edit the parent Recurring Expense, re-anchor future dates or create another occurrence on regeneration.
+- Added optional household-friendly skip reasons and notes, including paused, waived and user-requested payments.
+- Added `Restore payment` for safely reactivating the same skipped Scheduled Payment. Restoration retains the immutable recurrence occurrence identity and preserves any existing one-off expected-date override.
+- Paid, matched and otherwise protected financial history cannot be silently skipped or restored.
+
+### Automatic payments and attention states
+- Preserved the existing distinction between `Expected automatically` and `Auto payment unconfirmed`; passing an expected automatic-payment date does not create a Transaction or mark a payment paid.
+- Kept failed/delayed automatic payments compatible with the v1.14 `Change payment date` workflow so a retry date changes only that occurrence and continues to use the effective expected date for status and reconciliation.
+- Payment Centre now presents concise attention reasons such as unconfirmed automatic payments, overdue payments and possible transaction matches.
+
+### Payment Centre and audit history
+- Added a dedicated Skip Payment confirmation workflow with optional reason/note and clear copy explaining that the recurring schedule is not changed.
+- Added Restore payment for skipped Scheduled Payments and retained `Change payment date` / `Restore original date` for unresolved occurrences.
+- Added a focused Scheduled Payment detail endpoint that exposes lifecycle history, skip metadata and matched-transaction evidence without overloading Recurring Expense mutation routes.
+- Skip and restore actions write meaningful Scheduled Payment history with source, state transition, reason/note and timestamp. Restoring clears the current skip marker while preserving the historical audit event.
+
+### Forecast, matching and occurrence integrity
+- Preserved the v1.14 immutable `occurrence_date` as the logical occurrence identity and `expected_date` as the effective operational date.
+- Skipped and cancelled occurrences remain excluded from canonical active schedule/forecast events and normal reconciliation candidates.
+- Repeated materialisation recognises skipped, restored, overridden and completed logical occurrences and does not recreate the original occurrence or shift future recurrence dates.
+- Existing linked-Bill suppression, effective-date amount/scenario behaviour and cross-screen financial-event consistency remain intact.
+
+### Mobile and Home Assistant UX
+- Extended Payment Centre mobile modal protections to the Skip Payment workflow.
+- Lifecycle modals remain within the dynamic viewport, avoid horizontal overflow, close the originating detail layer before opening and keep confirmation controls accessible in Home Assistant ingress and iPhone-sized layouts.
+
+### Data migration and regression protection
+- Added a small additive and idempotent migration for current skip metadata (`skip_reason`, `skip_note`, `skipped_at`, `skipped_by_user_id`) without resetting Scheduled Payments, reconciliation links or household data.
+- Added backend regression coverage for monthly skip identity, repeated materialisation, overridden-then-skipped restoration, audit history, forecast/match exclusion, completed-payment protection and migration idempotency.
+- Added frontend regression coverage for Skip/Restore actions, focused detail routing, attention wording, mobile modal containment and v1.15.0 production version reporting.
+
+### Versioning
+- Selected v1.15.0 after confirming v1.14.0/PR #54 was merged into `main`, no Fynvo PRs were open, and no later GitHub Release was published when implementation began.
+- Aligned Home Assistant add-on, backend, frontend package and production-shell version metadata to v1.15.0.
+- Installed Home Assistant, iPhone, tablet and ingress acceptance remains a manual verification requirement and is not represented as completed by repository CI.
+
 ## v1.14.0 - Recurring Payment Occurrence Overrides
 
 ### One-off scheduled payment dates
