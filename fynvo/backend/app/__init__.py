@@ -297,6 +297,10 @@ payments_v17.router.routes = [
     route for route in payments_v17.router.routes
     if getattr(route, "path", None) not in {"/scheduled-payments", "/payments/attention", "/payments/match-candidates", "/scheduled-payments/{payment_id}/skip"}
 ]
+v09.router.routes = [
+    route for route in v09.router.routes
+    if not (getattr(route, "path", None) == "/api/scheduled-payments/{payment_id}/skip" and "POST" in getattr(route, "methods", set()))
+]
 v09.router.include_router(budget_v14.router)
 v09.router.include_router(v1.router)
 v09.router.include_router(auth_v15.router)
