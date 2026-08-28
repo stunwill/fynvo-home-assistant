@@ -94,10 +94,10 @@ def _normalise_reason(reason: str | None) -> str | None:
 @router.post("/scheduled-payments/{payment_id}/skip")
 def skip_payment(payment_id: int, payload: SkipPaymentPayload, current_user: User = USER, db: DbSession = DB):
     row = _row(db, current_user, payment_id)
-    payments_v114._assert_version(row, payload.version)
     _assert_unmatched(row)
     if row["status"] == "skipped":
         return _response(row)
+    payments_v114._assert_version(row, payload.version)
     if row["status"] not in PENDING_STATUSES:
         raise HTTPException(status_code=409, detail="Only unresolved Scheduled Payments can be skipped")
     reason = _normalise_reason(payload.reason)
@@ -126,21 +126,24 @@ def restore_payment(payment_id: int, payload: RestorePaymentPayload, current_use
     if row["status"] != "skipped":
         raise HTTPException(status_code=409, detail="Only skipped Scheduled Payments can be restored")
     status_name = _calculated_status(row)
+    reason = row.get("skip_reason")
     now = utcnow()
     version = int(row.get("version") or 1)
     result = db.execute(text("""
-        UPDATE scheduled_payments SET status=:status,version=version+1,updated_at=:now
+        UPDATE scheduled_payments
+        SET status=:status,skip_reason=NULL,skip_note=NULL,skipped_at=NULL,skipped_by_user_id=NULL,
+            version=version+1,updated_at=:now
         WHERE id=:id AND user_id=:uid AND version=:version AND status='skipped'
     """), {"status": status_name, "now": now, "id": payment_id, "uid": current_user.id, "version": version})
     if not result.rowcount:
         db.rollback()
         raise HTTPException(status_code=409, detail="This payment changed since it was opened. Refresh and try again")
-    _history(db, current_user, payment_id, "skipped", status_name, payload.note or "Skipped payment restored", row.get("skip_reason"))
+    _history(db, current_user, payment_id, "skipped", status_name, payload.note or "Skipped payment restored", reason)
     db.commit()
     return _response(_row(db, current_user, payment_id))
 
 
-@router.get("/payment-centre/scheduled_payment/{payment_id}")
+@router.get("/scheduled-payments/{payment_id}/detail")
 def payment_detail(payment_id: int, current_user: User = USER, db: DbSession = DB):
     rows = payments_v112._scheduled_payment_rows(db, current_user)
     row = next((item for item in rows if int(item["id"]) == payment_id), None)
