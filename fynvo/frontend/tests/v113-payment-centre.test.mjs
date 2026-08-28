@@ -40,9 +40,9 @@ test('attention reasons are explicit and do not rely on colour alone', () => {
 
 test('valid actions are state and source aware', () => {
   assert.deepEqual(paymentAvailableActions({ source_type: 'bill', status: 'overdue', payment_handling: 'manual' }), ['view', 'mark_paid', 'edit', 'cancel']);
-  assert.deepEqual(paymentAvailableActions({ source_type: 'scheduled_payment', status: 'upcoming', recurring_expense_id: 9 }), ['view', 'skip', 'open_recurring']);
+  assert.deepEqual(paymentAvailableActions({ source_type: 'scheduled_payment', status: 'upcoming', recurring_expense_id: 9 }), ['view', 'change_date', 'skip', 'open_recurring']);
   assert.deepEqual(paymentAvailableActions({ source_type: 'bill', status: 'paid' }), ['view']);
-  assert.deepEqual(paymentAvailableActions({ source_type: 'scheduled_payment', status: 'auto_payment_unconfirmed', match_review_available: true, recurring_expense_id: 9 }), ['view', 'review', 'skip', 'open_recurring']);
+  assert.deepEqual(paymentAvailableActions({ source_type: 'scheduled_payment', status: 'auto_payment_unconfirmed', match_review_available: true, recurring_expense_id: 9 }), ['view', 'review', 'change_date', 'skip', 'open_recurring']);
 });
 
 test('grouping keeps paid/skipped/cancelled history separate from immediate obligations', () => {
