@@ -527,6 +527,8 @@ def _within(item: dict[str, Any], start: date | None, end: date | None, range_ki
     when = _as_date(item.get("expected_date") or item.get("due_date") or item.get("actual_date"))
     if range_kind == "overdue":
         return item.get("status") == "overdue"
+    if range_kind in {"today", "next_7_days", "next_14_days", "next_30_days"} and item.get("status") == "overdue":
+        return True
     if when is None:
         return False
     return (start is None or when >= start) and (end is None or when <= end)
