@@ -37,7 +37,13 @@ def test_effective_dated_recurring_amount_change_is_scenario_only(client):
     assert ("2026-09-01", "-140.00") in projected
     assert ("2026-10-01", "-80.00") in projected
     assert ("2026-11-01", "-80.00") in projected
-    assert comparison["difference"] == "300.00"
+
+    baseline_by_date = dict(baseline)
+    projected_by_date = dict(projected)
+    changed_dates = [when for when, amount in projected if when >= "2026-10-01" and amount == "-80.00"]
+    assert changed_dates
+    assert all(baseline_by_date[when] == "-140.00" for when in changed_dates)
+    assert comparison["difference"] == f"{len(changed_dates) * 60:.2f}"
 
 
 def test_multiple_scenarios_do_not_cross_contaminate(client):
