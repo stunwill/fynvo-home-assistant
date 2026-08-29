@@ -206,8 +206,8 @@ def test_reconciliation_removes_unpaid_requirement_and_materialisation_does_not_
     candidates = client.get("/api/payments/match-candidates?date_tolerance_days=7").json()
     candidate = next(row for row in candidates if row["scheduled_payment_id"] == payment["id"])
     matched = client.post(
-        "/api/payments/match",
-        json={"transaction_id": candidate["transaction_id"], "scheduled_payment_id": payment["id"]},
+        f"/api/scheduled-payments/{payment['id']}/match",
+        json={"transaction_id": candidate["transaction_id"], "confidence": "confirmed"},
     )
     assert matched.status_code == 200
     assert planning(client)["money_needed_soon"]["next_7_days"] == "0.00"
