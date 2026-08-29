@@ -488,7 +488,7 @@ def _scheduled_payment_rows(db: DbSession, user: User) -> list[dict[str, Any]]:
             "match_review_available": int(item["id"]) in candidate_ids,
             "history_count": history_counts.get(int(item["id"]), 0),
         }
-        row["requires_action"] = status_name in {"overdue", "due", "auto_payment_unconfirmed"} or row["match_review_available"]
+        row["requires_action"] = status_name in {"overdue", "due", "due_today", "auto_payment_unconfirmed"} or row["match_review_available"]
         output.append(row)
     return output
 
@@ -497,8 +497,12 @@ def _date_range(kind: str, start: date | None, end: date | None) -> tuple[date |
     current = date.today()
     if kind == "overdue":
         return None, current - timedelta(days=1)
+    if kind == "today":
+        return current, current
     if kind == "next_7_days":
         return current, current + timedelta(days=7)
+    if kind == "next_14_days":
+        return current, current + timedelta(days=14)
     if kind == "next_30_days":
         return current, current + timedelta(days=30)
     if kind == "next_90_days":
@@ -547,6 +551,13 @@ def _sort_key(item: dict[str, Any]) -> tuple[int, str, str]:
     return priority, str(item.get("expected_date") or item.get("due_date") or "9999-12-31"), str(item.get("name") or "")
 
 
+@router.get("/payment-planning")
+def payment_planning(current_user: User = USER, db: DbSession = DB):
+    from .payment_planning import build_payment_planning
+
+    return build_payment_planning(db, current_user)
+
+
 @router.get("/payment-centre")
 def payment_centre(
     date_range: str = Query(default="next_30_days"), date_from: date | None = None, date_to: date | None = None,
@@ -555,8 +566,10 @@ def payment_centre(
     account_id: int | None = None, card_id: int | None = None, requires_action: bool | None = None,
     current_user: User = USER, db: DbSession = DB,
 ):
+    from .payment_planning import canonical_payment_rows
+
     start, end = _date_range(date_range, date_from, date_to)
-    rows = _scheduled_payment_rows(db, current_user) + _bill_rows(db, current_user)
+    rows = canonical_payment_rows(db, current_user)
     rows = [row for row in rows if _within(row, start, end, date_range)]
     if search:
         needle = " ".join(search.lower().split())
@@ -623,26 +636,13 @@ def payment_detail(source_type: str, source_id: int, current_user: User = USER, 
     }
 
 
-@router.post("/scheduled-payments/{payment_id}/skip")
-def skip_scheduled_payment_safe(payment_id: int, payload: dict[str, Any], current_user: User = USER, db: DbSession = DB):
-    row = db.execute(text("SELECT * FROM scheduled_payments WHERE id=:id AND user_id=:uid"), {"id": payment_id, "uid": current_user.id}).mappings().first()
-    if not row:
-        raise HTTPException(status_code=404, detail="Scheduled Payment not found")
-    if row["status"] == "skipped":
-        raise HTTPException(status_code=409, detail="This payment has already been skipped")
-    if row["status"] == "paid":
-        raise HTTPException(status_code=409, detail="Paid Scheduled Payments cannot be skipped")
-    if row["status"] == "cancelled":
-        raise HTTPException(status_code=409, detail="Cancelled Scheduled Payments cannot be skipped")
-    return payments_v17.skip_payment(payment_id, payload, current_user, db)
-
-
 @router.get("/payment-centre/health/check")
 def payment_centre_health(current_user: User = USER, db: DbSession = DB):
     duplicate_scheduled = db.execute(text("""
         SELECT COUNT(*) FROM (
-            SELECT recurring_expense_id,expected_date,COUNT(*) count
-            FROM scheduled_payments WHERE user_id=:uid GROUP BY recurring_expense_id,expected_date HAVING count>1
+            SELECT recurring_expense_id,COALESCE(occurrence_date,expected_date),COUNT(*) count
+            FROM scheduled_payments WHERE user_id=:uid
+            GROUP BY recurring_expense_id,COALESCE(occurrence_date,expected_date) HAVING count>1
         )
     """), {"uid": current_user.id}).scalar() or 0
     duplicate_bill_matches = db.execute(text("""
