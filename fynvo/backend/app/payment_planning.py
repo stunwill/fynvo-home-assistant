@@ -21,6 +21,7 @@ FUNDING_STATUSES = {
     "unknown",
 }
 TERMINAL_STATUSES = {"paid", "skipped", "cancelled"}
+LIQUID_ACCOUNT_TYPES = {"transaction", "savings", "offset", "cash"}
 PLANNING_PERIODS = (
     ("today", "Today", 0),
     ("next_7_days", "Next 7 Days", 7),
@@ -55,12 +56,7 @@ def _bill_suppression_keys(bills: list[dict[str, Any]]) -> set[tuple[int, str]]:
 
 
 def canonical_payment_rows(db: DbSession, user: User) -> list[dict[str, Any]]:
-    """Return one authoritative planning row per household obligation.
-
-    Bills explicitly linked to a Recurring Expense suppress the matching Scheduled
-    Payment occurrence for the same effective date. This avoids counting both the
-    expected recurrence and its first-class Bill representation.
-    """
+    """Return one authoritative planning row per household obligation."""
     scheduled = payments_v112._scheduled_payment_rows(db, user)
     bills = payments_v112._bill_rows(db, user)
     suppression = _bill_suppression_keys(bills)
@@ -121,12 +117,12 @@ def _account_balances(db: DbSession, user: User) -> dict[int, int]:
     rows = db.execute(
         text(
             """
-            SELECT a.id,a.opening_balance_cents,
+            SELECT a.id,a.account_type,a.opening_balance_cents,
                    COALESCE(SUM(t.amount_cents),0) AS transaction_total
             FROM accounts a
             LEFT JOIN transactions t ON t.account_id=a.id AND t.user_id=a.user_id
             WHERE a.user_id=:uid AND a.archived_at IS NULL AND a.is_active=1
-            GROUP BY a.id,a.opening_balance_cents
+            GROUP BY a.id,a.account_type,a.opening_balance_cents
             """
         ),
         {"uid": user.id},
@@ -134,6 +130,7 @@ def _account_balances(db: DbSession, user: User) -> dict[int, int]:
     return {
         int(row["id"]): int(row["opening_balance_cents"] or 0) + int(row["transaction_total"] or 0)
         for row in rows
+        if row["account_type"] in LIQUID_ACCOUNT_TYPES
     }
 
 
@@ -143,9 +140,7 @@ def _funding_requirements(
     balances = _account_balances(db, user)
     names = {
         int(row["id"]): row["name"]
-        for row in db.execute(
-            text("SELECT id,name FROM accounts WHERE user_id=:uid"), {"uid": user.id}
-        ).mappings().all()
+        for row in db.execute(text("SELECT id,name FROM accounts WHERE user_id=:uid"), {"uid": user.id}).mappings().all()
     }
     grouped: dict[int | None, dict[str, Any]] = defaultdict(lambda: {"amount_cents": 0, "payments": 0})
     for row in rows:
@@ -170,15 +165,11 @@ def _funding_requirements(
         result.append(
             {
                 "account_id": account_id,
-                "account_name": names.get(account_id, "Account not specified")
-                if account_id is not None
-                else "Account not specified",
+                "account_name": names.get(account_id, "Account not specified") if account_id is not None else "Account not specified",
                 "required": cents_to_decimal(required),
                 "payment_count": int(values["payments"]),
                 "available": cents_to_decimal(available) if available is not None else None,
-                "remaining_after_commitments": cents_to_decimal(available - required)
-                if available is not None
-                else None,
+                "remaining_after_commitments": cents_to_decimal(available - required) if available is not None else None,
                 "shortfall": cents_to_decimal(shortfall) if shortfall is not None else None,
                 "has_shortfall": bool(shortfall) if shortfall is not None else False,
                 "balance_known": available is not None,
@@ -237,35 +228,39 @@ def build_payment_planning(db: DbSession, user: User, today: date | None = None)
     }
     funding = _funding_requirements(rows, db, user, current, 7)
     known = [row for row in funding if row["balance_known"]]
+    complete_funding_picture = bool(funding) and len(known) == len(funding)
     available_total = sum(parse_money(row["available"]) for row in known)
     required_known = sum(parse_money(row["required"]) for row in known)
     household = {
-        "available": cents_to_decimal(available_total) if known else None,
+        "available": cents_to_decimal(available_total) if complete_funding_picture else None,
         "upcoming_commitments": periods["next_7_days"]["remaining_funding"],
-        "remaining_after_commitments": cents_to_decimal(available_total - required_known) if known else None,
-        "shortfall": cents_to_decimal(max(required_known - available_total, 0)) if known else None,
-        "balance_known": bool(known),
+        "remaining_after_commitments": cents_to_decimal(available_total - required_known) if complete_funding_picture else None,
+        "shortfall": cents_to_decimal(max(required_known - available_total, 0)) if complete_funding_picture else None,
+        "balance_known": complete_funding_picture,
     }
     attention = []
     for row in rows:
         reason = _attention_reason(row)
         if reason:
             attention.append({**row, "attention_reason": reason, "requires_action": True})
-    next_payment = next(
-        (
-            row
-            for row in rows
-            if row.get("status") in FUNDING_STATUSES
-            and _as_date(row.get("expected_date") or row.get("due_date")) is not None
-        ),
-        None,
-    )
+    dated_outstanding = [
+        row
+        for row in rows
+        if row.get("status") in FUNDING_STATUSES and _as_date(row.get("expected_date") or row.get("due_date")) is not None
+    ]
+    future = [
+        row
+        for row in dated_outstanding
+        if (_as_date(row.get("expected_date") or row.get("due_date")) or date.min) >= current
+    ]
+    next_payment = (future or dated_outstanding or [None])[0]
     return {
         "as_of": current.isoformat(),
         "rules": {
             "included_statuses": sorted(FUNDING_STATUSES),
             "excluded_statuses": sorted(TERMINAL_STATUSES),
             "automatic_payments_require_funding": True,
+            "balance_comparison": "Only active liquid Account balances are treated as available funding. Unknown or liability balances are never treated as zero.",
             "bill_suppression": "A Bill linked to the same Recurring Expense and effective date replaces the matching Scheduled Payment in planning totals.",
         },
         "periods": periods,
