@@ -146,6 +146,37 @@ export function timelineLabel(value, todayValue = new Date()) {
   return new Intl.DateTimeFormat('en-AU', { weekday: 'long', day: 'numeric', month: 'long' }).format(when);
 }
 
+export function groupPaymentsByDate(rows = [], todayValue = new Date()) {
+  const terminal = [];
+  const groups = new Map();
+  rows.forEach((row) => {
+    if (['paid', 'skipped', 'cancelled'].includes(row.status)) {
+      terminal.push(row);
+      return;
+    }
+    const raw = row.expected_date || row.due_date;
+    if (!raw) {
+      const unknown = groups.get('Date not specified') || [];
+      unknown.push(row);
+      groups.set('Date not specified', unknown);
+      return;
+    }
+    const key = String(raw).slice(0, 10);
+    const values = groups.get(key) || [];
+    values.push(row);
+    groups.set(key, values);
+  });
+  const active = [...groups.entries()]
+    .sort(([left], [right]) => {
+      if (left === 'Date not specified') return 1;
+      if (right === 'Date not specified') return -1;
+      return left.localeCompare(right);
+    })
+    .map(([key, values]) => [key === 'Date not specified' ? key : timelineLabel(key, todayValue), values]);
+  if (terminal.length) active.push(['Payment history', terminal]);
+  return active;
+}
+
 export function defaultPaymentCentreFilters() {
   return {
     dateRange: 'next_30_days', dateFrom: '', dateTo: '', search: '', status: '', source: '',
