@@ -35,7 +35,8 @@ test('recurring mutations normalize nullable values before save', () => {
 test('recurring save uses focused refresh and isolates schedule refresh failure', () => {
   assert.match(app, /async function refreshRecurringSlice\(\)/);
   assert.match(app, /const recurring = await apiRequest\('\/recurring-expenses'\)/);
-  assert.match(app, /const scheduledPayments = await apiRequest\('\/scheduled-payments'\)/);
+  assert.match(app, /apiRequest\('\/scheduled-payments'\)/);
+  assert.match(app, /active === 'Overview' \? apiRequest\('\/payment-planning'\)/);
   assert.match(app, /return \{ scheduleError: requestError \}/);
   assert.match(app, /if \(edit\.type === 'recurring'\)/);
   assert.match(app, /await refreshRecurringSlice\(\)/);

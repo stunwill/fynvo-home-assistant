@@ -24,13 +24,13 @@ test('payment detail uses the focused lifecycle endpoint and closes before actio
   assert.match(centre, /`\/scheduled-payments\/\$\{row\.id\}\/detail`/);
   assert.match(centre, /const startSkip = \(row\) => \{ setDetail\(null\)/);
   assert.match(centre, /Skip reason/);
-  assert.match(centre, /Status history/);
+  assert.match(centre, /Lifecycle history/);
 });
 
 
 test('lifecycle wording and actions are household friendly', () => {
-  assert.match(model, /auto_payment_unconfirmed: 'Auto payment unconfirmed'/);
-  assert.match(model, /Automatic payment has not been confirmed/);
+  assert.match(model, /auto_payment_unconfirmed: 'Confirmation needed'/);
+  assert.match(model, /Automatic payment not confirmed/);
   assert.match(model, /row\.status === 'skipped'.*'restore'/s);
   assert.match(model, /\['paid', 'cancelled'\]\.includes\(row\.status\)/);
 });
@@ -40,11 +40,11 @@ test('skip and reschedule modals remain accessible in mobile ingress viewports',
   assert.match(css, /\.payment-centre-reschedule,\.payment-centre-skip\{width:min\(560px,100%\)\}/);
   assert.match(css, /max-height:calc\(100dvh/);
   assert.match(css, /overflow-x:hidden/);
-  assert.match(css, /\.payment-centre-reschedule footer,\.payment-centre-skip footer\{position:sticky/);
+  assert.match(css, /\.payment-centre-reschedule footer,\.payment-centre-skip footer,\.payment-centre-mark-paid footer\{position:sticky/);
 });
 
 
-test('production shell reports v1.15.0 and excludes terminal payments from active upcoming commitments', () => {
-  assert.match(shell, /const APP_VERSION = '1\.15\.0'/);
-  assert.match(shell, /!\['paid', 'skipped', 'cancelled'\]\.includes\(row\.status\)/);
+test('production shell reports v1.16.0 and shared planning excludes terminal funding states', () => {
+  assert.match(shell, /const APP_VERSION = '1\.16\.0'/);
+  assert.match(shell, /paymentPlanning\.money_needed_soon/);
 });

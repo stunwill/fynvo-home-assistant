@@ -1,6 +1,8 @@
 export const PAYMENT_DATE_RANGES = [
   ['overdue', 'Overdue'],
+  ['today', 'Today'],
   ['next_7_days', 'Next 7 days'],
+  ['next_14_days', 'Next 14 days'],
   ['next_30_days', 'Next 30 days'],
   ['next_90_days', 'Next 90 days'],
   ['this_month', 'This month'],
@@ -12,11 +14,11 @@ export const PAYMENT_DATE_RANGES = [
 export const PAYMENT_STATUS_LABELS = {
   unknown: 'Needs information',
   overdue: 'Overdue',
-  due: 'Requires payment',
+  due: 'Due today',
   due_today: 'Due today',
   upcoming: 'Upcoming',
   expected_automatically: 'Expected automatically',
-  auto_payment_unconfirmed: 'Auto payment unconfirmed',
+  auto_payment_unconfirmed: 'Confirmation needed',
   paid: 'Paid',
   skipped: 'Skipped',
   cancelled: 'Cancelled',
@@ -38,20 +40,23 @@ export function paymentStatusLabel(status) {
 }
 
 export function paymentSourceLabel(row) {
-  return row?.source_type === 'bill' ? 'Bill' : 'Recurring Expense';
+  return row?.source_type === 'bill' ? 'One-off Bill' : 'Recurring Expense';
 }
 
 export function paymentAttentionReason(row) {
   if (!row) return '';
-  if (row.match_review_available) return 'Possible transaction match found';
-  if (row.status === 'auto_payment_unconfirmed') return 'Automatic payment has not been confirmed';
+  if (row.attention_reason) return row.attention_reason;
+  if (row.match_review_available) return 'Reconciliation ambiguity';
+  if (row.status === 'auto_payment_unconfirmed') return 'Automatic payment not confirmed';
+  if (row.payment_method === 'not_set') return 'Missing payment method';
+  if (row.payment_method === 'direct_debit' && !row.account_id) return 'Missing funding account';
   if (row.status === 'overdue') {
     const days = Number(row.days_overdue || 0);
     return days > 0 ? `Payment is ${days} day${days === 1 ? '' : 's'} overdue` : 'Payment is overdue';
   }
-  if (row.status === 'due' || row.status === 'due_today') return 'Payment is due and requires payment';
+  if (row.status === 'due' || row.status === 'due_today') return 'Manual payment due';
   if (row.status === 'unknown' || row.expected_amount == null && row.amount == null) return 'Payment amount is missing';
-  return row.attention_reason || '';
+  return '';
 }
 
 export function paymentNeedsAction(row) {
@@ -128,6 +133,48 @@ export function groupPayments(rows = [], todayValue = new Date()) {
     else groups.Later.push(row);
   });
   return Object.entries(groups).filter(([, values]) => values.length);
+}
+
+export function timelineLabel(value, todayValue = new Date()) {
+  if (!value) return 'Date not specified';
+  const today = new Date(todayValue);
+  today.setHours(0, 0, 0, 0);
+  const when = new Date(`${String(value).slice(0, 10)}T00:00:00`);
+  const delta = Math.round((when - today) / 86400000);
+  if (delta === 0) return 'Today';
+  if (delta === 1) return 'Tomorrow';
+  return new Intl.DateTimeFormat('en-AU', { weekday: 'long', day: 'numeric', month: 'long' }).format(when);
+}
+
+export function groupPaymentsByDate(rows = [], todayValue = new Date()) {
+  const terminal = [];
+  const groups = new Map();
+  rows.forEach((row) => {
+    if (['paid', 'skipped', 'cancelled'].includes(row.status)) {
+      terminal.push(row);
+      return;
+    }
+    const raw = row.expected_date || row.due_date;
+    if (!raw) {
+      const unknown = groups.get('Date not specified') || [];
+      unknown.push(row);
+      groups.set('Date not specified', unknown);
+      return;
+    }
+    const key = String(raw).slice(0, 10);
+    const values = groups.get(key) || [];
+    values.push(row);
+    groups.set(key, values);
+  });
+  const active = [...groups.entries()]
+    .sort(([left], [right]) => {
+      if (left === 'Date not specified') return 1;
+      if (right === 'Date not specified') return -1;
+      return left.localeCompare(right);
+    })
+    .map(([key, values]) => [key === 'Date not specified' ? key : timelineLabel(key, todayValue), values]);
+  if (terminal.length) active.push(['Payment history', terminal]);
+  return active;
 }
 
 export function defaultPaymentCentreFilters() {
