@@ -16,9 +16,9 @@ const paymentCentre = await readFile(new URL('../src/PaymentCentreV112.jsx', imp
 const app = await readFile(new URL('../src/AppCorrectiveV0174.jsx', import.meta.url), 'utf8');
 const css = await readFile(new URL('../src/payment-centre-v112.css', import.meta.url), 'utf8');
 
-test('v1.13 Payment Centre exposes all required date ranges and combined filters', () => {
+test('Payment Centre exposes required planning date ranges and combined filters', () => {
   assert.deepEqual(PAYMENT_DATE_RANGES.map(([value]) => value), [
-    'overdue', 'next_7_days', 'next_30_days', 'next_90_days', 'this_month', 'next_month', 'custom', 'history',
+    'overdue', 'today', 'next_7_days', 'next_14_days', 'next_30_days', 'next_90_days', 'this_month', 'next_month', 'custom', 'history',
   ]);
   const filters = defaultPaymentCentreFilters();
   const query = buildPaymentCentreQuery({
@@ -32,8 +32,8 @@ test('v1.13 Payment Centre exposes all required date ranges and combined filters
 
 test('attention reasons are explicit and do not rely on colour alone', () => {
   assert.equal(paymentAttentionReason({ status: 'overdue', days_overdue: 4 }), 'Payment is 4 days overdue');
-  assert.equal(paymentAttentionReason({ status: 'auto_payment_unconfirmed' }), 'Automatic payment has not been confirmed');
-  assert.equal(paymentAttentionReason({ match_review_available: true }), 'Possible transaction match found');
+  assert.equal(paymentAttentionReason({ status: 'auto_payment_unconfirmed' }), 'Automatic payment not confirmed');
+  assert.equal(paymentAttentionReason({ match_review_available: true }), 'Reconciliation ambiguity');
   assert.equal(paymentAttentionReason({ status: 'unknown', expected_amount: null }), 'Payment amount is missing');
   assert.equal(paymentNeedsAction({ status: 'unknown', expected_amount: null }), true);
 });
@@ -70,12 +70,13 @@ test('Payment Centre supports Bill edit/cancel and recurring navigation without 
   assert.doesNotMatch(paymentCentre, /create.*payment.*table/i);
 });
 
-test('dashboard uses the unified Payment Centre attention and money-needed summary', () => {
-  assert.match(app, /paymentCentreOverview/);
-  assert.match(app, /Next 7 days/);
-  assert.match(app, /Manual payments/);
-  assert.match(app, /Automatic payments/);
+test('dashboard uses the shared Payment Planning attention and money-needed summary', () => {
+  assert.match(app, /paymentPlanning/);
+  assert.match(app, /paymentPlanning\.money_needed_soon\?\.next_7_days/);
+  assert.match(app, /paymentPlanning\.money_needed_soon\?\.next_30_days/);
+  assert.match(app, /Payments requiring attention/);
   assert.match(app, /View All Payments/);
+  assert.doesNotMatch(app, /paymentCentreOverview/);
 });
 
 test('mobile Payment Centre prevents horizontal page overflow while preserving scrollable summary cards', () => {
