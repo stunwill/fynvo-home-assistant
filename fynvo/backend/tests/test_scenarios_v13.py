@@ -39,7 +39,6 @@ def test_effective_dated_recurring_amount_change_is_scenario_only(client):
     assert ("2026-11-01", "-80.00") in projected
 
     baseline_by_date = dict(baseline)
-    projected_by_date = dict(projected)
     changed_dates = [when for when, amount in projected if when >= "2026-10-01" and amount == "-80.00"]
     assert changed_dates
     assert all(baseline_by_date[when] == "-140.00" for when in changed_dates)
