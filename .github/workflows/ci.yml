@@ -76,17 +76,15 @@ jobs:
                   yaml.safe_load(handle)
               print(f"Validated {path}")
           PY
+      - name: Validate release metadata contract
+        run: python scripts/validate_release_metadata.py
       - name: Validate required app metadata
         run: |
           python - <<'PY'
-          import json
-          import re
           import yaml
 
           with open("fynvo/config.yaml", "r", encoding="utf-8") as handle:
               config = yaml.safe_load(handle)
-          with open("fynvo/frontend/package.json", "r", encoding="utf-8") as handle:
-              package = json.load(handle)
 
           required = ["name", "version", "slug", "description", "arch", "startup", "boot"]
           missing = [key for key in required if key not in config]
@@ -94,18 +92,9 @@ jobs:
               raise SystemExit(f"Missing required config.yaml keys: {', '.join(missing)}")
           if config.get("slug") != "fynvo":
               raise SystemExit("config.yaml slug must be 'fynvo'")
-
-          version = str(config.get("version") or "")
-          if not re.fullmatch(r"\d+\.\d+\.\d+", version):
-              raise SystemExit("config.yaml version must use semantic version format, for example 0.17.1")
-          if package.get("version") != version:
-              raise SystemExit(
-                  f"Version mismatch: config.yaml is {version}, frontend/package.json is {package.get('version')}"
-              )
-
           if config.get("ingress_port") != 8097:
               raise SystemExit("config.yaml ingress_port must be 8097")
-          print(f"Home Assistant app metadata looks valid for Fynvo {version}")
+          print(f"Home Assistant app metadata looks valid for Fynvo {config['version']}")
           PY
       - name: Build Docker image
         working-directory: fynvo
