@@ -76,7 +76,7 @@ test('mobile planning and modal containment protect ingress and iPhone layouts',
   assert.match(css, /white-space:normal;overflow-wrap:anywhere/);
   assert.match(centre, /setDetail\(null\); setMarkingPaid/);
   assert.match(centre, /setDetail\(null\); setRescheduling/);
-  assert.match(centre, /setDetail\(null\); setSkipping/);
+  assert.match(centre, /const startSkip = \(row\) => \{ setDetail\(null\);[\s\S]*?setSkipping\(row\); \}/);
 });
 
 
