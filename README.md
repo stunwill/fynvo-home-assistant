@@ -6,7 +6,7 @@
 
 ## Current release
 
-Current development target: **v1.16.0 Payment Planning, Upcoming Commitments & Cash Requirements**.
+Current merged release: **v1.16.0 Payment Planning, Upcoming Commitments & Cash Requirements**.
 
 v1.16.0 builds on the production payment lifecycle with:
 
@@ -92,4 +92,4 @@ See `docs/RELEASE_PROCESS.md`.
 
 ## Roadmap
 
-See [`docs/FYNVO_PRODUCT_ROADMAP.md`](docs/FYNVO_PRODUCT_ROADMAP.md).
+See [`ROADMAP.md`](ROADMAP.md) for the authoritative planned Fynvo development roadmap. The older `docs/FYNVO_PRODUCT_ROADMAP.md` remains historical planning context and should not be treated as the current release queue.
