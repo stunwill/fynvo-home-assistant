@@ -290,6 +290,8 @@ finance.create_recurring = payments_v17.create_recurring_v17
 finance.create_bill = payments_v112.create_bill_v112
 finance.list_bills = payments_v112.list_bills_v112
 payments_v17.ensure_scheduled_payments = v111.ensure_scheduled_payments
+v111.ensure_scheduled_payments = payments_v114.ensure_scheduled_payments
+payments_v17.ensure_scheduled_payments = payments_v114.ensure_scheduled_payments
 
 v09.router.routes = [route for route in v09.router.routes if not (getattr(route, "path", None) == "/api/budgets/analysis" or (getattr(route, "path", None) == "/api/recurring-expenses/{expense_id}" and "PUT" in getattr(route, "methods", set())))]
 v09.router.routes = [route for route in v09.router.routes if not (getattr(route, "path", None) == "/api/bills/{bill_id}" and "PUT" in getattr(route, "methods", set()))]
