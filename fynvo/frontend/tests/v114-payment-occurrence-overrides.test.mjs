@@ -29,6 +29,6 @@ test('Payments requiring attention can reschedule a failed or unconfirmed occurr
 test('occurrence editor remains contained and keeps actions accessible on mobile', () => {
   assert.match(css, /\.payment-centre-reschedule,\.payment-centre-skip\{width:min\(560px,100%\)/);
   assert.match(css, /@media\(max-width:620px\)[\s\S]*\.payment-centre-detail,.payment-centre-mark-paid\{[^}]*overflow-x:hidden/);
-  assert.match(css, /@media\(max-width:620px\)[\s\S]*\.payment-centre-reschedule footer,\.payment-centre-skip footer\{position:sticky;bottom:0/);
+  assert.match(css, /@media\(max-width:620px\)[\s\S]*\.payment-centre-reschedule footer,\.payment-centre-skip footer(?:,\.payment-centre-mark-paid footer)?\{position:sticky;bottom:0/);
   assert.match(css, /\.payment-centre-modal-backdrop[^}]*z-index:220/);
 });
