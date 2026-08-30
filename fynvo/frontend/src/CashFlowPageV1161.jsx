@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import { apiRequest } from './apiClient.js';
 import { CashFlowChartV0174 } from './v0174-corrective.jsx';
@@ -20,44 +20,100 @@ const dateLabel = (value) => value
 
 const amountClass = (value) => Number(value || 0) >= 0 ? 'positive' : 'negative';
 
+const forecastNumber = (forecast, keys) => {
+  for (const key of keys) {
+    const value = finiteNumber(forecast?.[key]);
+    if (value !== null) return value;
+  }
+  return null;
+};
+
+const forecastSeries = (forecast) => forecast?.chart_points || forecast?.points || forecast?.series || [];
+
+const deriveSummary = (forecast) => {
+  if (!forecast) return null;
+  const events = Array.isArray(forecast.events) ? forecast.events : [];
+  const points = forecastSeries(forecast);
+  const pointValues = points.map((row) => finiteNumber(row?.balance ?? row?.forecast_balance ?? row?.value ?? row?.amount)).filter((value) => value !== null);
+  const income = events.reduce((sum, row) => {
+    const amount = finiteNumber(row?.amount) || 0;
+    return row?.direction === 'income' || amount > 0 ? sum + Math.max(amount, 0) : sum;
+  }, 0);
+  const outgoing = events.reduce((sum, row) => {
+    const amount = finiteNumber(row?.amount) || 0;
+    return row?.direction === 'expense' || amount < 0 ? sum + Math.abs(Math.min(amount, 0) || amount) : sum;
+  }, 0);
+  const starting = forecastNumber(forecast, ['starting_balance', 'start_balance', 'opening_balance']) ?? pointValues[0] ?? null;
+  const ending = forecastNumber(forecast, ['final_balance', 'end_balance', 'ending_balance']) ?? pointValues.at(-1) ?? null;
+  const lowestRecord = forecast?.lowest_balance;
+  const lowest = lowestRecord && typeof lowestRecord === 'object'
+    ? finiteNumber(lowestRecord.balance ?? lowestRecord.amount ?? lowestRecord.value)
+    : finiteNumber(lowestRecord) ?? (pointValues.length ? Math.min(...pointValues) : null);
+  const lowestDate = lowestRecord && typeof lowestRecord === 'object' ? (lowestRecord.date || lowestRecord.day || null) : null;
+  const net = starting !== null && ending !== null ? ending - starting : income - outgoing;
+  return { starting, income, outgoing, net, ending, lowest, lowestDate };
+};
+
 function Empty({ title, children }) {
   return <div className="empty"><strong>{title}</strong><p>{children}</p></div>;
 }
 
-export default function CashFlowPageV1161({ rangeDays, onView }) {
-  const [state, setState] = useState({ loading: true, error: '', baseline: null, expected: null });
+export default function CashFlowPageV1161({ rangeDays, onView, initialForecast = null, initialBaseline = null, onForecastLoaded }) {
+  const initialExpected = initialForecast?.expected || initialForecast || null;
+  const initialBase = initialForecast?.baseline || initialBaseline || null;
+  const initialMatchesRange = Boolean(initialExpected || initialBase);
+  const [state, setState] = useState({ loading: !initialMatchesRange, refreshing: initialMatchesRange, error: '', baseline: initialBase, expected: initialExpected });
 
-  const load = async () => {
-    setState((current) => ({ ...current, loading: true, error: '' }));
+  const load = async ({ background = false } = {}) => {
+    setState((current) => ({ ...current, loading: !background && !(current.baseline || current.expected), refreshing: background || Boolean(current.baseline || current.expected), error: '' }));
     try {
       const [baseline, expected] = await Promise.all([
         apiRequest(`/forecast?mode=baseline&horizon=${rangeDays}d`),
         apiRequest(`/forecast?mode=expected&horizon=${rangeDays}d`),
       ]);
-      setState({ loading: false, error: '', baseline, expected });
+      setState({ loading: false, refreshing: false, error: '', baseline, expected });
+      onForecastLoaded?.({ baseline, expected, rangeDays });
     } catch (requestError) {
-      setState((current) => ({ ...current, loading: false, error: requestError?.message || 'Could not load the Cash Flow forecast.' }));
+      setState((current) => ({ ...current, loading: false, refreshing: false, error: requestError?.message || 'Could not load the Cash Flow forecast.' }));
     }
   };
 
-  useEffect(() => { load(); }, [rangeDays]);
+  useEffect(() => {
+    const hasSeed = Boolean(initialExpected || initialBase);
+    setState({ loading: !hasSeed, refreshing: hasSeed, error: '', baseline: initialBase, expected: initialExpected });
+    load({ background: hasSeed });
+  }, [rangeDays]);
 
   const forecast = state.expected || state.baseline;
   const events = forecast?.events || [];
-  const hasExisting = state.baseline || state.expected;
+  const hasExisting = Boolean(state.baseline || state.expected);
+  const summary = useMemo(() => deriveSummary(forecast), [forecast]);
+  const sortedImpactEvents = useMemo(() => [...events].sort((a, b) => Math.abs(Number(b?.amount || 0)) - Math.abs(Number(a?.amount || 0))), [events]);
+  const visibleImpactEvents = sortedImpactEvents.slice(0, 8);
 
-  return <div className="cashflow-page-v1161">
-    <section className="panel cashflow-chart-panel">
-      <div className="panel-head compact"><div><h2>Cash Flow Forecast</h2><p className="muted">Projected household balance over the selected period.</p></div><small>Next {rangeDays} days</small></div>
-      {state.loading && !hasExisting && <div className="cashflow-loading" role="status"><div><strong>Loading cash flow…</strong><p>Building the latest household forecast.</p></div></div>}
-      {state.error && !hasExisting && <div className="cashflow-error" role="alert"><div><strong>Cash Flow could not load</strong><p>{state.error}</p><button type="button" onClick={load}>Retry</button></div></div>}
-      {hasExisting && <CashFlowChartV0174 baseline={state.baseline} expected={state.expected} Empty={Empty}/>} 
+  return <div className="cashflow-page-v1161 cashflow-page-v1162">
+    <section className="cashflow-summary-v1162" aria-label="Cash Flow summary">
+      <article><span>Starting balance</span><strong>{summary ? money(summary.starting) || '—' : '—'}</strong></article>
+      <article><span>Income</span><strong className="positive">{summary ? money(summary.income) || '—' : '—'}</strong></article>
+      <article><span>Outgoing</span><strong className="negative">{summary ? money(summary.outgoing ? -summary.outgoing : summary.outgoing) || '—' : '—'}</strong></article>
+      <article><span>Net movement</span><strong className={summary && Number(summary.net || 0) < 0 ? 'negative' : 'positive'}>{summary ? money(summary.net) || '—' : '—'}</strong></article>
+      <article><span>Projected balance</span><strong>{summary ? money(summary.ending) || '—' : '—'}</strong></article>
+      <article className={summary && summary.lowest !== null && summary.lowest < 0 ? 'risk' : ''}><span>Lowest balance</span><strong>{summary ? money(summary.lowest) || '—' : '—'}</strong>{summary?.lowestDate && <small>{dateLabel(summary.lowestDate)}</small>}</article>
     </section>
+
+    <section className="panel cashflow-chart-panel">
+      <div className="panel-head compact"><div><h2>Cash Flow Forecast</h2><p className="muted">What will happen to your household balance over the selected period.</p></div><small>Next {rangeDays} days</small></div>
+      {state.loading && !hasExisting && <div className="cashflow-loading" role="status" aria-live="polite"><div><strong>Loading cash flow…</strong><p>Building the latest household forecast.</p></div></div>}
+      {state.error && !hasExisting && <div className="cashflow-error" role="alert"><div><strong>Cash Flow could not load</strong><p>{state.error}</p><button type="button" onClick={() => load()}>Retry</button></div></div>}
+      {hasExisting && <CashFlowChartV0174 baseline={state.baseline} expected={state.expected} Empty={Empty}/>} 
+      {state.refreshing && hasExisting && <p className="muted cashflow-refreshing" role="status">Refreshing forecast…</p>}
+      {state.error && hasExisting && <p className="error" role="alert">Showing the last available forecast. Refresh failed: {state.error} <button type="button" onClick={() => load({ background: true })}>Retry</button></p>}
+    </section>
+
     <section className="panel cashflow-event-panel">
-      <div className="panel-head compact"><h2>Forecast events</h2><small>{events.length} events</small></div>
-      {state.loading && hasExisting && <p className="muted" role="status">Refreshing forecast…</p>}
-      {state.error && hasExisting && <p className="error" role="alert">{state.error} <button type="button" onClick={load}>Retry</button></p>}
-      <div className="cashflow-event-list">{events.length ? events.map((event, index) => <button type="button" className="cashflow-event-row" onClick={() => onView(event)} key={`${event.source_type}-${event.source_id}-${event.date}-${index}`}><span><strong>{event.name}</strong><small>{dateLabel(event.date)} · {(event.source_type || 'financial event').replaceAll('_', ' ')}</small></span><strong className={amountClass(event.amount)}>{money(event.amount)}</strong></button>) : !state.loading && !state.error ? <Empty title="No forecast events">Add income, recurring expenses, bills or planned spending.</Empty> : null}</div>
+      <div className="panel-head compact"><div><h2>Events affecting this forecast</h2><p className="muted">The largest movements behind the projected balance.</p></div>{hasExisting && <small>{events.length} events</small>}</div>
+      <div className="cashflow-event-list">{visibleImpactEvents.length ? visibleImpactEvents.map((event, index) => <button type="button" className="cashflow-event-row" onClick={() => onView(event)} key={`${event.source_type}-${event.source_id}-${event.date}-${index}`}><span><strong>{event.name}</strong><small>{dateLabel(event.date)} · {(event.source_type || 'financial event').replaceAll('_', ' ')}</small></span><strong className={amountClass(event.amount)}>{money(event.amount)}</strong></button>) : !state.loading && !state.error && hasExisting ? <Empty title="No forecast events">No financial events affect this selected period.</Empty> : null}</div>
+      {events.length > visibleImpactEvents.length && <p className="muted cashflow-impact-note">Showing the 8 largest movements by absolute value.</p>}
     </section>
   </div>;
 }
