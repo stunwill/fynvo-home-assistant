@@ -1,5 +1,15 @@
 # Fynvo Add-on Changelog
 
+## v1.16.2 - Cash Flow, Calendar & Overview UX Corrections
+
+- Makes Cash Flow a financial-impact workspace with a prominent forecast graph, balance summary and largest forecast-impact events rather than duplicating Calendar's chronological purpose.
+- Reuses the Overview forecast for the selected range and only requests missing forecast series, reducing repeated work when navigating Overview → Cash Flow.
+- Prevents loading from appearing as "0 forecast events" or a genuine empty state and keeps usable forecast data visible if a refresh fails.
+- Clarifies Calendar as the date-oriented "what and when" workspace with selected-date event details.
+- Strengthens the Recurring Expense Calendar's local-current-day blue highlight so it remains obvious on iPhone and Home Assistant ingress while preserving payment-status colours.
+- Makes Overview KPI cards and relevant summary panels drill down to Accounts, Income, Payment Centre, Planned Spending, Goals and Cash Flow as appropriate.
+- Aligns production-shell, frontend, backend and Home Assistant add-on version reporting to v1.16.2.
+
 ## v1.16.1 - Calendar, Payment Centre & Cash Flow UX Corrections
 
 - Highlights today's date in the recurring-expense month calendar with a clear blue treatment while preserving payment-status colours.
@@ -65,80 +75,3 @@
 - Preserved existing Accounts, Cards, Categories, Scheduled Payments, mobile navigation and mobile modal behaviour without a destructive data migration.
 - Updated add-on, backend, frontend package and production-shell release metadata to v1.10.1.
 - Real installed Home Assistant/iPhone acceptance remains a required manual verification before merge.
-
-## v1.8.0 - Recurring Expenses Responsive UI/UX Completion
-
-### Recurring Expenses
-- Completed the production responsive Recurring Expenses redesign for desktop, tablet, mobile and Home Assistant ingress-sized viewports.
-- List, Calendar and Summary now consume real Scheduled Payment occurrences from the v1.7 payment model.
-- Added Search plus Date Range, Frequency, Category, Payment Method and Payment Status filtering, with Overdue Only and Payments Requiring Attention options.
-- Added an active mobile filter count and draft/apply bottom-sheet filtering with iOS safe-area handling.
-- Added a compact mobile Summary with expandable period breakdown, Largest Upcoming Expense, real payment-status totals and quick actions.
-- Added grouped desktop rows and compact mobile rows with actual/relative due dates, payment method, Scheduled Payment status and source information.
-
-### Calendar
-- Added a functional Recurring Expenses Calendar with previous/next month navigation.
-- Calendar month selection is its temporal scope while the List retains its relative Date Range.
-- Search and non-temporal filters continue across List and Calendar.
-- Added Monday-first Calendar grid, adjacent-month dates, multiple payments per date, priority ordering, `+N more`, selected-date details, status legend and Upcoming view.
-
-### Payment handling and reconciliation
-- Preserved v1.7 Scheduled Payment lifecycle semantics rather than introducing frontend-only status.
-- Added Direct Debit Account presentation and Automatic Card Payment Card presentation with the Card-derived linked Account.
-- Added state-aware Mark as Paid, Skip Payment, Review Payment and Review Match access from Recurring Expenses.
-- Matched payments expose confirmation evidence from the existing Scheduled Payment/Transaction relationship.
-- Payment-status summary buckets are mutually exclusive so their amounts reconcile with Scheduled Total.
-
-### Data safety
-- No v1.8 database migration is required.
-- Existing Recurring Expenses, Scheduled Payments, Cards, Accounts, transaction matches and payment history are preserved.
-- The Recurring Expense → Scheduled Payment → Transaction architecture remains unchanged.
-
-### Versioning
-- Updated Home Assistant add-on, frontend and backend API release metadata to 1.8.0.
-- The production shell reports Fynvo v1.8.0.
-
-### Manual release gates
-- Real desktop Home Assistant ingress screenshots, iPhone 15 Pro-class ingress screenshots, Add/Edit, Direct Debit, Automatic Card, manual payment, Mark as Paid, Payments Requiring Attention, CSV-matched state and Calendar usability remain manual acceptance gates before merge.
-
-## v1.7.0 - Payment Handling, Card Management & Reconciliation
-
-### Payment handling
-- Completed automatic/manual Payment Handling in the production Recurring Expense form.
-- Direct Debit now conditionally uses a Bank Account, while Automatic Card Payment uses a Card and derives its linked Account automatically.
-- Manual payment methods no longer require an unnecessary Account or Card.
-- Added a configurable automatic-payment confirmation grace period, defaulting to 3 days.
-
-### Account → Card management
-- Added production UI Card creation, editing, activation/deactivation and linked-Account display.
-- Existing Card IDs and Account relationships are preserved, and multiple Cards may belong to the same Account.
-- Only Card last-four identification is stored/displayed by this workflow.
-
-### Scheduled Payments
-- Added additive Scheduled Payment records separate from Recurring Expense rules.
-- Added Upcoming, Due, Overdue, Expected Automatically, Automatic Payment Not Confirmed, Paid, Skipped and Cancelled states.
-- Added recurrence-aware generation across weekly, fortnightly, every-four-weeks, monthly, quarterly, yearly and custom-day schedules.
-- Automatic payments are not blindly marked Paid on the due date.
-
-### Reconciliation
-- Added Payments requiring attention, Mark as Paid, Skip Payment and expected-vs-actual values.
-- Added transaction matching foundations with confidence, merchant evidence, Card-derived Account evidence and one-to-one duplicate protection.
-- Confirmed transaction matches record actual date/amount and may establish learned merchant mappings.
-
-### Data safety
-- v1.7 migration is additive and idempotent.
-- Existing Accounts, Cards, Recurring Expenses and historical financial records are preserved.
-- Legacy Account relationships are not falsely converted to Direct Debit without reliable existing evidence.
-
-### Versioning
-- Updated the Home Assistant add-on and frontend release metadata to 1.7.0.
-
-### Manual release gates
-- Installed Home Assistant ingress, representative upgrade/backup validation, real iPhone/mobile acceptance and production screenshots remain manual gates where repository CI cannot execute them.
-
-## v1.2.0 - Household Identity & Access
-
-### Household identity
-- Added a first-class Household identity and explicit Household Membership records separate from User identity.
-- Existing installations migrate automatically to an initial Household without resetting the database or recreating financial records.
-- Existing administrators are preserved and become Administrator members of the migrated Household.
