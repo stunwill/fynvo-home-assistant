@@ -86,3 +86,59 @@
 - Preserved v1.7 Scheduled Payment lifecycle semantics rather than introducing frontend-only status.
 - Added Direct Debit Account presentation and Automatic Card Payment Card presentation with the Card-derived linked Account.
 - Added state-aware Mark as Paid, Skip Payment, Review Payment and Review Match access from Recurring Expenses.
+- Matched payments expose confirmation evidence from the existing Scheduled Payment/Transaction relationship.
+- Payment-status summary buckets are mutually exclusive so their amounts reconcile with Scheduled Total.
+
+### Data safety
+- No v1.8 database migration is required.
+- Existing Recurring Expenses, Scheduled Payments, Cards, Accounts, transaction matches and payment history are preserved.
+- The Recurring Expense → Scheduled Payment → Transaction architecture remains unchanged.
+
+### Versioning
+- Updated Home Assistant add-on, frontend and backend API release metadata to 1.8.0.
+- The production shell reports Fynvo v1.8.0.
+
+### Manual release gates
+- Real desktop Home Assistant ingress screenshots, iPhone 15 Pro-class ingress screenshots, Add/Edit, Direct Debit, Automatic Card, manual payment, Mark as Paid, Payments Requiring Attention, CSV-matched state and Calendar usability remain manual acceptance gates before merge.
+
+## v1.7.0 - Payment Handling, Card Management & Reconciliation
+
+### Payment handling
+- Completed automatic/manual Payment Handling in the production Recurring Expense form.
+- Direct Debit now conditionally uses a Bank Account, while Automatic Card Payment uses a Card and derives its linked Account automatically.
+- Manual payment methods no longer require an unnecessary Account or Card.
+- Added a configurable automatic-payment confirmation grace period, defaulting to 3 days.
+
+### Account → Card management
+- Added production UI Card creation, editing, activation/deactivation and linked-Account display.
+- Existing Card IDs and Account relationships are preserved, and multiple Cards may belong to the same Account.
+- Only Card last-four identification is stored/displayed by this workflow.
+
+### Scheduled Payments
+- Added additive Scheduled Payment records separate from Recurring Expense rules.
+- Added Upcoming, Due, Overdue, Expected Automatically, Automatic Payment Not Confirmed, Paid, Skipped and Cancelled states.
+- Added recurrence-aware generation across weekly, fortnightly, every-four-weeks, monthly, quarterly, yearly and custom-day schedules.
+- Automatic payments are not blindly marked Paid on the due date.
+
+### Reconciliation
+- Added Payments requiring attention, Mark as Paid, Skip Payment and expected-vs-actual values.
+- Added transaction matching foundations with confidence, merchant evidence, Card-derived Account evidence and one-to-one duplicate protection.
+- Confirmed transaction matches record actual date/amount and may establish learned merchant mappings.
+
+### Data safety
+- v1.7 migration is additive and idempotent.
+- Existing Accounts, Cards, Recurring Expenses and historical financial records are preserved.
+- Legacy Account relationships are not falsely converted to Direct Debit without reliable existing evidence.
+
+### Versioning
+- Updated the Home Assistant add-on and frontend release metadata to 1.7.0.
+
+### Manual release gates
+- Installed Home Assistant ingress, representative upgrade/backup validation, real iPhone/mobile acceptance and production screenshots remain manual gates where repository CI cannot execute them.
+
+## v1.2.0 - Household Identity & Access
+
+### Household identity
+- Added a first-class Household identity and explicit Household Membership records separate from User identity.
+- Existing installations migrate automatically to an initial Household without resetting the database or recreating financial records.
+- Existing administrators are preserved and become Administrator members of the migrated Household.
