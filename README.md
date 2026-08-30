@@ -76,3 +76,33 @@ https://github.com/stunwill/fynvo-home-assistant
 ```
 
 Then install and open the **Fynvo** add-on.
+
+## Changelog and releases
+
+Every release must include:
+
+- `CHANGELOG.md` entry;
+- Home Assistant-visible release notes;
+- Git tag;
+- GitHub Release;
+- user-readable release notes.
+
+See `docs/RELEASE_PROCESS.md`.
+
+## Roadmap
+
+See [`ROADMAP.md`](ROADMAP.md) for the authoritative planned Fynvo development roadmap. The older `docs/FYNVO_PRODUCT_ROADMAP.md` remains historical planning context and should not be treated as the current release queue.
+
+## Development metadata
+
+DevHub and release tooling should use the Home Assistant manifest version in `fynvo/config.yaml` as Fynvo's primary repository release version. The matching version is also represented in `fynvo/frontend/package.json` and backend `APP_VERSION` in `fynvo/backend/app/config.py`; `/api/health` and `/api/version` report that backend version.
+
+Release and planning metadata is exposed through:
+
+- `ROADMAP.md` for the authoritative ordered future release plan;
+- root `CHANGELOG.md` for detailed project release history;
+- `fynvo/CHANGELOG.md` for concise Home Assistant-facing release notes;
+- semantic Git tags using `vX.Y.Z`;
+- intentional GitHub Releases for completed releases, with release notes derived from the final changelog.
+
+CI runs `scripts/validate_release_metadata.py` to keep the manifest, frontend, backend, changelogs and roadmap contract consistent.
