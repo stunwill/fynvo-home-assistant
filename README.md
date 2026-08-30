@@ -6,20 +6,18 @@
 
 ## Current release
 
-Current merged release: **v1.16.0 Payment Planning, Upcoming Commitments & Cash Requirements**.
+Current development release: **v1.16.1 Calendar, Payment Centre & Cash Flow UX Corrections**.
 
-v1.16.0 builds on the production payment lifecycle with:
+v1.16.1 is a focused corrective patch over the merged v1.16.0 payment-planning release. It:
 
-- authoritative Today, Next 7 Days, Next 14 Days and Next 30 Days payment planning;
-- Money Needed Soon totals that include unresolved automatic payments as funding requirements;
-- chronological upcoming-payment timelines;
-- account-level funding requirements with Card to Account derivation;
-- conservative available-funds and shortfall comparisons that never treat unknown balances as zero;
-- shared Payment Planning calculations across Overview and Payment Centre;
-- explicit payment-attention reasons and consistent lifecycle statuses;
-- Bill and Scheduled Payment deduplication where both represent the same obligation;
-- occurrence-safe skipped, restored and rescheduled payment handling;
-- responsive Payment Centre layouts for desktop, tablet, mobile and Home Assistant ingress.
+- highlights today's local date in the recurring-expense month calendar;
+- simplifies Payment Centre into a grouped, scan-friendly default view while retaining the full chronological lifecycle workspace;
+- keeps authoritative Payment Planning totals, Account funding requirements and unknown-balance safeguards;
+- restores the Cash Flow Forecast graph to the main Cash Flow page;
+- adds explicit loading, no-data and error/retry behaviour to the restored Cash Flow experience;
+- aligns active frontend, backend, Home Assistant add-on and production-shell version reporting.
+
+The planned **v1.17.0 Pay-Cycle Cash Planning** roadmap scope remains separate from this corrective release.
 
 Fynvo preserves the financial architecture established in earlier releases:
 
@@ -57,8 +55,9 @@ Open **Payment Centre** to review:
 - Money Needed Soon for the next 7, 14 and 30 days;
 - manual and automatic payment funding requirements;
 - overdue and unresolved automatic payments;
-- chronological upcoming commitments;
-- funding requirements by Account;
+- grouped upcoming commitments by default;
+- the detailed chronological payment lifecycle when needed;
+- funding requirements by Account through expandable Funding Details;
 - available funds and likely shortfalls when the relevant Account data is reliable;
 - payment lifecycle details, including rescheduling, skip/restore history and matched Transactions.
 
@@ -66,7 +65,7 @@ The **Overview** consumes the same authoritative Payment Planning service for it
 
 ## Cash Flow Intelligence
 
-Open **Cash Flow** from the authenticated Fynvo shell to review projected household balances and authoritative financial events. Calendar, Cash Flow and Forecast continue to use the established canonical financial-event model so occurrence-specific date changes, skips, restorations and reconciliation remain consistent across screens.
+Open **Cash Flow** from the authenticated Fynvo shell to review the restored projected household balance graph together with authoritative financial events. The graph uses the selected global date range and the existing forecast API. Calendar, Cash Flow and Forecast continue to use the established canonical financial-event model so occurrence-specific date changes, skips, restorations and reconciliation remain consistent across screens.
 
 ## Home Assistant installation
 
@@ -77,33 +76,3 @@ https://github.com/stunwill/fynvo-home-assistant
 ```
 
 Then install and open the **Fynvo** add-on.
-
-## Changelog and releases
-
-Every release must include:
-
-- `CHANGELOG.md` entry;
-- Home Assistant-visible release notes;
-- Git tag;
-- GitHub Release;
-- user-readable release notes.
-
-See `docs/RELEASE_PROCESS.md`.
-
-## Roadmap
-
-See [`ROADMAP.md`](ROADMAP.md) for the authoritative planned Fynvo development roadmap. The older `docs/FYNVO_PRODUCT_ROADMAP.md` remains historical planning context and should not be treated as the current release queue.
-
-## Development metadata
-
-DevHub and release tooling should use the Home Assistant manifest version in `fynvo/config.yaml` as Fynvo's primary repository release version. The matching version is also represented in `fynvo/frontend/package.json` and backend `APP_VERSION` in `fynvo/backend/app/config.py`; `/api/health` and `/api/version` report that backend version.
-
-Release and planning metadata is exposed through:
-
-- `ROADMAP.md` for the authoritative ordered future release plan;
-- root `CHANGELOG.md` for detailed project release history;
-- `fynvo/CHANGELOG.md` for concise Home Assistant-facing release notes;
-- semantic Git tags using `vX.Y.Z`;
-- intentional GitHub Releases for completed releases, with release notes derived from the final changelog.
-
-CI runs `scripts/validate_release_metadata.py` to keep the manifest, frontend, backend, changelogs and roadmap contract consistent.
