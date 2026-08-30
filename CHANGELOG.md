@@ -2,6 +2,38 @@
 
 All notable Fynvo changes are documented here. Starting with v0.3.0, every release must include a user-readable changelog entry, Home Assistant-visible release notes and GitHub release notes.
 
+## v1.16.1 - Calendar, Payment Centre & Cash Flow UX Corrections
+
+### Calendar
+- Highlights the actual local current day in the Recurring Expenses month calendar with a subtle Fynvo-blue cell treatment and a stronger blue date marker.
+- Preserves the existing payment-status colours inside today's cell and adds `aria-current="date"` so the current day is not communicated by colour alone.
+- Keeps adjacent-month dates muted and avoids highlighting an arbitrary date when the current month is not being viewed.
+
+### Payment Centre
+- Introduces a simplified grouped Payment Centre as the default presentation while continuing to use the authoritative `/payment-centre` and `/payment-planning` services.
+- Reorganises the top of the page around Money Required Soon, Upcoming at a Glance and one compact summary strip for total scheduled, overdue, due soon, upcoming and paid obligations.
+- Moves Account funding requirements and available-funds comparisons behind expandable Funding Details without changing unknown-balance safeguards.
+- Reduces the default filter surface to Search, Date Range, Status and Category, with Account, Card, payment method, payment handling and action-only filtering under More Filters.
+- Groups payment rows into Overdue, Due in Next 7 Days, Due Later, No Date Set and Payment History sections, shows a compact preview for large groups and provides explicit View All controls.
+- Keeps the existing detailed chronological Payment Centre available as a persisted secondary view so advanced lifecycle details, rescheduling, skip/restore, reconciliation and other existing actions remain available.
+- Keeps a direct Mark as Paid workflow in the simplified grouped view for eligible manual payments.
+
+### Cash Flow
+- Restores the existing Cash Flow Forecast graph to the main Cash Flow page above the forecast-event list.
+- Corrects the routing regression where the Cash Flow navigation rendered only the event list even though the reusable forecast graph component still existed and remained in use on Overview.
+- Loads baseline and expected forecast series from the authoritative forecast API for the selected global date range.
+- Adds explicit loading, refresh, no-data and error/retry states rather than presenting loading or failure as zero financial activity.
+
+### Responsive UX and data safety
+- Adds responsive layouts for the simplified Payment Centre and restored Cash Flow graph across desktop, tablet, mobile and Home Assistant ingress-sized viewports.
+- Preserves the existing Recurring Expense → Scheduled Payment → Transaction → Reconciliation architecture and introduces no database migration or duplicate financial model.
+- Preserves previously loaded Payment Centre and Cash Flow information during refresh where possible.
+
+### Versioning
+- Selected v1.16.1 as a corrective patch on the merged v1.16.0 baseline, leaving the planned v1.17.0 Pay-Cycle Cash Planning scope intact.
+- Aligned Home Assistant add-on, backend, frontend package, production shell and active frontend version markers to v1.16.1.
+- Installed Home Assistant, tablet, iPhone and ingress visual acceptance remains a manual verification requirement and is not represented as completed by repository CI.
+
 ## v1.16.0 - Payment Planning, Upcoming Commitments & Cash Requirements
 
 ### Payment planning and Money Needed Soon
