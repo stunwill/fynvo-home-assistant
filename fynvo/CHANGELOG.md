@@ -1,5 +1,13 @@
 # Fynvo Add-on Changelog
 
+## v1.16.1 - Calendar, Payment Centre & Cash Flow UX Corrections
+
+- Highlights today's date in the recurring-expense month calendar with a clear blue treatment while preserving payment-status colours.
+- Simplifies Payment Centre around the authoritative Payment Planning service with a clearer summary, compact filters, expandable funding details and grouped payment sections.
+- Keeps the detailed chronological Payment Centre available for full lifecycle actions while making the grouped view the default.
+- Restores the Cash Flow forecast graph above the event list and adds explicit loading, no-data and error/retry states.
+- Aligns production-shell, frontend, backend and Home Assistant add-on version reporting to v1.16.1.
+
 ## v1.16.0 - Payment Planning, Upcoming Commitments & Cash Requirements
 
 - Added Money Needed Soon planning for the next 7, 14 and 30 days.

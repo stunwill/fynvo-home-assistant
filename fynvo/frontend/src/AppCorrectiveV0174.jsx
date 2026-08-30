@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import InsightsPage from './InsightsPage.jsx';
-import PaymentCentreV112 from './PaymentCentreV112.jsx';
+import PaymentCentreV1161 from './PaymentCentreV1161.jsx';
 import SpendingIntelligence from './SpendingIntelligence.jsx';
 import TransactionWorkspace from './TransactionWorkspace.jsx';
+import CashFlowPageV1161 from './CashFlowPageV1161.jsx';
 import logo from './assets/fynvo-logo.svg';
 import mark from './assets/fynvo-mark.svg';
 import { CategoriesPageV0174, RecurringExpensesPageV0174 } from './CorrectiveV0174Pages.jsx';
@@ -14,7 +15,7 @@ import './styles.css';
 
 const api = (path, options = {}) => fetch(`api${path}`, { credentials: 'same-origin', headers: { 'Content-Type': 'application/json', ...(options.headers || {}) }, ...options });
 const today = new Date().toISOString().slice(0, 10);
-const APP_VERSION = '1.16.0';
+const APP_VERSION = '1.16.1';
 const ATTENTION_STATUSES = new Set(['overdue', 'due', 'due_today', 'auto_payment_unconfirmed', 'unknown']);
 const navGroups = [
   { label: 'Core', items: ['Overview', 'Cash Flow', 'Calendar', 'Accounts'] },
@@ -236,10 +237,10 @@ export default function AppCorrectiveV0174() {
     <button className="mobile-nav-backdrop" type="button" aria-label="Close Fynvo navigation" tabIndex={mobileNavOpen ? 0 : -1} onClick={() => closeMobileNav()}></button>
     <main className="content">
       <div className="mobile-app-bar" aria-label="Fynvo application controls"><button ref={menuButtonRef} className="mobile-menu-button" type="button" aria-label={mobileNavOpen ? 'Close Fynvo navigation' : 'Open Fynvo navigation'} aria-expanded={mobileNavOpen} aria-controls="fynvo-navigation" onClick={() => setMobileNavOpen((open) => !open)}><span aria-hidden="true">☰</span><span className="sr-only">Menu</span></button><strong className="mobile-app-identity">Fynvo</strong></div>
-      <header className="header"><div><h1>{active === 'Overview' ? `${greeting}, ${auth.user?.display_name || 'there'}! 👋` : active}</h1><p>{active === 'Overview' ? "Here's your financial overview and what's ahead." : active === 'Insights' ? 'Understand what is changing, why it matters and which data supports it.' : active === 'Payment Centre' ? 'Manage household obligations, payment status and actions.' : 'Manage household financial records and planning.'}</p></div><div className="header-actions"><label className="select-shell">Date range<select value={rangeDays} onChange={(e) => setRangeDays(Number(e.target.value))}>{horizonOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label><button className="primary ghost" onClick={() => setQuickMenuOpen(true)}>+ Quick Add</button></div></header>{error && <p className="error banner">{error}</p>}{success && <p className="success banner">{success}</p>}
+      <header className="header"><div><h1>{active === 'Overview' ? `${greeting}, ${auth.user?.display_name || 'there'}! 👋` : active}</h1><p>{active === 'Overview' ? "Here's your financial overview and what's ahead." : active === 'Insights' ? 'Understand what is changing, why it matters and which data supports it.' : active === 'Payment Centre' ? 'Manage household obligations and stay on top of what’s coming up.' : 'Manage household financial records and planning.'}</p></div><div className="header-actions"><label className="select-shell">Date range<select value={rangeDays} onChange={(e) => setRangeDays(Number(e.target.value))}>{horizonOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label><button className="primary ghost" onClick={() => setQuickMenuOpen(true)}>+ Quick Add</button></div></header>{error && <p className="error banner">{error}</p>}{success && <p className="success banner">{success}</p>}
       {active === 'Overview' && <><Overview data={data} setActive={navigate} rangeDays={rangeDays} setQuick={setQuick} quickDefaults={quickDefaults}/><PaymentsAttentionV17 rows={data.paymentAttention.filter((row) => row.source_type !== 'bill')} money={money} dateLabel={dateLabel} onRefresh={loadAll}/></>}
-      {active === 'Payment Centre' && <PaymentCentreV112 data={data} onNavigate={navigate} onRefreshSupporting={loadAll} onEditBill={(row) => setEdit({ type: 'bills', label: 'Bill', row, values: normaliseRecord('bills', row) })}/>} 
-      {active === 'Cash Flow' && <ForecastPage forecast={data.command?.forecast?.expected || data.forecast} onView={openForecastDetail}/>} 
+      {active === 'Payment Centre' && <PaymentCentreV1161 data={data} onNavigate={navigate} onRefreshSupporting={loadAll} onEditBill={(row) => setEdit({ type: 'bills', label: 'Bill', row, values: normaliseRecord('bills', row) })}/>} 
+      {active === 'Cash Flow' && <CashFlowPageV1161 rangeDays={rangeDays} onView={openForecastDetail}/>} 
       {active === 'Calendar' && <CalendarPage command={data.command}/>} 
       {active === 'CSV Import' && <CsvImport state={importState} setState={setImportState} accounts={data.accounts} previewImport={previewImport} commitImport={commitImport}/>} 
       {active === 'Import History' && <ImportHistory rows={data.imports}/>} 

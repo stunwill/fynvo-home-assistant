@@ -44,7 +44,7 @@ test('skip and reschedule modals remain accessible in mobile ingress viewports',
 });
 
 
-test('production shell reports v1.16.0 and shared planning excludes terminal funding states', () => {
-  assert.match(shell, /const APP_VERSION = '1\.16\.0'/);
+test('production shell reports v1.16.1 and shared planning excludes terminal funding states', () => {
+  assert.match(shell, /const APP_VERSION = '1\.16\.1'/);
   assert.match(shell, /paymentPlanning\.money_needed_soon/);
 });
