@@ -1,5 +1,15 @@
 # Fynvo Add-on Changelog
 
+## v1.16.2 - Cash Flow, Calendar & Overview UX Corrections
+
+- Makes Cash Flow a financial-impact workspace with a prominent forecast graph, balance summary and largest forecast-impact events rather than duplicating Calendar's chronological purpose.
+- Reuses the Overview forecast for the selected range and only requests missing forecast series, reducing repeated work when navigating Overview → Cash Flow.
+- Prevents loading from appearing as "0 forecast events" or a genuine empty state and keeps usable forecast data visible if a refresh fails.
+- Clarifies Calendar as the date-oriented "what and when" workspace with selected-date event details.
+- Strengthens the Recurring Expense Calendar's local-current-day blue highlight so it remains obvious on iPhone and Home Assistant ingress while preserving payment-status colours.
+- Makes Overview KPI cards and relevant summary panels drill down to Accounts, Income, Payment Centre, Planned Spending, Goals and Cash Flow as appropriate.
+- Aligns production-shell, frontend, backend and Home Assistant add-on version reporting to v1.16.2.
+
 ## v1.16.1 - Calendar, Payment Centre & Cash Flow UX Corrections
 
 - Highlights today's date in the recurring-expense month calendar with a clear blue treatment while preserving payment-status colours.
@@ -63,7 +73,7 @@
 - Reduced the Recurring Expenses critical load path by deriving payment-attention rows from Scheduled Payments instead of making a second schedule-generation request.
 - Removed a fast-state synchronisation loop risk and allows already-loaded Recurring Expense data to remain visible while a focused refresh runs.
 - Preserved existing Accounts, Cards, Categories, Scheduled Payments, mobile navigation and mobile modal behaviour without a destructive data migration.
-- Updated add-on, backend, frontend package and production-shell release metadata to v1.10.1.
+- Updated add-on, backend, frontend package, production shell and corrective-module version metadata to v1.10.1.
 - Real installed Home Assistant/iPhone acceptance remains a required manual verification before merge.
 
 ## v1.8.0 - Recurring Expenses Responsive UI/UX Completion

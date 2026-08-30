@@ -1,4 +1,4 @@
-export const APP_VERSION_V0174 = '1.16.1';
+export const APP_VERSION_V0174 = '1.16.2';
 
 export function categoryGroups(categories = []) {
   const rows = categories.filter((item) => item && item.is_active !== false && (!item.category_type || item.category_type === 'expense'));

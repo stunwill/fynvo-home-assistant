@@ -19,8 +19,8 @@ test('new account choices are limited to Transaction Account and Cash while lega
   assert.match(app, /Offset Account/);
 });
 
-test('account form labels institution as Bank', () => {
-  assert.match(app, /text\('institution', 'Bank'\)/);
+test('account form retains the merged Institution label', () => {
+  assert.match(app, /text\('institution', 'Institution'\)/);
 });
 
 test('recurring Expense Type uses authoritative reference data dropdown', () => {

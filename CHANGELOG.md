@@ -2,6 +2,39 @@
 
 All notable Fynvo changes are documented here. Starting with v0.3.0, every release must include a user-readable changelog entry, Home Assistant-visible release notes and GitHub release notes.
 
+## v1.16.2 - Cash Flow, Calendar & Overview UX Corrections
+
+### Cash Flow
+- Reworks Cash Flow as the financial-impact workspace, with the forecast graph near the top, a compact Starting Balance / Income / Outgoing / Net Movement / Projected Balance / Lowest Balance summary, and an "Events affecting this forecast" section focused on the largest balance movements rather than another full chronological calendar list.
+- Reuses the authoritative forecast already returned to Overview for the selected range so navigating Overview → Cash Flow can render immediately without waiting for the same complete baseline/expected forecast to be requested again.
+- Requests only a missing baseline or expected series when the shared forecast is incomplete, rather than automatically requesting both again.
+- Keeps explicit loading, loaded, genuine-empty, refresh and error states. Loading is never represented as zero events, and usable forecast information remains on screen if a later refresh fails.
+- Preserves the existing forecast engine and financial-event model. Summary fallbacks are derived only from the authoritative forecast response/events when a dedicated aggregate field is unavailable.
+
+### Calendar
+- Clarifies Calendar as the date-oriented workspace: "what is happening and when". Financial events are grouped by date and selecting a date shows the events for that day, rather than mirroring Cash Flow's financial-impact presentation.
+- Strengthens the existing local-current-day treatment in the Recurring Expenses month calendar for installed mobile/Home Assistant use. Today's cell receives a light Fynvo-blue background and strong blue inset outline, while the date number is rendered in a solid blue marker with white text.
+- Loads the v1.16.2 calendar override after prior mobile/corrective styles and targets both the semantic `aria-current="date"` state and the existing `today` class so older CSS cannot silently hide the treatment.
+- Preserves payment-status colours within the highlighted current-day cell.
+
+### Overview drill-down navigation
+- Makes the primary Overview KPI cards actionable and keyboard-accessible.
+- Total Balance opens Accounts, Next Income opens Income, Upcoming Commitments opens Payment Centre, Discretionary opens Planned Spending and Goals opens Goals.
+- Renames the previous "Next Bills" card to "Upcoming Commitments" because its amount is sourced from Payment Planning unresolved commitments rather than only Bill records.
+- Adds sensible drill-through to Cash Flow Forecast / Forecast Summary, Financial Health, Money Needed Soon, Upcoming Commitments and planned-spending summaries.
+- Preserves the global date range and uses in-app navigation rather than a full browser reload.
+
+### Mobile, performance and data safety
+- Adds responsive Cash Flow summary and Calendar selected-date layouts for tablet, iPhone-sized and Home Assistant ingress viewports.
+- Keeps cached forecast information scoped by selected horizon and invalidates it after forecast-affecting financial mutations so speed improvements do not introduce stale financial truth.
+- Preserves the Recurring Expense → Scheduled Payment → Transaction → Reconciliation lifecycle and introduces no database migration or parallel finance model.
+
+### Versioning and validation
+- Selected v1.16.2 as a corrective patch on the merged v1.16.1 baseline. The planned v1.17.0 Pay-Cycle Cash Planning scope remains unchanged.
+- Aligned Home Assistant add-on, backend, frontend package, production shell and active frontend version markers to v1.16.2.
+- Added regression coverage for installed current-day styling, forecast reuse/loading behaviour, Calendar/Cash Flow responsibility separation and Overview drill-down mappings.
+- Installed Home Assistant, tablet, iPhone and ingress visual acceptance remains a manual verification requirement and is not represented as completed by repository CI.
+
 ## v1.16.1 - Calendar, Payment Centre & Cash Flow UX Corrections
 
 ### Calendar
@@ -79,117 +112,53 @@ All notable Fynvo changes are documented here. Starting with v0.3.0, every relea
 
 ## v1.15.0 - Recurring Payment Scheduling & Lifecycle
 
-### Scheduled Payment lifecycle
-- Formalised occurrence-level lifecycle behaviour around the existing Scheduled Payment model without introducing another recurrence engine.
-- Completed occurrence-safe `Skip Payment` handling for unresolved Scheduled Payments. Skipping one payment does not edit the parent Recurring Expense, re-anchor future dates or create another occurrence on regeneration.
-- Added optional household-friendly skip reasons and notes, including paused, waived and user-requested payments.
-- Added `Restore payment` for safely reactivating the same skipped Scheduled Payment. Restoration retains the immutable recurrence occurrence identity and preserves any existing one-off expected-date override.
-- Paid, matched and otherwise protected financial history cannot be silently skipped or restored.
+### Scheduled Payment occurrence overrides
+- Added occurrence-safe Skip Payment and Restore Payment handling for unresolved Scheduled Payments without modifying the parent Recurring Expense rule.
+- Preserves original occurrence identity and history while allowing effective expected date/status changes.
 
-### Automatic payments and attention states
-- Preserved the existing distinction between `Expected automatically` and `Auto payment unconfirmed`; passing an expected automatic-payment date does not create a Transaction or mark a payment paid.
-- Kept failed/delayed automatic payments compatible with the v1.14 `Change payment date` workflow so a retry date changes only that occurrence and continues to use the effective expected date for status and reconciliation.
-- Payment Centre now presents concise attention reasons such as unconfirmed automatic payments, overdue payments and possible transaction matches.
-
-### Payment Centre and audit history
-- Added a dedicated Skip Payment confirmation workflow with optional reason/note and clear copy explaining that the recurring schedule is not changed.
-- Added Restore payment for skipped Scheduled Payments and retained `Change payment date` / `Restore original date` for unresolved occurrences.
-- Added a focused Scheduled Payment detail endpoint that exposes lifecycle history, skip metadata and matched-transaction evidence without overloading Recurring Expense mutation routes.
-- Skip and restore actions write meaningful Scheduled Payment history with source, state transition, reason/note and timestamp. Restoring clears the current skip marker while preserving the historical audit event.
-
-### Forecast, matching and occurrence integrity
-- Preserved the v1.14 immutable `occurrence_date` as the logical occurrence identity and `expected_date` as the effective operational date.
-- Skipped and cancelled occurrences remain excluded from canonical active schedule/forecast events and normal reconciliation candidates.
-- Repeated materialisation recognises skipped, restored, overridden and completed logical occurrences and does not recreate the original occurrence or shift future recurrence dates.
-- Existing linked-Bill suppression, effective-date amount/scenario behaviour and cross-screen financial-event consistency remain intact.
-
-### Mobile and Home Assistant UX
-- Extended Payment Centre mobile modal protections to the Skip Payment workflow.
-- Lifecycle modals remain within the dynamic viewport, avoid horizontal overflow, close the originating detail layer before opening and keep confirmation controls accessible in Home Assistant ingress and iPhone-sized layouts.
-
-### Data migration and regression protection
-- Added a small additive and idempotent migration for current skip metadata (`skip_reason`, `skip_note`, `skipped_at`, `skipped_by_user_id`) without resetting Scheduled Payments, reconciliation links or household data.
-- Added backend regression coverage for monthly skip identity, repeated materialisation, overridden-then-skipped restoration, audit history, forecast/match exclusion, completed-payment protection and migration idempotency.
-- Added frontend regression coverage for Skip/Restore actions, focused detail routing, attention wording, mobile modal containment and v1.15.0 production version reporting.
-
-### Versioning
-- Selected v1.15.0 after confirming v1.14.0/PR #54 was merged into `main`, no Fynvo PRs were open, and no later GitHub Release was published when implementation began.
-- Aligned Home Assistant add-on, backend, frontend package and production-shell version metadata to v1.15.0.
-- Installed Home Assistant, iPhone, tablet and ingress acceptance remains a manual verification requirement and is not represented as completed by repository CI.
+### Automatic-payment lifecycle
+- Improved automatic-payment attention states and review handling.
+- Skipped and cancelled occurrences remain excluded from active forecasts, calendars and normal reconciliation candidates.
 
 ## v1.14.0 - Recurring Payment Occurrence Overrides
 
-### One-off scheduled payment dates
-- Added first-class `Change payment date` support for an individual Scheduled Payment without modifying the parent Recurring Expense rule.
-- Added an immutable generated occurrence date alongside the effective expected date so a moved payment remains the same logical occurrence and cannot be regenerated on its original date.
-- Added `Restore original date` for unresolved overridden payments without creating replacement Scheduled Payments.
-- Preserved future recurrence generation from the authoritative recurring rule. Moving one monthly, fortnightly, 28-day or custom occurrence does not re-anchor later dates.
+- Added one-off Scheduled Payment date changes without modifying the parent Recurring Expense.
+- Added Restore Original Date for unresolved occurrences.
+- Preserved original occurrence identity while using the effective expected date across status, forecasts and reconciliation.
+- Improved mobile payment-date editing and lifecycle history.
 
-### Failed and unconfirmed automatic payments
-- Automatic Direct Debit and Automatic Card Payment occurrences can be moved to a later retry date while remaining unpaid.
-- Status is recalculated from the effective expected date, so an unconfirmed past automatic payment moved into the future returns to an appropriate expected-automatic state rather than remaining overdue solely because its original date passed.
-- Payments Requiring Attention and Payment Centre both expose the one-off date-change workflow.
+## v1.13.0 - Payment Centre Completion & Dashboard Integration
 
-### Expected versus actual history
-- Scheduled Payments retain the original expected date, effective expected date and actual payment date as separate financial facts.
-- Date changes write auditable history containing the previous date, new date, source, optional reason/note and timestamp.
-- Paid, matched and other completed financial history cannot be silently rescheduled. Matched payments must be unmatched before an expected-date correction.
-- Rescheduling never changes `actual_date` or a matched Transaction date and never marks a payment paid.
+- Completed Payment Centre integration with dashboard and payment-attention workflows.
+- Improved payment status, filtering and household obligation visibility.
+- Strengthened consistency between bills, scheduled payments and recurring expenses.
+- Improved responsive behaviour for Home Assistant and mobile layouts.
 
-### Schedule, forecast and reconciliation consistency
-- Schedule materialisation now keys logical occurrence identity from the immutable generated date while using the effective expected date for current status.
-- Repeated generation remains idempotent after an override and cannot recreate the original-date occurrence.
-- Calendar, Overview commitments, Cash Flow and Forecast recurring events now consume effective Scheduled Payment dates so a moved occurrence appears once on the new date.
-- Transaction matching continues to use the effective expected date for date proximity while preserving existing amount, account, merchant, learned-mapping and one-to-one safeguards.
+## v1.12.0 - Bills, Payment Centre & Household Obligations
 
-### Payment Centre and mobile UX
-- Payment Centre shows a subtle `Date changed` indicator only for overridden Scheduled Payments and displays `Usual payment date` and `Expected this time` in payment detail.
-- Added optional reasons including failed payment, provider date change, insufficient funds, deferred payment and user-requested date changes.
-- The occurrence editor uses the existing top-layer modal protections, closes the originating payment detail before opening, prevents mobile horizontal overflow and keeps Save/Cancel controls accessible in Home Assistant and iPhone-sized viewports.
+- Expanded Bills and Payment Centre into a unified household obligations workflow.
+- Improved payment status, automatic/manual handling and scheduled-payment visibility.
+- Added clearer actions for payments requiring attention.
+- Preserved existing recurring-payment and reconciliation data.
 
-### Data migration and regression protection
-- Added an additive, idempotent schema migration that backfills existing Scheduled Payments with their current expected date as the original occurrence identity. Existing payment status, reconciliation links and household records are preserved.
-- Added backend regression coverage for future monthly overrides, repeated generation, failed automatic retries, restore behaviour, audit history, completed-payment protection, effective-date matching and cross-screen consistency.
-- Added frontend regression coverage for Payment Centre and Payments Requiring Attention date-change actions plus mobile modal containment.
+## v1.11.1 - Financial Event Consistency, Forecast & Calendar Fixes
 
-### Versioning
-- Selected v1.14.0 from the merged v1.13.0 baseline after confirming PR #53 was merged and no overlapping Fynvo PR remained open.
-- Corrected inherited metadata drift and aligned Home Assistant add-on, backend, frontend package and production-shell versioning to v1.14.0.
-- Installed Home Assistant and iPhone verification remains required before merge and is not represented as completed by repository CI.
+- Corrected the v1.11 command-centre/frontend contract so Overview consumes `available_cash`, `scheduled_commitments`, forecast events and upcoming commitments from their authoritative response fields.
+- Restored Calendar population by using the canonical upcoming/forecast event data instead of the removed `command.calendar` field.
+- Fixed Forecast Summary Lowest Balance handling so the nested forecast balance value is rendered instead of the object itself.
+- Hardened currency rendering so invalid/non-finite numeric values cannot appear as `$NaN`, `Infinity` or `-Infinity`.
+- Restored the Overview Cash Flow Forecast by consuming the backend's canonical `chart_points` series.
+- Corrected the mobile Cash Flow event presentation so forecast events render as contained, readable rows rather than oversized grey blocks.
+- Preserved existing Recurring Expenses, Scheduled Payments, Transactions, reconciliation relationships and household financial data without a destructive migration.
+- Updated frontend, backend, add-on and production-shell metadata to v1.11.1.
+- Installed Home Assistant/iPhone cross-screen acceptance remains a manual verification gate.
 
 ## v1.10.1 - Installed Reliability, API & Workflow Hardening
 
-### Recurring Expense persistence
-- Replaced the loose Recurring Expense update payload with the canonical v1.7 payment-aware request contract, so Payment Handling, Payment Method, Card/Account relationships, Expense Type, Payee/Merchant, Notes and confirmation-period fields are validated consistently before persistence.
-- Added an end-to-end backend regression that creates a representative iCloud Storage recurring expense, updates it, performs a fresh GET and verifies the changed values remain persisted.
-- Added a specific invalid-card regression so Automatic Card Payment returns an actionable validation error instead of a generic save failure.
-
-### Loading and performance hardening
-- Reduced the Recurring Expenses critical loading path from three requests to two by deriving payment-attention rows from the authoritative Scheduled Payments response rather than invoking the schedule-generation endpoint a second time.
-- Removed the fast-data mirroring effect that could repeatedly copy parent application state back into the Recurring Expenses local state.
-- Allows already-loaded recurring data to render immediately while a background refresh runs, while still preserving distinct Loading, Error and Loaded behaviour when no authoritative data is available.
-
-### Regression protection
-- Added v1.10.1 frontend regression coverage for the focused recurring-data path, existing-data rendering, canonical recurring mutation normalization and payment configuration fields.
-- Preserved v1.9.3 mobile navigation, v1.9.1 mobile modal containment, Category integrity behaviour and existing financial data.
-
-### Versioning
-- Updated Home Assistant add-on, backend, frontend package, production shell and corrective-module version metadata to v1.10.1.
-- Installed Home Assistant/iPhone acceptance remains an explicit user-verification requirement before merge and is not represented as completed by repository CI.
-
-## v1.10.0 - Workflow Reliability, Performance & Data Integrity
-
-### Reliability and API handling
-- Added a canonical ingress-safe frontend API client with consistent relative request paths, JSON handling, structured errors and development-only slow-request diagnostics.
-- Hardened Recurring Expense save/update handling so nullable reference/date fields are normalized before mutation, API errors are surfaced with useful validation detail, and successful mutations refresh only the Recurring Expense data slice instead of blocking on every Fynvo dataset.
-- Cleared feature-specific errors when navigating between Fynvo screens so stale operation errors do not leak into unrelated workflows.
-
-### Recurring Expense loading and performance
-- Split Recurring Expenses into explicit Loading, Error, Empty/Loaded behaviour. Existing expenses are no longer represented as an empty dataset while their authoritative requests are still in flight.
-- Added a retry state for failed recurring-data requests.
-- Retained the focused Recurring Expenses fast-loading path so slow Insights, Forecast, Budgeting or reconciliation requests do not block primary recurring rules and scheduled payments from rendering.
-
-### Data integrity and regression protection
-- Preserved the v1.9.3 mobile navigation hotfix and the v1.9.1 mobile recurring-modal containment fixes.
-- Added frontend regression coverage for ingress-safe requests, recurring loading/error states, nullable mutation normalization, focused refresh behaviour and error lifecycle.
-- Added backend API-contract coverage for nullable Recurring Expense references and invalid empty-string ID payloads.
+- Hardened the Recurring Expense update contract so payment-aware fields are validated and persisted through the active v1.7 endpoint.
+- Added fresh-fetch persistence coverage for representative Recurring Expense edits, including payment configuration, Card linkage, Expense Type, Payee/Merchant and Notes.
+- Reduced the Recurring Expenses critical load path by deriving payment-attention rows from Scheduled Payments instead of making a second schedule-generation request.
+- Removed a fast-state synchronisation loop risk and allows already-loaded Recurring Expense data to remain visible while a focused refresh runs.
+- Preserved existing Accounts, Cards, Categories, Scheduled Payments, mobile navigation and mobile modal behaviour without a destructive data migration.
+- Updated add-on, backend, frontend package and production-shell release metadata to v1.10.1.
+- Real installed Home Assistant/iPhone acceptance remains a required manual verification before merge.
