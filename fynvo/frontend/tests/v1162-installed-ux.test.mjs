@@ -26,3 +26,45 @@ test('v1.16.2 current-day override loads last and survives mobile stylesheet pre
   assert.match(css, /color:\s*#ffffff\s*!important/);
   assert.match(css, /@media \(max-width: 980px\)/);
 });
+
+test('Cash Flow reuses Overview forecast and never treats loading as empty', async () => {
+  const page = await read('src/CashFlowPageV1161.jsx');
+  const app = await read('src/AppCorrectiveV0174.jsx');
+
+  assert.match(app, /forecastCache:\s*\{\}/);
+  assert.match(app, /cacheForRange/);
+  assert.match(app, /initialForecast=\{cacheForRange\}/);
+  assert.match(app, /onForecastLoaded=\{rememberForecast\}/);
+  assert.match(page, /hasCompleteSeed|complete = Boolean\(seededBaseline && seededExpected\)/);
+  assert.match(page, /if \(!complete\) load/);
+  assert.match(page, /needsBaseline \? apiRequest/);
+  assert.match(page, /needsExpected \? apiRequest/);
+  assert.match(page, /Loading cash flow…/);
+  assert.match(page, /!state\.loading && !state\.error && hasExisting \? <Empty title="No forecast events"/);
+  assert.match(page, /Events affecting this forecast/);
+  assert.match(page, /Starting balance/);
+  assert.match(page, /Projected balance/);
+  assert.match(page, /Lowest balance/);
+});
+
+test('Overview summary cards drill into authoritative detail workspaces', async () => {
+  const app = await read('src/AppCorrectiveV0174.jsx');
+  assert.match(app, /label="Total Balance"[\s\S]*setActive\('Accounts'\)/);
+  assert.match(app, /label="Next Income"[\s\S]*setActive\('Income'\)/);
+  assert.match(app, /label="Upcoming Commitments"[\s\S]*setActive\('Payment Centre'\)/);
+  assert.match(app, /label="Discretionary"[\s\S]*setActive\('Planned Spending'\)/);
+  assert.match(app, /label="Goals"[\s\S]*setActive\('Goals'\)/);
+  assert.match(app, /function Kpi\([\s\S]*<button type="button" className="kpi kpi-link"/);
+  assert.match(app, /Cash Flow Forecast[\s\S]*setActive\('Cash Flow'\)/);
+});
+
+test('Calendar and Cash Flow have distinct product responsibilities', async () => {
+  const app = await read('src/AppCorrectiveV0174.jsx');
+  const cashflow = await read('src/CashFlowPageV1161.jsx');
+  assert.match(app, /See what is happening and when across your household finances/);
+  assert.match(app, /What is happening and when across your household finances/);
+  assert.match(app, /calendar-v1162-dates/);
+  assert.match(app, /setSelectedDate/);
+  assert.match(cashflow, /What will happen to your household balance/);
+  assert.match(cashflow, /Events affecting this forecast/);
+});
