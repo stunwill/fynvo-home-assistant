@@ -1,0 +1,57 @@
+/* Fynvo v1.16.1 corrective UX */
+.recurring-v18-calendar-grid>button.today{background:#edf5ff;box-shadow:inset 0 0 0 2px rgba(23,105,224,.48)}
+.recurring-v18-calendar-grid>button.today time{display:inline-flex;align-items:center;justify-content:center;min-width:28px;height:28px;padding:0 7px;border-radius:999px;background:#1769e0;color:#fff;box-shadow:0 1px 3px rgba(23,105,224,.22)}
+.recurring-v18-calendar-grid>button.today.selected{background:#e6f1ff;box-shadow:inset 0 0 0 3px #1769e0}
+
+.payment-centre-page{gap:14px}
+.payment-centre-head{display:none}
+.payment-planning{grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:14px}
+.payment-planning-hero{grid-row:1;grid-column:1;padding:22px;border-radius:18px;box-shadow:0 2px 10px rgba(16,24,40,.035)}
+.payment-planning-hero>strong{font-size:clamp(2rem,4.6vw,3.15rem)}
+.payment-planning-hero-breakdown{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0;margin-top:14px;padding-top:14px}
+.payment-planning-hero-breakdown span{display:grid;gap:4px;padding:0 12px;border-left:1px solid var(--border)}
+.payment-planning-hero-breakdown span:first-child{border-left:0;padding-left:0}
+.payment-planning-hero-breakdown span:last-child{padding-right:0}
+.payment-planning-hero-breakdown span:nth-child(3) strong{color:var(--danger)}
+.payment-planning-periods{grid-row:1;grid-column:2;grid-template-columns:repeat(3,minmax(0,1fr));align-content:start;background:var(--panel);border:1px solid var(--border);border-radius:18px;padding:16px;box-shadow:0 2px 10px rgba(16,24,40,.035)}
+.payment-planning-periods article{border-radius:12px;box-shadow:none}
+.payment-planning-periods article:last-child{grid-column:1/-1;display:grid;grid-template-columns:1fr auto;align-items:center;margin-top:4px;background:color-mix(in srgb,var(--danger) 6%,var(--panel))}
+.payment-planning-periods article:last-child:after{content:'View all';color:var(--danger);font-size:.78rem;font-weight:800}
+.payment-funding-grid{grid-column:1/-1;display:block}
+.payment-funding-grid:before{content:'Funding details';display:block;font-weight:800;font-size:.9rem;padding:11px 14px;background:var(--panel);border:1px solid var(--border);border-radius:12px;cursor:default}
+.payment-funding-panel{display:none}
+
+.payment-centre-summary{grid-template-columns:repeat(5,minmax(0,1fr));background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:14px 10px;gap:0}
+.payment-centre-summary-card{border:0;border-radius:0;padding:8px 16px;border-left:1px solid var(--border);background:transparent}
+.payment-centre-summary-card:first-child{border-left:0}
+.payment-centre-summary-card.summary-requires_payment,.payment-centre-summary-card.summary-expected_automatically{display:none}
+.payment-centre-summary-card.summary-overdue strong{color:var(--danger)}
+
+.payment-centre-filters{grid-template-columns:minmax(240px,2fr) repeat(3,minmax(145px,1fr)) auto auto;padding:14px 16px;border-radius:16px}
+.payment-centre-filters label:nth-of-type(5),.payment-centre-filters label:nth-of-type(7),.payment-centre-filters label:nth-of-type(8),.payment-centre-filters label:nth-of-type(9){display:none}
+.payment-centre-filters .payment-centre-check{display:flex!important}
+.payment-centre-clear{justify-self:end;padding-inline:18px}
+
+.payment-centre-timeline-title{align-items:center}
+.payment-centre-timeline-title:after{content:'Grouped by status';font-size:.78rem;color:var(--accent);background:color-mix(in srgb,var(--accent) 8%,var(--panel));border:1px solid color-mix(in srgb,var(--accent) 18%,var(--border));border-radius:999px;padding:6px 11px}
+.payment-centre-timeline-title span{display:none}
+.payment-centre-group{border:1px solid var(--border);border-radius:15px;background:var(--panel);overflow:hidden;gap:0}
+.payment-centre-group-head{padding:12px 14px;border-bottom:1px solid var(--border);justify-content:space-between}
+.payment-centre-group-head h2{font-size:.82rem}
+.payment-centre-group-head span{margin-left:auto}
+.payment-centre-row{border:0;border-radius:0;border-bottom:1px solid var(--border)}
+.payment-centre-group .payment-centre-row:last-child{border-bottom:0}
+.payment-centre-row.needs-action{border-left:0}
+.payment-centre-row-main{grid-template-columns:130px minmax(190px,1.55fr) minmax(105px,.72fr) minmax(150px,1fr) minmax(130px,.86fr);padding:11px 14px}
+.payment-centre-row-action{background:color-mix(in srgb,var(--chip) 65%,var(--panel));font-weight:700}
+
+.cashflow-page-v1161{display:grid;gap:16px}
+.cashflow-page-v1161 .cashflow-chart-panel{padding:18px}
+.cashflow-page-v1161 .cashflow-event-panel{margin:0}
+.cashflow-page-v1161 .cashflow-chart-v111{margin-top:8px}
+.cashflow-page-v1161 .cashflow-loading,.cashflow-page-v1161 .cashflow-error{display:grid;place-items:center;min-height:260px;text-align:center;border:1px dashed var(--border);border-radius:14px;color:var(--muted)}
+.cashflow-page-v1161 .cashflow-error button{margin-top:10px}
+
+@media(max-width:1250px){.payment-planning{grid-template-columns:1fr}.payment-planning-hero,.payment-planning-periods{grid-column:1;grid-row:auto}.payment-centre-summary{grid-template-columns:repeat(5,minmax(135px,1fr));overflow-x:auto}.payment-centre-filters{grid-template-columns:2fr repeat(2,minmax(150px,1fr)) auto auto}}
+@media(max-width:980px){.payment-planning-hero-breakdown{grid-template-columns:1fr 1fr}.payment-planning-hero-breakdown span{border-left:0;border-top:1px solid var(--border);padding:9px 0}.payment-planning-hero-breakdown span:nth-child(-n+2){border-top:0}.payment-planning-periods{grid-template-columns:1fr 1fr}.payment-planning-periods article:last-child{grid-column:1/-1}.payment-centre-summary{display:flex}.payment-centre-summary-card{min-width:150px}.payment-centre-filters{display:none}.cashflow-page-v1161 .cashflow-chart-panel{padding:14px}}
+@media(max-width:620px){.payment-planning-periods{grid-template-columns:1fr 1fr}.payment-planning-hero>strong{font-size:2.2rem}.payment-centre-summary-card{min-width:140px}.payment-centre-row-main{padding:10px 12px}.cashflow-page-v1161{gap:12px}.cashflow-page-v1161 .cashflow-chart-panel{padding:12px}}
