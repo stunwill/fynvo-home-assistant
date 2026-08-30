@@ -6,15 +6,16 @@
 
 ## Current release
 
-Current development release: **v1.16.1 Calendar, Payment Centre & Cash Flow UX Corrections**.
+Current development release: **v1.16.2 Cash Flow, Calendar & Overview UX Corrections**.
 
-v1.16.1 is a focused corrective patch over the merged v1.16.0 payment-planning release. It:
+v1.16.2 is a focused corrective patch over the merged v1.16.1 UX release. It:
 
-- highlights today's local date in the recurring-expense month calendar;
-- simplifies Payment Centre into a grouped, scan-friendly default view while retaining the full chronological lifecycle workspace;
-- keeps authoritative Payment Planning totals, Account funding requirements and unknown-balance safeguards;
-- restores the Cash Flow Forecast graph to the main Cash Flow page;
-- adds explicit loading, no-data and error/retry behaviour to the restored Cash Flow experience;
+- reuses already-loaded Overview forecast data so Cash Flow can render immediately when the selected range is already available;
+- prevents loading from being shown as a genuine zero-event/empty state;
+- makes Cash Flow primarily a financial-impact workspace with a prominent graph, concise balance summary and largest forecast-impact events;
+- makes Calendar the date-oriented "what and when" workspace with selected-date event details;
+- strengthens the recurring-expense month calendar's current-day highlight for iPhone and Home Assistant ingress;
+- turns Overview KPI cards and relevant summary panels into accessible drill-down navigation;
 - aligns active frontend, backend, Home Assistant add-on and production-shell version reporting.
 
 The planned **v1.17.0 Pay-Cycle Cash Planning** roadmap scope remains separate from this corrective release.
@@ -63,9 +64,26 @@ Open **Payment Centre** to review:
 
 The **Overview** consumes the same authoritative Payment Planning service for its household commitments summary, so it does not maintain a separate money-needed calculation.
 
-## Cash Flow Intelligence
+## Cash Flow and Calendar
 
-Open **Cash Flow** from the authenticated Fynvo shell to review the restored projected household balance graph together with authoritative financial events. The graph uses the selected global date range and the existing forecast API. Calendar, Cash Flow and Forecast continue to use the established canonical financial-event model so occurrence-specific date changes, skips, restorations and reconciliation remain consistent across screens.
+**Cash Flow** answers "what will happen to my money?" It presents the projected household balance graph, starting/projected/lowest balance information, inflows/outflows and the financial events with the largest effect on the selected forecast period. When the matching Overview forecast is already loaded, Cash Flow reuses it rather than waiting for the same complete forecast to be requested again.
+
+**Calendar** answers "what is happening, and when?" It groups household financial events by date and provides selected-date details. The Recurring Expenses Calendar retains its dedicated month grid and clearly identifies the user's local current day.
+
+Both experiences continue to consume Fynvo's canonical financial-event and forecast data so occurrence-specific date changes, skips, restorations and reconciliation remain consistent across screens.
+
+## Overview drill-downs
+
+Overview summary information is intended to lead to the authoritative detail workspace. Primary mappings include:
+
+- Total Balance → Accounts;
+- Next Income → Income;
+- Upcoming Commitments → Payment Centre;
+- Discretionary → Planned Spending;
+- Goals → Goals;
+- Cash Flow Forecast / Forecast Summary → Cash Flow.
+
+The global date range is preserved during these in-app navigation changes where the destination uses the same relative scope.
 
 ## Home Assistant installation
 
