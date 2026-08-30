@@ -57,13 +57,13 @@ test('Cash Flow route restores the forecast graph with explicit request states',
   assert.match(page, /No forecast events/);
 });
 
-test('v1.16.1 version surfaces remain aligned in active frontend source', async () => {
+test('v1.16.2 version surfaces remain aligned in active frontend source', async () => {
   const app = await read('src/AppCorrectiveV0174.jsx');
   const shell = await read('src/AppV13.jsx');
   const corrective = await read('src/v0174-corrective.jsx');
   const pkg = JSON.parse(await read('package.json'));
-  assert.match(app, /APP_VERSION = '1\.16\.1'/);
-  assert.match(shell, /PRODUCTION_VERSION = '1\.16\.1'/);
-  assert.match(corrective, /APP_VERSION_V0174 = '1\.16\.1'/);
-  assert.equal(pkg.version, '1.16.1');
+  assert.match(app, /APP_VERSION = '1\.16\.2'/);
+  assert.match(shell, /PRODUCTION_VERSION = '1\.16\.2'/);
+  assert.match(corrective, /APP_VERSION_V0174 = '1\.16\.2'/);
+  assert.equal(pkg.version, '1.16.2');
 });
