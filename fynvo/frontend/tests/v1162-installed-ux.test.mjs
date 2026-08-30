@@ -55,7 +55,7 @@ test('Overview summary cards drill into authoritative detail workspaces', async 
   assert.match(app, /label="Discretionary"[\s\S]*setActive\('Planned Spending'\)/);
   assert.match(app, /label="Goals"[\s\S]*setActive\('Goals'\)/);
   assert.match(app, /function Kpi\([\s\S]*<button type="button" className="kpi kpi-link"/);
-  assert.match(app, /Cash Flow Forecast[\s\S]*setActive\('Cash Flow'\)/);
+  assert.match(app, /dashboard-forecast-panel[\s\S]*onClick=\{\(\) => setActive\('Cash Flow'\)\}[\s\S]*<h2>Cash Flow Forecast<\/h2>/);
 });
 
 test('Calendar and Cash Flow have distinct product responsibilities', async () => {
