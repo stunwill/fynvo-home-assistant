@@ -10,7 +10,7 @@ const api = (path, options = {}) => fetch(`api${path}`, {
   headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
   ...options,
 });
-const PRODUCTION_VERSION = '1.16.1';
+const PRODUCTION_VERSION = '1.16.2';
 
 export default function AppV13() {
   const [auth, setAuth] = useState(null);
@@ -77,10 +77,9 @@ export default function AppV13() {
   if (householdOpen) return <HouseholdControlCenter onClose={() => setHouseholdOpen(false)}/>;
   if (v13CashFlowOpen) return <V13CashFlowPage onClose={() => setV13CashFlowOpen(false)}/>;
   if (v11Mode) return <V11ControlCenter mode={v11Mode} onClose={() => setV11Mode(null)}/>;
-
   return <>
-    {auth.recovery_mode && !recoveryWarningDismissed && <div className="fynvo-recovery-warning" role="status" aria-live="polite"><span><strong>Administrator recovery mode is enabled.</strong> Confirm this login works, then disable <code>admin_recovery_mode</code> in the Home Assistant add-on Configuration page and restart Fynvo.</span><button type="button" onClick={() => setRecoveryWarningDismissed(true)} aria-label="Dismiss administrator recovery warning">Dismiss</button></div>}
     <App />
-    <div className="fynvo-tools-menu-shell"><button type="button" className="fynvo-tools-menu-trigger" aria-expanded={toolsOpen} aria-controls="fynvo-tools-menu" onClick={() => setToolsOpen((value) => !value)}>Tools</button>{toolsOpen && <nav id="fynvo-tools-menu" className="fynvo-tools-menu" aria-label="Fynvo tools"><button type="button" onClick={() => openTool('cash-flow')}>Cash Flow Intelligence</button><button type="button" onClick={() => openTool('household')}>Household</button><button type="button" onClick={() => openTool('coverage')}>Data Coverage</button><button type="button" onClick={() => openTool('splits')}>Split Transaction</button><button type="button" onClick={() => openTool('security')}>Security & MFA</button><button type="button" onClick={() => openTool('export')}>Data Export</button></nav>}</div>
+    <button type="button" className="fynvo-tools-trigger" aria-expanded={toolsOpen} onClick={() => setToolsOpen((open) => !open)}>Tools</button>
+    {toolsOpen && <div className="fynvo-tools-menu"><button type="button" onClick={() => openTool('cash-flow')}>Cash Flow tools</button><button type="button" onClick={() => openTool('household')}>Household</button><button type="button" onClick={() => openTool('settings')}>Settings</button></div>}
   </>;
 }
