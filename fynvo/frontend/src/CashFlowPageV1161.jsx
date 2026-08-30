@@ -59,17 +59,23 @@ function Empty({ title, children }) {
 }
 
 export default function CashFlowPageV1161({ rangeDays, onView, initialForecast = null, initialBaseline = null, onForecastLoaded }) {
-  const initialExpected = initialForecast?.expected || initialForecast || null;
+  const initialExpected = initialForecast?.expected || (!initialForecast?.baseline ? initialForecast : null) || null;
   const initialBase = initialForecast?.baseline || initialBaseline || null;
-  const initialMatchesRange = Boolean(initialExpected || initialBase);
-  const [state, setState] = useState({ loading: !initialMatchesRange, refreshing: initialMatchesRange, error: '', baseline: initialBase, expected: initialExpected });
+  const hasCompleteSeed = Boolean(initialExpected && initialBase);
+  const hasAnySeed = Boolean(initialExpected || initialBase);
+  const [state, setState] = useState({ loading: !hasAnySeed, refreshing: false, error: '', baseline: initialBase, expected: initialExpected });
 
-  const load = async ({ background = false } = {}) => {
-    setState((current) => ({ ...current, loading: !background && !(current.baseline || current.expected), refreshing: background || Boolean(current.baseline || current.expected), error: '' }));
+  const load = async ({ background = false, seedBaseline = null, seedExpected = null } = {}) => {
+    const existingBaseline = seedBaseline || state.baseline;
+    const existingExpected = seedExpected || state.expected;
+    const needsBaseline = !existingBaseline;
+    const needsExpected = !existingExpected;
+    if (!needsBaseline && !needsExpected && background) return;
+    setState((current) => ({ ...current, loading: !background && !(current.baseline || current.expected || seedBaseline || seedExpected), refreshing: background, error: '' }));
     try {
       const [baseline, expected] = await Promise.all([
-        apiRequest(`/forecast?mode=baseline&horizon=${rangeDays}d`),
-        apiRequest(`/forecast?mode=expected&horizon=${rangeDays}d`),
+        needsBaseline ? apiRequest(`/forecast?mode=baseline&horizon=${rangeDays}d`) : Promise.resolve(existingBaseline),
+        needsExpected ? apiRequest(`/forecast?mode=expected&horizon=${rangeDays}d`) : Promise.resolve(existingExpected),
       ]);
       setState({ loading: false, refreshing: false, error: '', baseline, expected });
       onForecastLoaded?.({ baseline, expected, rangeDays });
@@ -79,9 +85,12 @@ export default function CashFlowPageV1161({ rangeDays, onView, initialForecast =
   };
 
   useEffect(() => {
-    const hasSeed = Boolean(initialExpected || initialBase);
-    setState({ loading: !hasSeed, refreshing: hasSeed, error: '', baseline: initialBase, expected: initialExpected });
-    load({ background: hasSeed });
+    const seededBaseline = initialForecast?.baseline || initialBaseline || null;
+    const seededExpected = initialForecast?.expected || (!initialForecast?.baseline ? initialForecast : null) || null;
+    const complete = Boolean(seededBaseline && seededExpected);
+    const anySeed = Boolean(seededBaseline || seededExpected);
+    setState({ loading: !anySeed, refreshing: false, error: '', baseline: seededBaseline, expected: seededExpected });
+    if (!complete) load({ background: anySeed, seedBaseline: seededBaseline, seedExpected: seededExpected });
   }, [rangeDays]);
 
   const forecast = state.expected || state.baseline;
@@ -106,7 +115,7 @@ export default function CashFlowPageV1161({ rangeDays, onView, initialForecast =
       {state.loading && !hasExisting && <div className="cashflow-loading" role="status" aria-live="polite"><div><strong>Loading cash flow…</strong><p>Building the latest household forecast.</p></div></div>}
       {state.error && !hasExisting && <div className="cashflow-error" role="alert"><div><strong>Cash Flow could not load</strong><p>{state.error}</p><button type="button" onClick={() => load()}>Retry</button></div></div>}
       {hasExisting && <CashFlowChartV0174 baseline={state.baseline} expected={state.expected} Empty={Empty}/>} 
-      {state.refreshing && hasExisting && <p className="muted cashflow-refreshing" role="status">Refreshing forecast…</p>}
+      {state.refreshing && hasExisting && <p className="muted cashflow-refreshing" role="status">Loading the missing forecast series…</p>}
       {state.error && hasExisting && <p className="error" role="alert">Showing the last available forecast. Refresh failed: {state.error} <button type="button" onClick={() => load({ background: true })}>Retry</button></p>}
     </section>
 
