@@ -80,6 +80,6 @@ test('mobile planning and modal containment protect ingress and iPhone layouts',
 });
 
 
-test('production version reports v1.16.1', () => {
-  assert.match(app, /APP_VERSION = '1\.16\.1'/);
+test('production version reports v1.16.2', () => {
+  assert.match(app, /APP_VERSION = '1\.16\.2'/);
 });
