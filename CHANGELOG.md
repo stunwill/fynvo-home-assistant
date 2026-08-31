@@ -2,33 +2,34 @@
 
 All notable Fynvo changes are documented here. Starting with v0.3.0, every release must include a user-readable changelog entry, Home Assistant-visible release notes and GitHub release notes.
 
-## v1.16.3 - Accounts & Cards Consolidation, Archiving & Reassignment
+## v1.16.3 - Accounts & Cards Consolidation, Account Archiving & Record Reassignment
 
 ### Accounts & Cards workspace
-- Consolidates Accounts and Cards into one responsive `Accounts & Cards` workspace with dedicated Accounts and Cards views instead of treating Cards as an unrelated top-level Money page.
-- Implements the supplied desktop and mobile design direction with a prominent segmented view control, compact summary cards, search/filter controls, compact Account rows and Card-first Card rows.
-- Removes the old Cards-page pattern that rendered every Account, including Accounts with no Cards. Cards now appear as first-class records and show their linked Account as secondary context.
-- Preserves existing Account and Card CRUD behaviour, last-four-digits-only Card storage and active Account validation.
+- Consolidates Accounts and Cards into one responsive Accounts & Cards workspace with a prominent Accounts / Cards segmented control.
+- Removes Cards as a separate peer-level navigation destination while preserving direct Cards state by opening the combined workspace with Cards selected.
+- Replaces the previous account-grouped Cards presentation with a card-first list. Accounts with zero Cards no longer create empty Card sections, and every Card identifies its linked Account as secondary context.
+- Adds compact Account/Card rows, responsive summary metrics, search/filter controls and context-aware Add Account / Add Card actions across desktop, tablet, mobile and Home Assistant ingress-sized layouts.
 
 ### Account lifecycle
-- Uses the existing Account `is_active` / `archived_at` lifecycle for safe Account retirement.
-- Adds dependency analysis before consolidation so Fynvo can explain linked Transactions, Cards, Recurring Expenses, Income, Bills, Planned Spending, Scheduled Payments and Transfers.
-- Adds Restore Account for archived Accounts and excludes archived Accounts from new Card destinations and the existing active Account selectors.
-- Adds safe permanent deletion only when no Account dependencies remain, with explanatory blockers instead of destructive cascades.
+- Reuses the established `is_active` / `archived_at` Account lifecycle rather than introducing a parallel financial model.
+- Adds Account dependency inspection, Archive Only, Restore Account and safe permanent deletion for dependency-free Accounts.
+- Archived Accounts are hidden from normal active Account lists and existing new-record Account selectors, while historical displays continue resolving the archived Account.
+- New Cards can only target active Accounts. Existing Cards can remain historically linked until explicitly reassigned.
 
-### Move records & archive
-- Adds an explicit user-selected destination Account workflow for duplicate/misassigned Account consolidation.
-- Moves eligible non-transfer, non-matched Transactions without recreating Transaction identity, reassigns Cards, and moves future Account configuration for Recurring Expenses, Income, Bills and Planned Spending.
-- Preserves protected historical Transactions, Scheduled Payments and Transfers on the original Account instead of blindly rewriting historical financial truth.
-- Executes reassignment and archive in one backend transaction with rollback on failure.
+### Reassignment and financial integrity
+- Adds an authoritative transactional Move records & archive backend operation with server-side destination validation and rollback on failure.
+- Classifies Cards as safe to move, active/future Account configuration as conditionally safe, and Scheduled Payments, Transfers plus protected reconciliation/transfer Transactions as historical records that must be preserved.
+- Bulk Transaction movement is allowed only when balance semantics are safe. Accounts with non-zero opening balances or protected historical Transactions preserve their Transactions instead of rewriting history.
+- Transaction reassignment between asset and liability Accounts is rejected because Fynvo stores their balance directions differently.
+- Cards, Recurring Expense future configuration, Income destinations, Bills and Planned Spending can be reassigned to an explicitly selected active destination Account where valid.
+- Permanent deletion is blocked with an explanatory dependency summary whenever preservation-required or movable relationships still exist.
 
-### Responsive and accessibility
-- Adds desktop, tablet and iPhone/Home Assistant responsive layouts based on the supplied mock-ups, with compact rows, readable balances and linked Account context without horizontal overflow.
-- Adds keyboard-accessible Accounts/Cards tabs, semantic statuses and clear mobile Add Account/Add Card actions.
-
-### Versioning
-- Selected v1.16.3 because v1.17.0 remains reserved in ROADMAP.md for Pay-Cycle Cash Planning. This release extends the existing Accounts/Card capability without consuming that planned feature version.
-- Aligns Home Assistant add-on, backend, frontend package and production-shell version reporting to v1.16.3.
+### Regression protection and versioning
+- Adds backend regression coverage for archive/restore visibility, dependency preview, safe bulk Transaction movement, opening-balance preservation, destination validation and dependency-free permanent deletion.
+- Adds frontend regression coverage for the combined workspace, Card-first presentation, archived Account selector exclusion, lifecycle controls, responsive breakpoints and balance-safety protections.
+- Selected v1.16.3 as a focused feature release on the merged v1.16.2 baseline, leaving the planned v1.17.0 Pay-Cycle Cash Planning roadmap scope unchanged.
+- Aligns Home Assistant add-on, backend, frontend package, production shell and active frontend release metadata to v1.16.3.
+- Installed desktop/tablet/mobile/Home Assistant visual comparison against the supplied designs remains a manual acceptance gate before merge.
 
 ## v1.16.2 - Cash Flow, Calendar & Overview UX Corrections
 
@@ -66,14 +67,127 @@ All notable Fynvo changes are documented here. Starting with v0.3.0, every relea
 ## v1.16.1 - Calendar, Payment Centre & Cash Flow UX Corrections
 
 ### Calendar
-- Highlights today's date in the recurring-expense month calendar with a clear blue treatment while preserving payment-status colours.
+- Highlights the actual local current day in the Recurring Expenses month calendar with a subtle Fynvo-blue cell treatment and a stronger blue date marker.
+- Preserves the existing payment-status colours inside today's cell and adds `aria-current="date"` so the current day is not communicated by colour alone.
+- Keeps adjacent-month dates muted and avoids highlighting an arbitrary date when the current month is not being viewed.
 
 ### Payment Centre
-- Simplifies Payment Centre around the authoritative Payment Planning service with a clearer summary, compact filters, expandable funding details and grouped payment sections.
-- Keeps the detailed chronological Payment Centre available for full lifecycle actions while making the grouped view the default.
+- Introduces a simplified grouped Payment Centre as the default presentation while continuing to use the authoritative `/payment-centre` and `/payment-planning` services.
+- Reorganises the top of the page around Money Required Soon, Upcoming at a Glance and one compact summary strip for total scheduled, overdue, due soon, upcoming and paid obligations.
+- Moves Account funding requirements and available-funds comparisons behind expandable Funding Details without changing unknown-balance safeguards.
+- Reduces the default filter surface to Search, Date Range, Status and Category, with Account, Card, payment method, payment handling and action-only filtering under More Filters.
+- Groups payment rows into Overdue, Due in Next 7 Days, Due Later, No Date Set and Payment History sections, shows a compact preview for large groups and provides explicit View All controls.
+- Keeps the existing detailed chronological Payment Centre available as a persisted secondary view so advanced lifecycle details, rescheduling, skip/restore, reconciliation and other existing actions remain available.
+- Keeps a direct Mark as Paid workflow in the simplified grouped view for eligible manual payments.
 
 ### Cash Flow
-- Restores the Cash Flow forecast graph above the event list and adds explicit loading, no-data and error/retry states.
+- Restores the existing Cash Flow Forecast graph to the main Cash Flow page above the forecast-event list.
+- Corrects the routing regression where the Cash Flow navigation rendered only the event list even though the reusable forecast graph component still existed and remained in use on Overview.
+- Loads baseline and expected forecast series from the authoritative forecast API for the selected global date range.
+- Adds explicit loading, refresh, no-data and error/retry states rather than presenting loading or failure as zero financial activity.
+
+### Responsive UX and data safety
+- Adds responsive layouts for the simplified Payment Centre and restored Cash Flow graph across desktop, tablet, mobile and Home Assistant ingress-sized viewports.
+- Preserves the existing Recurring Expense → Scheduled Payment → Transaction → Reconciliation architecture and introduces no database migration or duplicate financial model.
+- Preserves previously loaded Payment Centre and Cash Flow information during refresh where possible.
 
 ### Versioning
-- Aligns production-shell, frontend, backend and Home Assistant add-on version reporting to v1.16.1.
+- Selected v1.16.1 as a corrective patch on the merged v1.16.0 baseline, leaving the planned v1.17.0 Pay-Cycle Cash Planning scope intact.
+- Aligned Home Assistant add-on, backend, frontend package, production shell and active frontend version markers to v1.16.1.
+- Installed Home Assistant, tablet, iPhone and ingress visual acceptance remains a manual verification requirement and is not represented as completed by repository CI.
+
+## v1.16.0 - Payment Planning, Upcoming Commitments & Cash Requirements
+
+### Payment planning and Money Needed Soon
+- Added a shared backend Payment Planning service over authoritative Bills and Scheduled Payments, without introducing another payment, transaction or recurrence model.
+- Added Today, Next 7 Days, Next 14 Days and Next 30 Days planning summaries with total commitments, payment counts, manual and automatic funding, overdue obligations, unresolved automatic payments, paid amounts and remaining funding requirements.
+- Automatic Direct Debits and Automatic Card Payments continue to require funding until they are paid/reconciled, even when no manual payment action is required.
+- Paid, reconciled, skipped and cancelled obligations are excluded from unresolved funding requirements.
+- Linked Bills suppress the matching Scheduled Payment occurrence when both represent the same Recurring Expense and effective date, preventing double-counted household commitments.
+
+### Account funding and shortfall visibility
+- Added next-7-day account funding requirements using existing Account and Card relationships, including automatic Card to Account derivation.
+- Obligations with no determinable funding Account are grouped as `Account not specified` rather than silently assigned.
+- Available-funds comparisons reuse active liquid Account balances derived from opening balance plus actual Transactions. Liability and unknown balances are not treated as available cash.
+- Household shortfall calculations are shown only when the complete relevant funding picture is known. Unknown balances are never represented as $0.
+
+### Payment Centre and Overview
+- Added a chronological Payment Centre timeline grouped by effective payment date, with Today/Tomorrow/date headings and concise status, payment method, Account/Card and source information.
+- Added Payment Centre planning cards for Money Needed Soon, account funding requirements, available funds and likely shortfalls.
+- Added Today and Next 14 Days to Payment Centre date filtering and retained combined filtering for status, source, category, payment method/handling, Account, Card and action-required state.
+- Overview now consumes the same `/payment-planning` service as Payment Centre for Money Needed Soon, payment-attention counts, next payment and upcoming commitments. The previous independent Overview money calculation was removed.
+- Payment details prioritise useful lifecycle information, including occurrence date, current expected date, actual date, payment handling, funding Account, Card, skip/reschedule notes, matched Transaction and lifecycle history, while hiding empty fields.
+
+### Lifecycle and route integrity
+- Preserved the authoritative Recurring Expense → Scheduled Payment → Transaction → Reconciliation architecture.
+- Made v1.14 occurrence-safe Scheduled Payment materialisation authoritative wherever payment screens request occurrence generation.
+- Removed the remaining legacy duplicate Skip Payment route and retained the v1.15 lifecycle implementation as the single authoritative skip mutation path.
+- Overdue unresolved obligations are included in Next 7/14/30 Day planning views so visible Payment Centre rows can reconcile to Money Needed Soon totals.
+
+### Mobile, Home Assistant ingress and accessibility
+- Added responsive planning and funding layouts that collapse cleanly on tablet and iPhone-sized viewports.
+- Added page-level horizontal containment, wrapping for long payment names, mobile-friendly timeline cards, safe-area-aware modals and sticky modal actions.
+- Preserved semantic buttons, labels, status text, keyboard-accessible controls and status communication that does not rely on colour alone.
+
+### Data safety and regression protection
+- v1.16.0 introduces no database migration. Existing Recurring Expenses, Bills, Scheduled Payments, Transactions, reconciliation relationships, occurrence identities and lifecycle history remain in place.
+- Added backend regression coverage for 7/14/30-day planning, automatic funding, paid/skipped/cancelled exclusion, restoration, rescheduling, occurrence identity, account aggregation, Card-to-Account derivation, unknown funding, shortfalls, overdue inclusion, Bill/Scheduled Payment deduplication, reconciliation and duplicate route/materialisation protection.
+- Added frontend source-level regression coverage for shared Overview/Payment Centre planning, timeline grouping, status/attention clarity, funding/shortfall states, filters, lifecycle detail, mobile containment and modal layering.
+
+### Versioning
+- Selected v1.16.0 from the merged v1.15.0 baseline after confirming PR #55 was merged and no Fynvo PRs were open at implementation start.
+- Aligned Home Assistant add-on, backend, frontend package and production-shell version metadata to v1.16.0.
+- Installed Home Assistant, tablet, iPhone and ingress acceptance remains a manual verification requirement and is not represented as completed by repository CI.
+
+## v1.15.0 - Recurring Payment Scheduling & Lifecycle
+
+### Scheduled Payment occurrence overrides
+- Added occurrence-safe Skip Payment and Restore Payment handling for unresolved Scheduled Payments without modifying the parent Recurring Expense rule.
+- Preserves original occurrence identity and history while allowing effective expected date/status changes.
+
+### Automatic-payment lifecycle
+- Improved automatic-payment attention states and review handling.
+- Skipped and cancelled occurrences remain excluded from active forecasts, calendars and normal reconciliation candidates.
+
+## v1.14.0 - Recurring Payment Occurrence Overrides
+
+- Added one-off Scheduled Payment date changes without modifying the parent Recurring Expense.
+- Added Restore Original Date for unresolved occurrences.
+- Preserved original occurrence identity while using the effective expected date across status, forecasts and reconciliation.
+- Improved mobile payment-date editing and lifecycle history.
+
+## v1.13.0 - Payment Centre Completion & Dashboard Integration
+
+- Completed Payment Centre integration with dashboard and payment-attention workflows.
+- Improved payment status, filtering and household obligation visibility.
+- Strengthened consistency between bills, scheduled payments and recurring expenses.
+- Improved responsive behaviour for Home Assistant and mobile layouts.
+
+## v1.12.0 - Bills, Payment Centre & Household Obligations
+
+- Expanded Bills and Payment Centre into a unified household obligations workflow.
+- Improved payment status, automatic/manual handling and scheduled-payment visibility.
+- Added clearer actions for payments requiring attention.
+- Preserved existing recurring-payment and reconciliation data.
+
+## v1.11.1 - Financial Event Consistency, Forecast & Calendar Fixes
+
+- Corrected the v1.11 command-centre/frontend contract so Overview consumes `available_cash`, `scheduled_commitments`, forecast events and upcoming commitments from their authoritative response fields.
+- Restored Calendar population by using the canonical upcoming/forecast event data instead of the removed `command.calendar` field.
+- Fixed Forecast Summary Lowest Balance handling so the nested forecast balance value is rendered instead of the object itself.
+- Hardened currency rendering so invalid/non-finite numeric values cannot appear as `$NaN`, `Infinity` or `-Infinity`.
+- Restored the Overview Cash Flow Forecast by consuming the backend's canonical `chart_points` series.
+- Corrected the mobile Cash Flow event presentation so forecast events render as contained, readable rows rather than oversized grey blocks.
+- Preserved existing Recurring Expenses, Scheduled Payments, Transactions, reconciliation relationships and household financial data without a destructive migration.
+- Updated frontend, backend, add-on and production-shell metadata to v1.11.1.
+- Installed Home Assistant/iPhone cross-screen acceptance remains a manual verification gate.
+
+## v1.10.1 - Installed Reliability, API & Workflow Hardening
+
+- Hardened the Recurring Expense update contract so payment-aware fields are validated and persisted through the active v1.7 endpoint.
+- Added fresh-fetch persistence coverage for representative Recurring Expense edits, including payment configuration, Card linkage, Expense Type, Payee/Merchant and Notes.
+- Reduced the Recurring Expenses critical load path by deriving payment-attention rows from Scheduled Payments instead of making a second schedule-generation request.
+- Removed a fast-state synchronisation loop risk and allows already-loaded Recurring Expense data to remain visible while a focused refresh runs.
+- Preserved existing Accounts, Cards, Categories, Scheduled Payments, mobile navigation and mobile modal behaviour without a destructive data migration.
+- Updated add-on, backend, frontend package and production-shell release metadata to v1.10.1.
+- Real installed Home Assistant/iPhone acceptance remains a required manual verification before merge.
