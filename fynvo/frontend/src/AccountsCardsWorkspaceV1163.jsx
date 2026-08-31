@@ -16,7 +16,7 @@ const cardDefaults = (card = null, accounts = []) => ({
   is_active: card?.is_active ?? true,
 });
 
-export default function AccountsCardsWorkspaceV1163({ activeAccounts, cards, initialView, onEditAccount, onAddAccount, onRefresh }) {
+export default function AccountsCardsWorkspaceV1163({ activeAccounts, cards, initialView, onViewChange, onEditAccount, onAddAccount, onRefresh }) {
   const [accounts, setAccounts] = useState(activeAccounts);
   const [localCards, setLocalCards] = useState(cards);
   const [cardEdit, setCardEdit] = useState(null);
@@ -102,6 +102,7 @@ export default function AccountsCardsWorkspaceV1163({ activeAccounts, cards, ini
       accounts={accounts}
       cards={localCards}
       initialView={initialView}
+      onViewChange={onViewChange}
       onEditAccount={startManage}
       onAddAccount={onAddAccount}
       onEditCard={(card) => setCardEdit(cardDefaults(card, selectableAccounts))}
@@ -114,7 +115,7 @@ export default function AccountsCardsWorkspaceV1163({ activeAccounts, cards, ini
       {manage.archived_at || manage.is_active === false ? <div className="modal-actions"><button type="button" onClick={() => setManage(null)}>Cancel</button><button type="button" className="primary ghost" onClick={editAccountDetails}>Edit Account details</button><button type="button" className="primary" disabled={busy} onClick={restore}>{busy ? 'Working…' : 'Restore Account'}</button>{dependencies?.can_delete && <button type="button" className="danger-action" disabled={busy} onClick={permanentlyDelete}>Delete permanently</button>}</div> : <>
         <div className="account-management-choice"><h3>Account details</h3><p className="muted">Update the Account name, institution, type and other supported details.</p><button type="button" className="primary ghost" onClick={editAccountDetails}>Edit Account details</button></div>
         <div className="account-management-choice"><h3>Archive only</h3><p className="muted">Safest option. Existing Transactions, Scheduled Payments and history remain linked to this Account.</p><button type="button" disabled={busy} onClick={archiveOnly}>Archive Account</button></div>
-        <div className="account-management-choice"><h3>Move eligible records &amp; archive</h3><p className="muted">Moves eligible records to an active Account while preserving historical Scheduled Payments, Transfers and protected Transactions.</p><label className="field"><span>Move eligible records to</span><select value={destination} onChange={(event) => setDestination(event.target.value)}><option value="">Choose Account</option>{selectableAccounts.filter((account) => Number(account.id) !== Number(manage.id)).map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}</select></label><button type="button" className="primary" disabled={busy || !destination || dependencies?.move_blocked} onClick={moveAndArchive}>{busy ? 'Working…' : 'Move records & archive'}</button>{dependencies?.move_blocked && <p className="muted">Move &amp; Archive is blocked for this Account because moving its Transactions would change balance semantics. Archive Only remains available.</p>}</div>
+        <div className="account-management-choice"><h3>Move eligible records &amp; archive</h3><p className="muted">Moves eligible records to an active Account while preserving historical Scheduled Payments, Transfers and protected Transactions.</p><label className="field"><span>Move eligible records to</span><select value={destination} onChange={(event) => setDestination(event.target.value)}><option value="">Choose Account</option>{selectableAccounts.filter((account) => Number(account.id) !== Number(manage.id)).map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}</select></label><button type="button" className="primary" disabled={busy || !destination || dependencies?.transaction_move_blocked} onClick={moveAndArchive}>{busy ? 'Working…' : 'Move records & archive'}</button>{dependencies?.transaction_move_blocked && <p className="muted">Move &amp; Archive is blocked for this Account because moving its Transactions would change balance or historical reconciliation semantics. Archive Only remains available.</p>}</div>
         {dependencies?.can_delete && <div className="account-management-choice danger-zone"><h3>Danger zone</h3><p className="muted">This Account has no dependencies and may be permanently deleted.</p><button type="button" className="danger-action" disabled={busy} onClick={permanentlyDelete}>Delete permanently</button></div>}
         <div className="modal-actions"><button type="button" onClick={() => setManage(null)}>Close</button></div>
       </>}
