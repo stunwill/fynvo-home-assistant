@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session as DbSession
 
 from .auth import get_current_user
 from .database import get_db
-from .ledger import LIABILITY_TYPES, account_response, get_account
+from .ledger import account_response, get_account
 from .models import User
 from .security import utcnow
 
@@ -41,13 +41,20 @@ def _protected_transaction_clause(db: DbSession) -> str:
 
 
 def dependency_preview(db: DbSession, user: User, account_id: int) -> dict[str, Any]:
-    get_account(db, user, account_id)
+    account = get_account(db, user, account_id)
     params = {"uid": user.id, "account_id": account_id}
     protected_clause = _protected_transaction_clause(db)
     movable_tx_count = _count(db, "transactions", f"user_id=:uid AND account_id=:account_id AND NOT ({protected_clause})", params)
     protected_tx_count = _count(db, "transactions", f"user_id=:uid AND account_id=:account_id AND ({protected_clause})", params)
+    transaction_move_blocked = movable_tx_count > 0 and (protected_tx_count > 0 or int(account.opening_balance_cents or 0) != 0)
+    warnings: list[str] = []
+    if protected_tx_count:
+        warnings.append("Protected reconciliation or transfer Transactions remain on this Account to preserve historical financial truth.")
+    if movable_tx_count and int(account.opening_balance_cents or 0) != 0:
+        warnings.append("Transactions are preserved because this Account has an opening balance. Moving only the Transaction association would change current-balance semantics.")
+
     dependencies = [
-        {"type": "transactions", "label": "Transactions", "count": movable_tx_count, "classification": "conditionally_safe", "action": "move"},
+        {"type": "transactions", "label": "Transactions", "count": movable_tx_count, "classification": "historical" if transaction_move_blocked else "conditionally_safe", "action": "preserve" if transaction_move_blocked else "move"},
         {"type": "protected_transactions", "label": "Protected Transactions", "count": protected_tx_count, "classification": "historical", "action": "preserve"},
         {"type": "cards", "label": "Cards", "count": _count(db, "cards", "user_id=:uid AND account_id=:account_id", params), "classification": "safe", "action": "move"},
         {"type": "recurring_expenses", "label": "Recurring Expenses", "count": _count(db, "recurring_expenses", "user_id=:uid AND account_id=:account_id", params), "classification": "conditionally_safe", "action": "move_future_configuration"},
@@ -60,7 +67,15 @@ def dependency_preview(db: DbSession, user: User, account_id: int) -> dict[str, 
     ]
     movable = sum(item["count"] for item in dependencies if item["classification"] != "historical")
     historical = sum(item["count"] for item in dependencies if item["classification"] == "historical")
-    return {"account_id": account_id, "dependencies": dependencies, "movable_count": movable, "historical_count": historical, "can_delete": movable == 0 and historical == 0}
+    return {
+        "account_id": account_id,
+        "dependencies": dependencies,
+        "movable_count": movable,
+        "historical_count": historical,
+        "transaction_move_blocked": transaction_move_blocked,
+        "warnings": warnings,
+        "can_delete": movable == 0 and historical == 0,
+    }
 
 
 @router.get("/accounts/{account_id}/dependencies")
@@ -88,20 +103,19 @@ def move_and_archive(account_id: int, payload: dict[str, Any], current_user: Use
     if not destination.is_active or destination.archived_at:
         raise HTTPException(status_code=409, detail="Destination Account must be active")
 
-    source_is_liability = source.account_type in LIABILITY_TYPES
-    destination_is_liability = destination.account_type in LIABILITY_TYPES
-    preview = dependency_preview(db, current_user, account_id)
+    preview = dependency_preview(db, current_user, source.id)
     movable_transactions = next((item["count"] for item in preview["dependencies"] if item["type"] == "transactions"), 0)
-    if movable_transactions and source_is_liability != destination_is_liability:
-        raise HTTPException(
-            status_code=409,
-            detail="Transactions cannot be bulk moved between asset and liability Accounts because their stored balance direction differs. Choose a destination with the same Account class, or archive this Account without moving Transactions.",
-        )
+    transaction_move_allowed = movable_transactions > 0 and not preview["transaction_move_blocked"]
+    if transaction_move_allowed:
+        source_class = account_response(db, source)["account_class"]
+        destination_class = account_response(db, destination)["account_class"]
+        if source_class != destination_class:
+            raise HTTPException(status_code=409, detail="Transactions cannot be reassigned between asset and liability Accounts because their stored balance directions differ. Choose Archive Only or another destination Account.")
 
     now = utcnow()
     protected_clause = _protected_transaction_clause(db)
     try:
-        if _table_exists(db, "transactions"):
+        if transaction_move_allowed and _table_exists(db, "transactions"):
             db.execute(text(f"UPDATE transactions SET account_id=:destination,updated_at=:now WHERE user_id=:uid AND account_id=:source AND NOT ({protected_clause})"), {"destination": destination.id, "source": source.id, "uid": current_user.id, "now": now})
         if _table_exists(db, "cards"):
             db.execute(text("UPDATE cards SET account_id=:destination,updated_at=:now WHERE user_id=:uid AND account_id=:source"), {"destination": destination.id, "source": source.id, "uid": current_user.id, "now": now})
@@ -120,7 +134,10 @@ def move_and_archive(account_id: int, payload: dict[str, Any], current_user: Use
     except Exception:
         db.rollback()
         raise
-    return {"status": "ok", "account": account_response(db, source), "destination_account_id": destination.id, "preserved_historical_relationships": ["protected_transactions", "scheduled_payments", "transfers"]}
+    preserved = ["protected_transactions", "scheduled_payments", "transfers"]
+    if preview["transaction_move_blocked"]:
+        preserved.append("transactions")
+    return {"status": "ok", "account": account_response(db, source), "destination_account_id": destination.id, "preserved_historical_relationships": preserved}
 
 
 @router.delete("/accounts/{account_id}")
