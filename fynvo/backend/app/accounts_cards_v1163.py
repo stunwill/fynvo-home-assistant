@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session as DbSession
 
 from .auth import get_current_user
 from .database import get_db
-from .ledger import account_response, get_account
+from .ledger import LIABILITY_TYPES, account_response, get_account
 from .models import User
 from .security import utcnow
 
@@ -87,6 +87,16 @@ def move_and_archive(account_id: int, payload: dict[str, Any], current_user: Use
         raise HTTPException(status_code=400, detail="Destination Account must differ from the source Account")
     if not destination.is_active or destination.archived_at:
         raise HTTPException(status_code=409, detail="Destination Account must be active")
+
+    source_is_liability = source.account_type in LIABILITY_TYPES
+    destination_is_liability = destination.account_type in LIABILITY_TYPES
+    preview = dependency_preview(db, current_user, account_id)
+    movable_transactions = next((item["count"] for item in preview["dependencies"] if item["type"] == "transactions"), 0)
+    if movable_transactions and source_is_liability != destination_is_liability:
+        raise HTTPException(
+            status_code=409,
+            detail="Transactions cannot be bulk moved between asset and liability Accounts because their stored balance direction differs. Choose a destination with the same Account class, or archive this Account without moving Transactions.",
+        )
 
     now = utcnow()
     protected_clause = _protected_transaction_clause(db)
