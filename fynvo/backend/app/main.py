@@ -5,6 +5,7 @@ from pathlib import Path
 from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session as DbSession
 
 from . import (
@@ -358,40 +359,36 @@ def forecast(horizon: str = "30d", mode: str = "baseline", start: date | None = 
 def forecast_breakdown(period: str = "month", horizon: str = "30d", mode: str = "baseline", current_user: User = USER_DEPENDENCY, db: DbSession = DB_DEPENDENCY):
     if period not in {"day", "month"}:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="period must be day or month")
-    return forecast_drilldown(db, current_user, horizon, mode, period)
+    return forecast_drilldown(db, current_user, period, horizon, mode)
 
 
-@app.post("/api/forecast/effective-change", status_code=status.HTTP_201_CREATED)
-def add_effective_change(payload: dict, current_user: User = USER_DEPENDENCY, db: DbSession = DB_DEPENDENCY):
-    return create_effective_change(db, current_user, payload)
-
-
-@app.get("/api/forecast/effective-changes")
-def effective_changes(current_user: User = USER_DEPENDENCY, db: DbSession = DB_DEPENDENCY):
-    return list_effective_changes(db, current_user)
-
-
-@app.post("/api/scenarios/compare")
-def scenario_compare(payload: dict, current_user: User = USER_DEPENDENCY, db: DbSession = DB_DEPENDENCY):
+@app.post("/api/forecast/scenario")
+def scenario_forecast(payload: dict, current_user: User = USER_DEPENDENCY, db: DbSession = DB_DEPENDENCY):
     return compare_scenario(db, current_user, payload)
 
 
-@app.get("/api/files/{filename}")
-def file_download(filename: str):
-    safe_name = Path(filename).name
-    target = Path("/data") / safe_name
-    if not target.exists():
-        raise HTTPException(status_code=404, detail="File not found")
-    return FileResponse(target)
+@app.get("/api/effective-amount-changes")
+def amount_changes(current_user: User = USER_DEPENDENCY, db: DbSession = DB_DEPENDENCY):
+    return list_effective_changes(db, current_user)
+
+
+@app.post("/api/effective-amount-changes", status_code=status.HTTP_201_CREATED)
+def add_amount_change(payload: dict, current_user: User = USER_DEPENDENCY, db: DbSession = DB_DEPENDENCY):
+    return create_effective_change(db, current_user, payload)
+
+
+frontend_dist = Path(__file__).resolve().parents[2] / "frontend" / "dist"
+index_file = frontend_dist / "index.html"
+assets_dir = frontend_dist / "assets"
+
+if assets_dir.exists():
+    app.mount("/assets", StaticFiles(directory=assets_dir), name="assets")
 
 
 @app.get("/{full_path:path}", response_class=HTMLResponse)
-def frontend(full_path: str, request: Request):
-    static_root = Path(__file__).resolve().parents[2] / "frontend" / "dist"
-    candidate = static_root / full_path
-    if full_path and candidate.is_file():
-        return FileResponse(candidate)
-    index = static_root / "index.html"
-    if index.exists():
-        return FileResponse(index)
-    return HTMLResponse("Fynvo frontend is not built.", status_code=503)
+def frontend(full_path: str):
+    if full_path.startswith("api/"):
+        raise HTTPException(status_code=404, detail="API route not found")
+    if index_file.exists():
+        return FileResponse(index_file)
+    return HTMLResponse("<!doctype html><title>Fynvo</title><main><h1>Fynvo</h1><p>Frontend assets are not built yet.</p></main>", status_code=200)
