@@ -8,7 +8,13 @@ from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session as DbSession
 
-from . import accounts_cards_v1163, intelligence, v09, v12_mount, v13_cashflow
+from . import (
+    accounts_cards_v1163,
+    intelligence,
+    v09,
+    v12_mount,
+    v13_cashflow,
+)
 from .auth import (
     SESSION_COOKIE,
     authenticate_user,
