@@ -5,7 +5,6 @@ from pathlib import Path
 from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse
-from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session as DbSession
 
 from . import (
