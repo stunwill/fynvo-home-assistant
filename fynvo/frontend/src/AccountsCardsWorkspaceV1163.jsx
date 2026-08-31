@@ -16,7 +16,7 @@ const cardDefaults = (card = null, accounts = []) => ({
   is_active: card?.is_active ?? true,
 });
 
-export default function AccountsCardsWorkspaceV1163({ activeAccounts, cards, initialView, onEditAccount, onAddAccount, onRefresh }) {
+export default function AccountsCardsWorkspaceV1163({ activeAccounts, cards, initialView, onEditAccount, onAddAccount, onRefresh, onViewChange }) {
   const [accounts, setAccounts] = useState(activeAccounts);
   const [localCards, setLocalCards] = useState(cards);
   const [cardEdit, setCardEdit] = useState(null);
@@ -101,6 +101,7 @@ export default function AccountsCardsWorkspaceV1163({ activeAccounts, cards, ini
       accounts={accounts}
       cards={localCards}
       initialView={initialView}
+      onViewChange={onViewChange}
       onEditAccount={editAccount}
       onAddAccount={onAddAccount}
       onEditCard={(card) => setCardEdit(cardDefaults(card, selectableAccounts))}
