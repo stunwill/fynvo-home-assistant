@@ -47,6 +47,7 @@ def test_dependency_preview_and_bulk_transaction_move_are_safe(client):
             "amount": "25.00",
             "transaction_type": "expense",
             "description": "Groceries",
+            "status": "cleared",
         },
     )
     assert transaction.status_code == 201
@@ -72,7 +73,7 @@ def test_opening_balance_preserves_transactions_during_consolidation(client):
     setup_user(client)
     source = create_account(client, "Legacy", opening_balance="500.00")
     destination = create_account(client, "Current")
-    client.post(
+    transaction = client.post(
         "/api/transactions",
         json={
             "account_id": source["id"],
@@ -80,8 +81,10 @@ def test_opening_balance_preserves_transactions_during_consolidation(client):
             "amount": "40.00",
             "transaction_type": "expense",
             "description": "Historical purchase",
+            "status": "cleared",
         },
     )
+    assert transaction.status_code == 201
 
     preview = client.get(f"/api/accounts/{source['id']}/dependencies").json()
     assert preview["transaction_move_blocked"] is True
