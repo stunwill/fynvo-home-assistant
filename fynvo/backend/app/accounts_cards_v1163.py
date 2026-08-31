@@ -21,17 +21,34 @@ def _table_exists(db: DbSession, table: str) -> bool:
     return bool(db.execute(text("SELECT 1 FROM sqlite_master WHERE type='table' AND name=:name"), {"name": table}).scalar())
 
 
+def _column_exists(db: DbSession, table: str, column: str) -> bool:
+    if not _table_exists(db, table):
+        return False
+    return any(row[1] == column for row in db.execute(text(f"PRAGMA table_info({table})")).all())
+
+
 def _count(db: DbSession, table: str, clause: str, params: dict[str, Any]) -> int:
     if not _table_exists(db, table):
         return 0
     return int(db.execute(text(f"SELECT COUNT(*) FROM {table} WHERE {clause}"), params).scalar() or 0)
 
 
+def _protected_transaction_clause(db: DbSession) -> str:
+    conditions = ["transfer_id IS NOT NULL"] if _column_exists(db, "transactions", "transfer_id") else []
+    if _table_exists(db, "scheduled_payments") and _column_exists(db, "scheduled_payments", "matched_transaction_id"):
+        conditions.append("id IN (SELECT matched_transaction_id FROM scheduled_payments WHERE matched_transaction_id IS NOT NULL)")
+    return " OR ".join(conditions) or "0"
+
+
 def dependency_preview(db: DbSession, user: User, account_id: int) -> dict[str, Any]:
     get_account(db, user, account_id)
     params = {"uid": user.id, "account_id": account_id}
+    protected_clause = _protected_transaction_clause(db)
+    movable_tx_count = _count(db, "transactions", f"user_id=:uid AND account_id=:account_id AND NOT ({protected_clause})", params)
+    protected_tx_count = _count(db, "transactions", f"user_id=:uid AND account_id=:account_id AND ({protected_clause})", params)
     dependencies = [
-        {"type": "transactions", "label": "Transactions", "count": _count(db, "transactions", "user_id=:uid AND account_id=:account_id", params), "classification": "conditionally_safe", "action": "move"},
+        {"type": "transactions", "label": "Transactions", "count": movable_tx_count, "classification": "conditionally_safe", "action": "move"},
+        {"type": "protected_transactions", "label": "Protected Transactions", "count": protected_tx_count, "classification": "historical", "action": "preserve"},
         {"type": "cards", "label": "Cards", "count": _count(db, "cards", "user_id=:uid AND account_id=:account_id", params), "classification": "safe", "action": "move"},
         {"type": "recurring_expenses", "label": "Recurring Expenses", "count": _count(db, "recurring_expenses", "user_id=:uid AND account_id=:account_id", params), "classification": "conditionally_safe", "action": "move_future_configuration"},
         {"type": "income_sources", "label": "Income", "count": _count(db, "income_sources", "user_id=:uid AND destination_account_id=:account_id", params), "classification": "conditionally_safe", "action": "move_future_configuration"},
@@ -72,9 +89,10 @@ def move_and_archive(account_id: int, payload: dict[str, Any], current_user: Use
         raise HTTPException(status_code=409, detail="Destination Account must be active")
 
     now = utcnow()
+    protected_clause = _protected_transaction_clause(db)
     try:
         if _table_exists(db, "transactions"):
-            db.execute(text("UPDATE transactions SET account_id=:destination,updated_at=:now WHERE user_id=:uid AND account_id=:source"), {"destination": destination.id, "source": source.id, "uid": current_user.id, "now": now})
+            db.execute(text(f"UPDATE transactions SET account_id=:destination,updated_at=:now WHERE user_id=:uid AND account_id=:source AND NOT ({protected_clause})"), {"destination": destination.id, "source": source.id, "uid": current_user.id, "now": now})
         if _table_exists(db, "cards"):
             db.execute(text("UPDATE cards SET account_id=:destination,updated_at=:now WHERE user_id=:uid AND account_id=:source"), {"destination": destination.id, "source": source.id, "uid": current_user.id, "now": now})
         if _table_exists(db, "recurring_expenses"):
@@ -92,7 +110,7 @@ def move_and_archive(account_id: int, payload: dict[str, Any], current_user: Use
     except Exception:
         db.rollback()
         raise
-    return {"status": "ok", "account": account_response(db, source), "destination_account_id": destination.id, "preserved_historical_relationships": ["scheduled_payments", "transfers"]}
+    return {"status": "ok", "account": account_response(db, source), "destination_account_id": destination.id, "preserved_historical_relationships": ["protected_transactions", "scheduled_payments", "transfers"]}
 
 
 @router.delete("/accounts/{account_id}")
