@@ -46,14 +46,16 @@ export default function AppCorrectiveV1163() {
       }
       const heading = document.querySelector('main.content .header h1');
       const current = heading?.textContent?.trim();
-      if (current === 'Accounts' || current === 'Cards' || current === 'Accounts & Cards') {
+      const accountsActive = current === 'Accounts' || current === 'Cards' || current === 'Accounts & Cards';
+      document.body.classList.toggle('fynvo-accounts-cards-v1163-active', accountsActive);
+      if (accountsActive) {
         setLegacyView(current === 'Cards' ? 'Cards' : 'Accounts');
         if (current === 'Cards') {
           setSubview('cards');
           localStorage.setItem('fynvo.accountsView', 'cards');
           localStorage.setItem('fynvo.view', 'Accounts');
         }
-        if (heading) heading.textContent = 'Accounts & Cards';
+        if (heading && current !== 'Accounts & Cards') heading.textContent = 'Accounts & Cards';
         const description = heading?.closest('.header')?.querySelector('p');
         if (description) description.textContent = 'Manage your accounts and cards in one place.';
         const content = document.querySelector('main.content');
@@ -66,7 +68,10 @@ export default function AppCorrectiveV1163() {
     const observer = new MutationObserver(sync);
     observer.observe(document.body, { childList: true, subtree: true, characterData: true });
     sync();
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+      document.body.classList.remove('fynvo-accounts-cards-v1163-active');
+    };
   }, []);
 
   const openAccountEdit = (account) => {
