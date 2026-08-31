@@ -2,6 +2,35 @@
 
 All notable Fynvo changes are documented here. Starting with v0.3.0, every release must include a user-readable changelog entry, Home Assistant-visible release notes and GitHub release notes.
 
+## v1.16.3 - Accounts & Cards Consolidation, Account Archiving & Record Reassignment
+
+### Accounts & Cards workspace
+- Consolidates Accounts and Cards into one responsive Accounts & Cards workspace with a prominent Accounts / Cards segmented control.
+- Removes Cards as a separate peer-level navigation destination while preserving direct Cards state by opening the combined workspace with Cards selected.
+- Replaces the previous account-grouped Cards presentation with a card-first list. Accounts with zero Cards no longer create empty Card sections, and every Card identifies its linked Account as secondary context.
+- Adds compact Account/Card rows, responsive summary metrics, search/filter controls and context-aware Add Account / Add Card actions across desktop, tablet, mobile and Home Assistant ingress-sized layouts.
+
+### Account lifecycle
+- Reuses the established `is_active` / `archived_at` Account lifecycle rather than introducing a parallel financial model.
+- Adds Account dependency inspection, Archive Only, Restore Account and safe permanent deletion for dependency-free Accounts.
+- Archived Accounts are hidden from normal active Account lists and existing new-record Account selectors, while historical displays continue resolving the archived Account.
+- New Cards can only target active Accounts. Existing Cards can remain historically linked until explicitly reassigned.
+
+### Reassignment and financial integrity
+- Adds an authoritative transactional Move records & archive backend operation with server-side destination validation and rollback on failure.
+- Classifies Cards as safe to move, active/future Account configuration as conditionally safe, and Scheduled Payments, Transfers plus protected reconciliation/transfer Transactions as historical records that must be preserved.
+- Bulk Transaction movement is allowed only when balance semantics are safe. Accounts with non-zero opening balances or protected historical Transactions preserve their Transactions instead of rewriting history.
+- Transaction reassignment between asset and liability Accounts is rejected because Fynvo stores their balance directions differently.
+- Cards, Recurring Expense future configuration, Income destinations, Bills and Planned Spending can be reassigned to an explicitly selected active destination Account where valid.
+- Permanent deletion is blocked with an explanatory dependency summary whenever preservation-required or movable relationships still exist.
+
+### Regression protection and versioning
+- Adds backend regression coverage for archive/restore visibility, dependency preview, safe bulk Transaction movement, opening-balance preservation, destination validation and dependency-free permanent deletion.
+- Adds frontend regression coverage for the combined workspace, Card-first presentation, archived Account selector exclusion, lifecycle controls, responsive breakpoints and balance-safety protections.
+- Selected v1.16.3 as a focused feature release on the merged v1.16.2 baseline, leaving the planned v1.17.0 Pay-Cycle Cash Planning roadmap scope unchanged.
+- Aligns Home Assistant add-on, backend, frontend package, production shell and active frontend release metadata to v1.16.3.
+- Installed desktop/tablet/mobile/Home Assistant visual comparison against the supplied designs remains a manual acceptance gate before merge.
+
 ## v1.16.2 - Cash Flow, Calendar & Overview UX Corrections
 
 ### Cash Flow

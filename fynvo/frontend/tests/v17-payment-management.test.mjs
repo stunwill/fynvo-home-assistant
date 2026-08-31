@@ -8,6 +8,7 @@ const recurring = await readFile(new URL('../src/RecurringExpensesPage.jsx', imp
 const compatibility = await readFile(new URL('../src/RecurringExpensesPageV151.jsx', import.meta.url), 'utf8');
 const accounts = await readFile(new URL('../src/V14RecordPages.jsx', import.meta.url), 'utf8');
 const main = await readFile(new URL('../src/main.jsx', import.meta.url), 'utf8');
+const combined = await readFile(new URL('../src/AccountsCardsPageV1163.jsx', import.meta.url), 'utf8');
 
 
 test('production frontend loads Cards and canonical scheduled payment data', () => {
@@ -16,7 +17,10 @@ test('production frontend loads Cards and canonical scheduled payment data', () 
   assert.match(app, /ATTENTION_STATUSES/);
   assert.match(app, /scheduledPayments \|\| \[\]\)\.filter\(\(row\) => ATTENTION_STATUSES\.has\(row\.status\)\)/);
   assert.doesNotMatch(app, /j\('\/payments\/attention/);
-  assert.match(app, /active === 'Cards'/);
+  assert.match(app, /if \(item === 'Cards'\)/);
+  assert.match(app, /localStorage\.setItem\('fynvo\.accountsView', 'cards'\)/);
+  assert.match(app, /setActive\('Accounts'\)/);
+  assert.match(combined, /visibleCards\.map\(\(card\)/);
   assert.match(main, /payment-v17\.css/);
   assert.match(compatibility, /RecurringExpensesPage\.jsx/);
 });
@@ -36,7 +40,7 @@ test('recurring form uses payment method conditional sources instead of generic 
 });
 
 
-test('Card CRUD is connected to existing Accounts, stores only last four digits and refreshes immediately', () => {
+test('Card CRUD remains connected to existing Accounts and stores only last four digits', () => {
   assert.match(payment, /\/cards\/\$\{edit\.id\}/);
   assert.match(payment, /Linked Account/);
   assert.match(payment, /Last 4 Digits/);

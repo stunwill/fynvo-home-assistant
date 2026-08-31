@@ -1,5 +1,16 @@
 # Fynvo Add-on Changelog
 
+## v1.16.3 - Accounts & Cards Consolidation, Account Archiving & Record Reassignment
+
+- Combines Accounts and Cards into one responsive Accounts & Cards workspace with Accounts / Cards segmented views.
+- Removes the separate top-level Cards destination and replaces account-grouped Card sections with a compact card-first Cards list that shows each linked Account.
+- Adds Account archiving, archived filtering, restoration and dependency-aware permanent-delete protection.
+- Adds optional Move records & archive with explicit active destination selection, transactional rollback and preservation of historical Scheduled Payments, Transfers and protected Transactions.
+- Prevents unsafe Transaction reassignment when opening-balance, reconciliation or asset/liability balance semantics would be changed.
+- Keeps archived Accounts out of normal new-record selectors while preserving historical Account references.
+- Adds desktop, tablet, mobile and Home Assistant ingress-responsive layouts, compact rows, search/filtering and context-aware Add Account / Add Card actions.
+- Aligns add-on, backend, frontend package and production-shell version reporting to v1.16.3.
+
 ## v1.16.2 - Cash Flow, Calendar & Overview UX Corrections
 
 - Makes Cash Flow a financial-impact workspace with a prominent forecast graph, balance summary and largest forecast-impact events rather than duplicating Calendar's chronological purpose.

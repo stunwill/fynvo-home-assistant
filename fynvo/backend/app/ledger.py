@@ -119,6 +119,7 @@ def account_response(db: DbSession, account: Account) -> dict:
         "icon": account.icon,
         "color": account.color,
         "is_active": account.is_active,
+        "archived_at": account.archived_at.isoformat() if account.archived_at else None,
         "created_at": account.created_at.isoformat(),
         "updated_at": account.updated_at.isoformat(),
     }
@@ -342,15 +343,24 @@ def delete_transfer(db: DbSession, user: User, transfer_id: int) -> dict:
 
 
 def dashboard_position(db: DbSession, user: User) -> dict:
-    assets = liabilities = available = 0
-    accounts = db.scalars(select(Account).where(Account.user_id == user.id, Account.is_active.is_(True))).all()
+    accounts = db.scalars(select(Account).where(Account.user_id == user.id, Account.is_active.is_(True)).order_by(Account.name)).all()
+    assets = 0
+    liabilities = 0
+    account_rows = []
     for account in accounts:
         balance = account_balance_cents(db, account)
         if account.account_type in LIABILITY_TYPES:
-            liabilities += max(balance, 0)
+            liabilities += balance
         else:
             assets += balance
-            if account.account_type in LIQUID_ASSET_TYPES:
-                available += balance
-    recent = db.scalars(select(Transaction).where(Transaction.user_id == user.id).order_by(Transaction.transaction_date.desc(), Transaction.id.desc()).limit(5)).all()
-    return {"assets": cents_to_decimal(assets), "liabilities": cents_to_decimal(liabilities), "net_position": cents_to_decimal(assets - liabilities), "available_cash": cents_to_decimal(available), "account_count": len(accounts), "recent_transactions": [tx_response(tx) for tx in recent]}
+        account_rows.append({**account_response(db, account), "balance": cents_to_decimal(balance)})
+    recent = list_transactions(db, user, limit=8)
+    return {
+        "assets": cents_to_decimal(assets),
+        "liabilities": cents_to_decimal(liabilities),
+        "net_position": cents_to_decimal(assets - liabilities),
+        "available_cash": cents_to_decimal(sum(account_balance_cents(db, account) for account in accounts if account.account_type in LIQUID_ASSET_TYPES)),
+        "account_count": len(accounts),
+        "accounts": account_rows,
+        "recent_transactions": recent,
+    }
