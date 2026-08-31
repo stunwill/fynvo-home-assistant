@@ -88,7 +88,7 @@ export default function AppCorrectiveV1163() {
   };
 
   const workspace = mount && (legacyView === 'Accounts' || legacyView === 'Cards')
-    ? createPortal(<div className="accounts-cards-v1163-overlay"><AccountsCardsWorkspaceV1163 activeAccounts={accounts} cards={cards} initialView={subview} onEditAccount={openAccountEdit} onAddAccount={addAccount} onRefresh={refreshAccountsCards}/></div>, mount)
+    ? createPortal(<div className="accounts-cards-v1163-overlay"><AccountsCardsWorkspaceV1163 activeAccounts={accounts} cards={cards} initialView={subview} onViewChange={setSubview} onEditAccount={openAccountEdit} onAddAccount={addAccount} onRefresh={refreshAccountsCards}/></div>, mount)
     : null;
 
   return <><BaseApp/>{workspace}</>;
