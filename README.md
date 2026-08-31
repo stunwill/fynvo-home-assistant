@@ -6,19 +6,19 @@
 
 ## Current release
 
-Current development release: **v1.16.3 Accounts & Cards Consolidation, Archiving & Reassignment**.
+Current development release: **v1.16.2 Cash Flow, Calendar & Overview UX Corrections**.
 
-v1.16.3 builds on the merged v1.16.2 corrective release and keeps the planned **v1.17.0 Pay-Cycle Cash Planning** roadmap scope separate. It:
+v1.16.2 is a focused corrective patch over the merged v1.16.1 UX release. It:
 
-- combines Accounts and Cards into one responsive Accounts & Cards workspace with Accounts / Cards views;
-- redesigns Cards as a Card-first list, so Accounts with no Cards no longer create empty Card sections;
-- follows the supplied desktop, tablet and iPhone/Home Assistant design direction with compact rows, summary metrics, search/filter controls and clear linked-Account context;
-- adds Account archiving and restoration while preserving historical financial records;
-- adds Account dependency analysis and an optional Move records & archive workflow for eligible Transactions, Cards and future Account configuration;
-- preserves protected historical Transactions, Scheduled Payments and Transfers rather than blindly rewriting Account history;
-- allows permanent deletion only when no Account dependencies remain and explains blockers otherwise;
-- keeps archived Accounts out of normal new-record Account selectors while retaining historical display information;
-- aligns active frontend, backend, Home Assistant add-on and production-shell version reporting to v1.16.3.
+- reuses already-loaded Overview forecast data so Cash Flow can render immediately when the selected range is already available;
+- prevents loading from being shown as a genuine zero-event/empty state;
+- makes Cash Flow primarily a financial-impact workspace with a prominent graph, concise balance summary and largest forecast-impact events;
+- makes Calendar the date-oriented "what and when" workspace with selected-date event details;
+- strengthens the recurring-expense month calendar's current-day highlight for iPhone and Home Assistant ingress;
+- turns Overview KPI cards and relevant summary panels into accessible drill-down navigation;
+- aligns active frontend, backend, Home Assistant add-on and production-shell version reporting.
+
+The planned **v1.17.0 Pay-Cycle Cash Planning** roadmap scope remains separate from this corrective release.
 
 Fynvo preserves the financial architecture established in earlier releases:
 
@@ -48,18 +48,6 @@ The financial domain is intentionally kept separate from Home Assistant deployme
 Fynvo requires authentication before access to financial information.
 
 On first run, create the initial administrator account through the Fynvo setup screen. Fynvo stores salted password hashes and server-side sessions in SQLite. v1.2.0 added the Household identity and membership foundation used by later releases.
-
-## Accounts & Cards
-
-Open **Accounts** to use the combined **Accounts & Cards** workspace.
-
-The Accounts view provides compact Account rows, balances, status and linked-Card counts. The Cards view shows actual Card records first, including last four digits, type/status and the linked Account. Accounts without Cards do not appear in the Card list.
-
-Account retirement uses **Archive Account** rather than destructive deletion by default. Archived Accounts remain available for historical records but are excluded from normal new-record selectors. Archived Accounts can be restored.
-
-For duplicate or incorrectly configured Accounts, Fynvo can preview dependencies and optionally **Move records & archive** to an explicitly selected active destination Account. Eligible non-transfer/non-matched Transactions, Cards and future Account configuration may move; historical Scheduled Payments, Transfers and protected Transactions remain associated with the source Account. The operation is transactional so a failure does not leave a partially consolidated Account.
-
-Permanent deletion is available only when no dependencies remain.
 
 ## Payment Planning
 
@@ -93,5 +81,46 @@ Overview summary information is intended to lead to the authoritative detail wor
 - Upcoming Commitments → Payment Centre;
 - Discretionary → Planned Spending;
 - Goals → Goals;
-- Cash Flow Forecast / Forecast Summary → Cash Flow;
-- Financial Health / Money Needed Soon → Payment Centre.
+- Cash Flow Forecast / Forecast Summary → Cash Flow.
+
+The global date range is preserved during these in-app navigation changes where the destination uses the same relative scope.
+
+## Home Assistant installation
+
+Add this repository to Home Assistant:
+
+```text
+https://github.com/stunwill/fynvo-home-assistant
+```
+
+Then install and open the **Fynvo** add-on.
+
+## Changelog and releases
+
+Every release must include:
+
+- `CHANGELOG.md` entry;
+- Home Assistant-visible release notes;
+- Git tag;
+- GitHub Release;
+- user-readable release notes.
+
+See `docs/RELEASE_PROCESS.md`.
+
+## Roadmap
+
+See [`ROADMAP.md`](ROADMAP.md) for the authoritative planned Fynvo development roadmap. The older `docs/FYNVO_PRODUCT_ROADMAP.md` remains historical planning context and should not be treated as the current release queue.
+
+## Development metadata
+
+DevHub and release tooling should use the Home Assistant manifest version in `fynvo/config.yaml` as Fynvo's primary repository release version. The matching version is also represented in `fynvo/frontend/package.json` and backend `APP_VERSION` in `fynvo/backend/app/config.py`; `/api/health` and `/api/version` report that backend version.
+
+Release and planning metadata is exposed through:
+
+- `ROADMAP.md` for the authoritative ordered future release plan;
+- root `CHANGELOG.md` for detailed project release history;
+- `fynvo/CHANGELOG.md` for concise Home Assistant-facing release notes;
+- semantic Git tags using `vX.Y.Z`;
+- intentional GitHub Releases for completed releases, with release notes derived from the final changelog.
+
+CI runs `scripts/validate_release_metadata.py` to keep the manifest, frontend, backend, changelogs and roadmap contract consistent.
