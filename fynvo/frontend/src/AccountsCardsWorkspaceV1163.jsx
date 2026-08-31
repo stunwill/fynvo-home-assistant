@@ -91,9 +91,10 @@ export default function AccountsCardsWorkspaceV1163({ activeAccounts, cards, ini
     setBusy(false);
   };
 
-  const editAccount = (account) => {
-    if (account.archived_at || account.is_active === false) startManage(account);
-    else onEditAccount(account);
+  const editAccountDetails = () => {
+    const account = manage;
+    setManage(null);
+    onEditAccount(account);
   };
 
   return <>
@@ -102,18 +103,19 @@ export default function AccountsCardsWorkspaceV1163({ activeAccounts, cards, ini
       cards={localCards}
       initialView={initialView}
       onViewChange={onViewChange}
-      onEditAccount={editAccount}
+      onEditAccount={startManage}
       onAddAccount={onAddAccount}
       onEditCard={(card) => setCardEdit(cardDefaults(card, selectableAccounts))}
       onAddCard={() => setCardEdit(cardDefaults(null, selectableAccounts))}
     />
 
     {manage && <div className="modal-backdrop"><section className="modal account-manage-v1163" role="dialog" aria-modal="true" aria-labelledby="account-manage-title">
-      <div className="panel-head"><div><h2 id="account-manage-title">Manage {manage.name}</h2><p className="muted">Archive, consolidate or restore this Account without silently changing financial history.</p></div><button type="button" onClick={() => setManage(null)}>×</button></div>
+      <div className="panel-head"><div><h2 id="account-manage-title">Manage {manage.name}</h2><p className="muted">Edit, archive, consolidate or restore this Account without silently changing financial history.</p></div><button type="button" onClick={() => setManage(null)}>×</button></div>
+      <div className="account-management-choice"><h3>Account details</h3><p className="muted">Update the Account name, institution, type and existing balance metadata.</p><button type="button" onClick={editAccountDetails}>Edit Account details</button></div>
       {dependencies ? <div className="account-dependency-list"><h3>Account dependencies</h3>{dependencies.dependencies.filter((item) => item.count).length ? dependencies.dependencies.filter((item) => item.count).map((item) => <div className="list-row" key={item.type}><span>{item.label}<small>{item.classification === 'historical' ? 'Historical, preserved' : item.action === 'move' ? 'Eligible to move where safe' : 'Future configuration can move'}</small></span><strong>{item.count}</strong></div>) : <p className="muted">No dependent records were found.</p>}</div> : <p className="muted">Checking dependencies…</p>}
       {manage.archived_at || manage.is_active === false ? <div className="modal-actions"><button type="button" onClick={() => setManage(null)}>Cancel</button><button type="button" className="primary" disabled={busy} onClick={restore}>{busy ? 'Working…' : 'Restore Account'}</button>{dependencies?.can_delete && <button type="button" className="danger-action" disabled={busy} onClick={permanentlyDelete}>Delete permanently</button>}</div> : <>
         <div className="account-management-choice"><h3>Archive only</h3><p className="muted">Safest option. Existing Transactions, Scheduled Payments and history remain linked to this Account.</p><button type="button" disabled={busy} onClick={archiveOnly}>Archive Account</button></div>
-        <div className="account-management-choice"><h3>Move eligible records &amp; archive</h3><p className="muted">Moves eligible Transactions, Cards and future configuration to an active Account. Historical Scheduled Payments and Transfers remain preserved.</p><label className="field"><span>Move eligible records to</span><select value={destination} onChange={(event) => setDestination(event.target.value)}><option value="">Choose Account</option>{selectableAccounts.filter((account) => Number(account.id) !== Number(manage.id)).map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}</select></label><button type="button" className="primary" disabled={busy || !destination} onClick={moveAndArchive}>{busy ? 'Working…' : 'Move records & archive'}</button></div>
+        <div className="account-management-choice"><h3>Move eligible records &amp; archive</h3><p className="muted">Moves eligible Transactions, Cards and future configuration to an active Account. Historical Scheduled Payments, Transfers and protected Transactions remain preserved.</p><label className="field"><span>Move eligible records to</span><select value={destination} onChange={(event) => setDestination(event.target.value)}><option value="">Choose Account</option>{selectableAccounts.filter((account) => Number(account.id) !== Number(manage.id)).map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}</select></label><button type="button" className="primary" disabled={busy || !destination} onClick={moveAndArchive}>{busy ? 'Working…' : 'Move records & archive'}</button></div>
         {dependencies?.can_delete && <div className="account-management-choice danger-zone"><h3>Danger zone</h3><p className="muted">This Account has no dependencies and may be permanently deleted.</p><button type="button" className="danger-action" disabled={busy} onClick={permanentlyDelete}>Delete permanently</button></div>}
         <div className="modal-actions"><button type="button" onClick={() => setManage(null)}>Close</button></div>
       </>}
