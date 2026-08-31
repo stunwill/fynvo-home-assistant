@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 const money = (value) => {
   if (value === null || value === undefined || value === '') return '—';
@@ -7,10 +7,12 @@ const money = (value) => {
   return new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(number);
 };
 
-export default function AccountsCardsPageV1163({ accounts, cards, onEditAccount, onAddAccount, onEditCard, onAddCard, initialView = 'accounts' }) {
+export default function AccountsCardsPageV1163({ accounts, cards, onEditAccount, onAddAccount, onEditCard, onAddCard, initialView = 'accounts', onViewChange }) {
   const [view, setView] = useState(initialView === 'cards' ? 'cards' : 'accounts');
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('active');
+
+  useEffect(() => { setView(initialView === 'cards' ? 'cards' : 'accounts'); }, [initialView]);
 
   const visibleAccounts = useMemo(() => accounts.filter((account) => {
     const statusMatch = filter === 'all' || (filter === 'archived' ? Boolean(account.archived_at || account.is_active === false) : !account.archived_at && account.is_active !== false);
@@ -33,6 +35,7 @@ export default function AccountsCardsPageV1163({ accounts, cards, onEditAccount,
     setView(next);
     setSearch('');
     setFilter('active');
+    onViewChange?.(next);
   };
 
   return <section className="accounts-cards-v1163">
