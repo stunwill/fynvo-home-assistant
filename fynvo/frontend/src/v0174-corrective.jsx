@@ -24,11 +24,13 @@ const finiteNumber = (value) => {
 };
 
 const dateKey = (value) => String(value || '').slice(0, 10);
+const pointValue = (point) => finiteNumber(point?.balance ?? point?.forecast_balance ?? point?.value ?? point?.amount);
 
 export function forecastSeries(forecast) {
   if (!forecast) return [];
-  if (Array.isArray(forecast.series)) return forecast.series;
-  if (Array.isArray(forecast.points)) return forecast.points;
+  if (Array.isArray(forecast?.chart_points)) return forecast.chart_points.filter((point) => pointValue(point) !== null);
+  if (Array.isArray(forecast.series)) return forecast.series.filter((point) => pointValue(point) !== null);
+  if (Array.isArray(forecast.points)) return forecast.points.filter((point) => pointValue(point) !== null);
   const events = Array.isArray(forecast.events) ? forecast.events : [];
   const starting = finiteNumber(forecast.starting_balance ?? forecast.start_balance ?? forecast.opening_balance) || 0;
   let running = starting;
@@ -46,14 +48,14 @@ export function CashFlowChartV0174({ baseline, expected, Empty }) {
   const points = [...baselineSeries, ...expectedSeries];
   if (!points.length) return Empty ? <Empty title="No forecast data">Add income, recurring expenses, bills or planned spending to build your forecast.</Empty> : null;
   const width = 960; const height = 280; const pad = 30;
-  const allValues = points.map((point) => finiteNumber(point.balance ?? point.value ?? point.amount)).filter((value) => value !== null);
+  const allValues = points.map(pointValue).filter((value) => value !== null);
   const min = Math.min(...allValues); const max = Math.max(...allValues); const spread = max - min || 1;
   const maxLength = Math.max(baselineSeries.length, expectedSeries.length, 2);
   const pathFor = (series) => series.map((point, index) => {
-    const value = finiteNumber(point.balance ?? point.value ?? point.amount) || 0;
+    const value = pointValue(point) || 0;
     const x = pad + (index / Math.max(maxLength - 1, 1)) * (width - pad * 2);
     const y = height - pad - ((value - min) / spread) * (height - pad * 2);
     return `${index ? 'L' : 'M'}${x.toFixed(1)},${y.toFixed(1)}`;
   }).join(' ');
-  return <div className="cashflow-chart-v0174" role="img" aria-label="Projected household cash flow"><svg viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none">{baselineSeries.length > 1 && <path className="baseline" d={pathFor(baselineSeries)}/>} {expectedSeries.length > 1 && <path className="expected" d={pathFor(expectedSeries)}/>}</svg><div className="cashflow-chart-legend"><span><i className="baseline"></i>Baseline</span><span><i className="expected"></i>Expected</span></div></div>;
+  return <div className="cashflow-chart-v0174" role="img" aria-label="Cash Flow Forecast"><svg viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none">{baselineSeries.length > 1 && <path className="baseline" d={pathFor(baselineSeries)}/>} {expectedSeries.length > 1 && <path className="expected" d={pathFor(expectedSeries)}/>}</svg><div className="cashflow-chart-legend"><span><i className="baseline"></i>Baseline</span><span><i className="expected"></i>Expected</span></div></div>;
 }
