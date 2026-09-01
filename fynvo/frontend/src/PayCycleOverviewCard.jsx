@@ -1,3 +1,5 @@
+import './pay-cycle-overview.css';
+
 const number = (value) => {
   if (value === null || value === undefined || value === '') return null;
   const parsed = Number(value);
