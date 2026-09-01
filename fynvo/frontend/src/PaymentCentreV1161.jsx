@@ -26,11 +26,11 @@ const finiteNumber = (value) => {
 
 const money = (value) => {
   const number = finiteNumber(value);
-  return number === null ? 'Not set' : new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(number);
+  return number === null ? 'Not known' : new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(number);
 };
 
 const dateLabel = (value) => value
-  ? new Intl.DateTimeFormat('en-AU', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(`${String(value).slice(0, 10)}T00:00:00`))
+  ? new Intl.DateTimeFormat('en-AU', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(`${String(value).slice(0, 10)}T00:00:00`))
   : 'No date';
 
 const localDateKey = (date = new Date()) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
@@ -39,6 +39,41 @@ const rowAmount = (row) => Math.abs(Number(row.status === 'paid' && row.actual_a
 
 function StatusBadge({ status }) {
   return <span className={`payment-centre-status status-${status}`}>{paymentStatusLabel(status)}</span>;
+}
+
+function PayCycleStatus({ status }) {
+  const label = { funded: 'Funded', shortfall: 'Shortfall', low_buffer: 'Low buffer', unknown: 'Unknown' }[status] || 'Unknown';
+  return <span className={`pay-cycle-status pay-cycle-${status || 'unknown'}`}>{label}</span>;
+}
+
+function PayCycleSummary({ planning, onIncome }) {
+  const payCycle = planning?.pay_cycle;
+  if (!payCycle) return null;
+  if (!payCycle.next_income) {
+    return <section className="pay-cycle-panel pay-cycle-unknown" aria-label="Before next pay">
+      <div className="pay-cycle-head"><div><span>Before next pay</span><h2>Next income not known</h2></div><PayCycleStatus status="unknown"/></div>
+      <p>Fynvo can still show upcoming commitments, but a complete before-next-pay plan needs an active Income schedule.</p>
+      <div className="pay-cycle-fallback"><span>Upcoming commitments, next 30 days</span><strong>{money(payCycle.fallback_upcoming_commitments?.next_30_days)}</strong></div>
+      <button type="button" className="primary ghost" onClick={onIncome}>Review Income</button>
+    </section>;
+  }
+  const before = payCycle.before_next_income || {};
+  const after = payCycle.after_next_income || {};
+  const attention = (payCycle.accounts || []).filter((row) => row.status !== 'funded');
+  return <section className="pay-cycle-panel" aria-label="Before next pay">
+    <div className="pay-cycle-head"><div><span>Before next pay</span><h2>{dateLabel(payCycle.next_income.date)}</h2><small>{payCycle.next_income.name} · {payCycle.next_income.days_until === 0 ? 'today' : `${payCycle.next_income.days_until} day${payCycle.next_income.days_until === 1 ? '' : 's'} away`}</small></div><PayCycleStatus status={payCycle.status}/></div>
+    <div className="pay-cycle-metrics">
+      <article><span>Payments due</span><strong>{before.commitment_count ?? 0}</strong></article>
+      <article><span>Required</span><strong>{money(before.commitments_total)}</strong></article>
+      <article><span>Available</span><strong>{money(before.current_available_cash)}</strong></article>
+      <article><span>Projected before pay</span><strong>{money(before.projected_cash)}</strong></article>
+      <article><span>Next income</span><strong>+{money(payCycle.next_income.amount)}</strong></article>
+      <article><span>Projected after pay</span><strong>{money(after.projected_cash)}</strong></article>
+    </div>
+    <div className="pay-cycle-detail-row"><span>Includes {money(before.overdue_total)} overdue, {money(before.automatic_payment_total)} automatic and {money(before.planned_spending_total)} forecast-included Planned Spending.</span><small>Income is applied before commitments on the same date.</small></div>
+    <section className="pay-cycle-accounts"><h3>Accounts needing attention</h3>{attention.length ? attention.map((row) => <article className={`pay-cycle-account pay-cycle-account-${row.status}`} key={row.account_id ?? 'unknown'}><div><strong>{row.account_name}</strong><small>{row.commitment_count} commitment{row.commitment_count === 1 ? '' : 's'}</small></div><div><span>Balance {money(row.current_balance)}</span><span>Required {money(row.required_before_pay)}</span>{row.status === 'shortfall' ? <strong>Shortfall {money(row.funding_shortfall)}</strong> : <strong>Funding unknown</strong>}</div></article>) : <p className="muted">All assigned Accounts are funded for commitments before the next pay.</p>}</section>
+    {payCycle.completeness?.message && <p className="pay-cycle-note">{payCycle.completeness.message}</p>}
+  </section>;
 }
 
 function groupForSimplifiedTimeline(rows = [], reference = new Date()) {
@@ -117,7 +152,7 @@ function FundingDetails({ planning }) {
   if (!planning) return null;
   const household = planning.household_funding || {};
   return <details className="payment-v1161-funding">
-    <summary>Funding details <span>Account requirements and available funds</span></summary>
+    <summary>7-day funding details <span>Account requirements and available funds</span></summary>
     <div className="payment-funding-grid payment-v1161-funding-grid">
       <article className="payment-funding-panel">
         <h2>Money needed by account</h2>
@@ -226,6 +261,8 @@ export default function PaymentCentreV1161(props) {
 
   return <section className="payment-v1161-shell">
     <div className="payment-v1161-top-actions"><button type="button" className="primary" onClick={() => onNavigate('Bills')}>+ Add Bill</button></div>
+    {loading && !planning && !error && <div className="payment-centre-state pay-cycle-loading" role="status"><strong>Loading before-next-pay plan…</strong><p>Calculating the next Income event, commitments and Account funding.</p></div>}
+    {planning && !error && <PayCycleSummary planning={planning} onIncome={() => onNavigate('Income')}/>} 
     {planning && !error && <PlanningOverview planning={planning} onAttention={() => { setDraft((current) => ({ ...current, requiresAction: true })); setFilters((current) => ({ ...current, requiresAction: true })); }}/>} 
     {result && !error && <SummaryStrip summary={result.summary}/>} 
     <FundingDetails planning={planning}/>
