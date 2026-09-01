@@ -64,7 +64,7 @@ def test_budget_create_update_history_and_analysis(client):
     db, user = setup_user(client)
     try:
         groceries = create_category(db, user, {"name": "Groceries"})
-        budget = create_budget(db, user, {"name": "Groceries", "category_id": groceries["id"], "category_name": "Groceries", "amount": "1000", "period": "monthly", "rollover_enabled": True})
+        budget = create_budget(db, user, {"name": "Groceries", "category_id": groceries["id"], "category_name": "Groceries", "amount": "1000", "period": "monthly", "rollover_enabled": True, "anchor_date": "2026-08-01", "start_date": "2026-08-01"})
         assert budget["amount"] == "1000.00"
         updated = update_budget(db, user, budget["id"], {"amount": "1100", "effective_from": "2026-10-01"})
         assert updated["amount"] == "1100.00"
