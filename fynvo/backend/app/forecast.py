@@ -145,8 +145,16 @@ def _authoritative_scheduled_events(db: DbSession, user: User, start: date, end:
         when = _as_date(row.get("expected_date") or row.get("due_date"))
         if when is None or not (start <= when <= end):
             continue
-        amount = abs(parse_money(row.get("expected_amount") or row.get("amount") or "0"))
-        events.append(_event(when, row.get("name") or "Recurring payment", amount, "expense", "recurring_expense", row.get("recurring_expense_id") or row.get("id"), row.get("category"), row.get("account_id"), "confirmed", "committed", f"Scheduled Payment lifecycle; status {row.get('status') or 'upcoming'}"))
+        recurring_id = row.get("recurring_expense_id")
+        base_amount = abs(parse_money(row.get("expected_amount") or row.get("amount") or "0"))
+        amount = base_amount
+        change = None
+        if recurring_id is not None:
+            amount, change = amount_at(db, user, "recurring_expense", int(recurring_id), base_amount, when)
+        explanation = f"Scheduled Payment lifecycle; status {row.get('status') or 'upcoming'}"
+        if change:
+            explanation += f"; effective amount from {change['effective_from']}"
+        events.append(_event(when, row.get("name") or "Recurring payment", int(amount or 0), "expense", "recurring_expense", recurring_id or row.get("id"), row.get("category"), row.get("account_id"), "confirmed", "committed", explanation))
     return events
 
 
