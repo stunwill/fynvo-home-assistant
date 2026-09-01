@@ -153,6 +153,7 @@ def command_centre_dashboard_v12(
             "expected": expected_forecast,
             "summary": {"baseline": forecast["final_balance"], "expected": expected_forecast["final_balance"], "lowest_balance": forecast.get("lowest_balance"), "shortfall": forecast.get("shortfall")},
         },
+        "calendar": forecast["events"],
         "upcoming_label": "Upcoming, Next 7 Days",
         "upcoming": upcoming,
         "upcoming_commitments_label": f"Upcoming Commitments, Next {range_days} Days",
