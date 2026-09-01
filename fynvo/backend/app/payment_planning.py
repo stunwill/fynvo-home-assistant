@@ -413,7 +413,12 @@ def _active_liquid_cash(db: DbSession, user: User) -> tuple[int, int]:
 
 
 def _cycle_commitment_total(
-    payment_rows: list[dict[str, Any]], planned_rows: list[dict[str, Any]], start: date, end: date
+    payment_rows: list[dict[str, Any]],
+    planned_rows: list[dict[str, Any]],
+    start: date,
+    end: date,
+    *,
+    include_overdue: bool = False,
 ) -> int:
     total = 0
     for row in payment_rows:
@@ -421,7 +426,7 @@ def _cycle_commitment_total(
             continue
         when = _as_date(row.get("expected_date") or row.get("due_date"))
         if row.get("status") == "overdue":
-            if start == min(start, end):
+            if include_overdue:
                 total += _amount_cents(row)
         elif when is not None and start <= when < end:
             total += _amount_cents(row)
@@ -516,7 +521,13 @@ def build_pay_cycle_planning(
     cycle_start = current
     for index, income in enumerate(income_events[:PAY_CYCLE_SEQUENCE_LIMIT]):
         income_date = _as_date(income["date"])
-        cycle_commitments = _cycle_commitment_total(payment_rows, planned_rows, cycle_start, income_date)
+        cycle_commitments = _cycle_commitment_total(
+            payment_rows,
+            planned_rows,
+            cycle_start,
+            income_date,
+            include_overdue=index == 0,
+        )
         projected_before = running_cash - cycle_commitments
         projected_after = projected_before + int(income["amount_cents"])
         cycles.append(
