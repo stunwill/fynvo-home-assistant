@@ -1,6 +1,6 @@
 from datetime import date, timedelta
 
-from app.database import get_engine
+from app.database import get_engine, get_session_factory
 from sqlalchemy import text
 
 
@@ -233,11 +233,10 @@ def test_true_fortnightly_month_end_and_effective_income_change(client):
         connection.execute(text("UPDATE income_sources SET next_payment_date='2026-01-31' WHERE id=:id"), {"id": monthly["id"]})
         connection.execute(text("UPDATE income_sources SET next_payment_date='2026-02-14' WHERE id=:id"), {"id": fortnightly["id"]})
         connection.execute(text("INSERT INTO effective_amount_changes(user_id,record_type,record_id,new_amount_cents,effective_from,source,created_at,updated_at) SELECT user_id,'income',id,175000,'2026-02-14','test',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP FROM income_sources WHERE id=:id"), {"id": fortnightly["id"]})
-    from app.database import SessionLocal
     from app.models import User
     from app.payment_planning import _income_events
 
-    with SessionLocal() as db:
+    with get_session_factory()() as db:
         user = db.query(User).first()
         events = _income_events(db, user, date(2026, 1, 31), date(2026, 3, 5))
     month_dates = [row["date"] for row in events if row["name"] == "Month end"]
