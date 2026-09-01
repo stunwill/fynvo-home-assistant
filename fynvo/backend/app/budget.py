@@ -266,7 +266,10 @@ def analyse_budgets(db: DbSession, user: User, start: date | None = None, end: d
     rows = []
     total_budget = total_actual = total_committed = total_planned = total_forecast = 0
     for budget in [b for b in list_budgets(db, user) if not category_id or b.get("category_id") == category_id]:
-        native_start, native_end = period_bounds(budget["period"], _as_date(budget.get("anchor_date")), current_day)
+        # Explicit historical/custom ranges must be normalised against the budget
+        # period containing that requested range, not the wall-clock current period.
+        reference_day = start or current_day
+        native_start, native_end = period_bounds(budget["period"], _as_date(budget.get("anchor_date")), reference_day)
         period_start = start or native_start
         period_end = end or native_end
         base_budget = parse_money(budget["amount"])
