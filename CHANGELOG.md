@@ -2,6 +2,43 @@
 
 All notable Fynvo changes are documented here. Starting with v0.3.0, every release must include a user-readable changelog entry, Home Assistant-visible release notes and GitHub release notes.
 
+## v1.17.0 - Pay-Cycle Cash Planning
+
+### Before next pay
+- Adds an authoritative pay-cycle planning service that answers when the next expected Income occurs, how much committed spending is due before then, how much active liquid cash is available, and the projected household position immediately before and after that Income event.
+- Reuses the existing Income recurrence/effective-change logic, Scheduled Payment lifecycle, Bill suppression rules, Planned Spending forecast inclusion and Account/Card relationships. No parallel payment, recurrence, transaction, reconciliation or cash-flow model is introduced.
+- Defines the before-pay planning window as Australia/Melbourne today up to, but not including, the chronologically next Income occurrence. The next Income is therefore not counted as cash available before it arrives.
+- Uses the existing forecast ordering rule for same-date events: Income is applied before commitments on that date, so same-date commitments are after-pay items.
+- Supports multiple Income sources and exposes a compact sequence of upcoming Income events and pay cycles.
+- Shows an explicit Next income not known state instead of treating missing Income configuration as a $0 payment or an infinite planning window.
+
+### Funding and Account pressure
+- Calculates household and Account-level cash required before the next pay, including unresolved Scheduled Payments, Bills, overdue obligations, automatic payments that still require funding and forecast-included Planned Spending.
+- Paid, reconciled, skipped and cancelled occurrences are excluded, and a linked Bill suppresses the matching Scheduled Payment occurrence to avoid double counting.
+- Cards remain payment context only. Card-funded commitments derive their funding requirement through the linked Account and Card balances are never counted separately.
+- Active transaction, savings, offset and cash Accounts provide available cash. Archived Accounts, liability Accounts and unassigned commitments are reported as unknown funding rather than silently becoming $0 balances.
+- Adds clear Funded, Shortfall and Unknown states. No preferred minimum-balance values are invented because the current Account model has no authoritative buffer field; configurable Low buffer behaviour is therefore intentionally deferred.
+
+### Overview and Payment Centre
+- Adds a compact Before next pay Overview summary showing next pay date, required cash, available cash, projected pre-pay cash, projected post-pay cash and the most important Account funding warning.
+- Adds the detailed pay-cycle summary and Accounts needing attention section to Payment Centre while retaining the existing authoritative payment list and lifecycle actions.
+- Reuses the existing `/payment-planning` response on both screens instead of adding a second pay-cycle request during normal rendering. A dedicated `/payment-planning/pay-cycle` endpoint is also available for focused consumers.
+- Adds explicit loading, no commitments, unknown Income, incomplete Account funding, funded and shortfall presentation states across responsive desktop, tablet, iPhone and Home Assistant ingress layouts.
+
+### Cash Flow and Calendar reconciliation
+- Aligns baseline Cash Flow starting cash with the same active liquid Account balance calculation used by payment planning.
+- Baseline recurring outflows now consume authoritative Scheduled Payment lifecycle occurrences, including skip, reconciliation and one-off rescheduling state, instead of independently regenerating recurring dates.
+- Keeps scenario forecasting isolated so temporary scenario adjustments continue using the scenario recurrence path without mutating authoritative Scheduled Payments.
+- Calendar now consumes reconciled baseline forecast events so representative Income and commitment dates agree across Calendar, Cash Flow, Payment Centre and Pay-Cycle Planning.
+- Expected Cash Flow may still include historical run-rate estimates by design; those estimates are not treated as committed before-next-pay obligations.
+
+### Regression protection, data safety and versioning
+- Adds backend coverage for weekly, fortnightly and monthly Income, multiple Income sources, no future Income, Income/payment date boundaries, overdue and automatic payments, Paid/Skipped/reconciled exclusions, Bill suppression, Planned Spending, Account/Card funding, unknown and archived Accounts, household and Account shortfalls, month-end recurrence, true fortnightly recurrence, effective-dated Income changes, multiple same-day commitments and cross-screen reconciliation.
+- Adds frontend coverage for Overview and Payment Centre pay-cycle summaries, loading and unknown states, funded/shortfall/unknown Account pressure, drill-through, responsive stacking, overflow protection, shared request usage and version alignment.
+- No database migration is required for v1.17.0. Existing financial records and Scheduled Payment/Transaction relationships are preserved.
+- Aligns Home Assistant add-on, backend, frontend package and production-shell version reporting to v1.17.0.
+- Installed desktop, tablet, iPhone and Home Assistant ingress acceptance remains a manual verification gate before merge.
+
 ## v1.16.3 - Accounts & Cards Consolidation, Account Archiving & Record Reassignment
 
 ### Accounts & Cards workspace

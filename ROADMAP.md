@@ -2,35 +2,36 @@
 
 Fynvo is a household finance and cash-planning application for understanding upcoming commitments, available cash, pay-cycle pressure, spending decisions and near-term financial risk. The roadmap prioritises practical household planning over business accounting, tax, payroll or investment-trading functionality.
 
-The current development baseline is v1.16.2. Payment Centre, recurring-payment lifecycle, 7/14/30-day commitment planning, account funding requirements, available-cash comparisons, transactions, reconciliation, budgets, goals, scenarios, date-oriented financial Calendar, Cash Flow forecasting/impact analysis, CSV import, insights, Overview drill-down navigation and responsive Home Assistant ingress are already delivered and are not repeated below as new scope.
+The current development baseline is v1.17.0. Payment Centre, recurring-payment lifecycle, 7/14/30-day commitment planning, pay-cycle cash planning, account funding requirements, available-cash comparisons, transactions, reconciliation, budgets, goals, scenarios, date-oriented financial Calendar, Cash Flow forecasting/impact analysis, CSV import, insights, Overview drill-down navigation and responsive Home Assistant ingress are already delivered and are not repeated below as new scope.
 
 ## v1.17.0 - Pay-Cycle Cash Planning
 
-Status: Planned
+Status: Implemented in release branch, pending PR review and manual installed acceptance
 
 Objective: Extend v1.16 payment planning so Fynvo can answer how much cash is required before the household's next expected income event, what will be left afterwards, and which accounts are under pressure.
 
 ### Features
 
-- [ ] Add a shared pay-cycle planning service that identifies the next expected household income date from existing active Income records without creating a separate income model.
-- [ ] Calculate committed payments due before the next expected income event, including overdue unresolved obligations and automatic payments that still require funding.
-- [ ] Show cash required before next pay at household and Account level, while preserving Card-to-Account derivation and explicit unknown-account handling.
-- [ ] Calculate projected available cash immediately before and after the next expected income event using existing account balances, scheduled commitments and expected income.
-- [ ] Support multiple household income sources by showing the next income event and the commitments covered before each following income event where practical.
-- [ ] Respect existing income recurrence, effective-dated changes, occurrence dates, payment status and reconciliation rules rather than introducing parallel forecast logic.
-- [ ] Add configurable minimum-balance/buffer visibility where the existing Account minimum-balance field is reliable, clearly separating required commitment funding from preferred buffer amounts.
+- [x] Add a shared pay-cycle planning service that identifies the next expected household income date from existing active Income records without creating a separate income model.
+- [x] Calculate committed payments due before the next expected income event, including overdue unresolved obligations and automatic payments that still require funding.
+- [x] Show cash required before next pay at household and Account level, while preserving Card-to-Account derivation and explicit unknown-account handling.
+- [x] Calculate projected available cash immediately before and after the next expected income event using existing account balances, scheduled commitments and expected income.
+- [x] Support multiple household income sources by showing the next income event and the commitments covered before following income events where practical.
+- [x] Respect existing income recurrence, effective-dated changes, occurrence dates, payment status and reconciliation rules rather than introducing parallel forecast logic.
+- [x] Inspect minimum-balance/buffer support. The current Account model has no authoritative preferred-buffer field, so v1.17.0 keeps buffer values neutral rather than inventing defaults. Configurable Low buffer behaviour remains available for a later additive enhancement.
 
 ### UX / Quality
 
-- [ ] Add a concise "Before next pay" summary to Overview and Payment Centre using the same backend calculation.
-- [ ] Clearly distinguish known shortfall, low buffer and unknown balance/account states instead of treating missing information as zero.
-- [ ] Keep the planning summary compact and touch-friendly on Home Assistant ingress and iPhone-sized screens without horizontal scrolling.
+- [x] Add a concise "Before next pay" summary to Overview and Payment Centre using the same backend calculation.
+- [x] Clearly distinguish known shortfall and unknown balance/account states instead of treating missing information as zero. Low buffer is not emitted without a configured authoritative buffer.
+- [x] Keep the planning summary compact and touch-friendly on Home Assistant ingress and iPhone-sized screens without horizontal scrolling.
 
 ### Testing / Validation
 
-- [ ] Add regression coverage for weekly, fortnightly, monthly and multiple-income pay cycles, overdue commitments, automatic payments and no-income-known states.
-- [ ] Verify Payment Centre, Overview, Cash Flow and pay-cycle planning reconcile to the same underlying occurrences and amounts.
-- [ ] Verify pay-cycle calculations remain stable across Australia/Melbourne date boundaries and month-end recurrence cases.
+- [x] Add regression coverage for weekly, fortnightly, monthly and multiple-income pay cycles, overdue commitments, automatic payments and no-income-known states.
+- [x] Add reconciliation regression coverage across Payment Centre, Overview data, Cash Flow, Calendar and pay-cycle planning using the same authoritative occurrences and amounts.
+- [x] Add Australia/Melbourne planning semantics and month-end/fortnightly recurrence coverage.
+- [ ] Complete installed desktop, tablet, iPhone and Home Assistant ingress manual acceptance before merge.
 
 ## v1.18.0 - Budget Decision Support
 

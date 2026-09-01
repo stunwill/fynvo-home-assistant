@@ -23,7 +23,7 @@ test('simplified Payment Centre keeps authoritative services and grouped default
   assert.match(source, /apiRequest\('\/payment-planning'\)/);
   assert.match(source, /Money required for upcoming commitments/);
   assert.match(source, /Upcoming at a glance/);
-  assert.match(source, /Funding details/);
+  assert.match(source, /funding details/i);
   assert.match(source, /More filters/);
   assert.match(source, /Overdue/);
   assert.match(source, /Due in next 7 days/);
@@ -57,13 +57,13 @@ test('Cash Flow route restores the forecast graph with explicit request states',
   assert.match(page, /No forecast events/);
 });
 
-test('v1.16.3 version surfaces remain aligned in active frontend source', async () => {
+test('v1.17.0 active version is aligned while legacy compatibility markers remain stable', async () => {
   const app = await read('src/AppCorrectiveV0174.jsx');
   const shell = await read('src/AppV13.jsx');
   const corrective = await read('src/v0174-corrective.jsx');
   const pkg = JSON.parse(await read('package.json'));
-  assert.match(app, /APP_VERSION = '1\.16\.3'/);
+  assert.match(app, /APP_VERSION = '1\.17\.0'/);
   assert.match(shell, /PRODUCTION_VERSION = '1\.16\.3'/);
   assert.match(corrective, /APP_VERSION_V0174 = '1\.16\.3'/);
-  assert.equal(pkg.version, '1.16.3');
+  assert.equal(pkg.version, '1.17.0');
 });

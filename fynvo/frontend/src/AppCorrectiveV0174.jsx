@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import InsightsPage from './InsightsPage.jsx';
 import PaymentCentreV1161 from './PaymentCentreV1161.jsx';
+import PayCycleOverviewCard from './PayCycleOverviewCard.jsx';
 import SpendingIntelligence from './SpendingIntelligence.jsx';
 import TransactionWorkspace from './TransactionWorkspace.jsx';
 import CashFlowPageV1161 from './CashFlowPageV1161.jsx';
@@ -15,7 +16,7 @@ import './styles.css';
 
 const api = (path, options = {}) => fetch(`api${path}`, { credentials: 'same-origin', headers: { 'Content-Type': 'application/json', ...(options.headers || {}) }, ...options });
 const today = new Date().toISOString().slice(0, 10);
-const APP_VERSION = '1.16.3';
+const APP_VERSION = '1.17.0';
 const ATTENTION_STATUSES = new Set(['overdue', 'due', 'due_today', 'auto_payment_unconfirmed', 'unknown']);
 const navGroups = [
   { label: 'Core', items: ['Overview', 'Cash Flow', 'Calendar', 'Accounts'] },
@@ -298,6 +299,7 @@ function Overview({ data, setActive, rangeDays, setQuick, quickDefaults }) {
   const nextPayment = paymentPlanning.next_payment;
   return <div className="dashboard-page">
     <section className="kpi-grid five"><Kpi icon="💵" label="Total Balance" value={money(totalBalance)} sub={`${data.accounts.length} accounts`} onActivate={() => setActive('Accounts')}/><Kpi icon="📈" label="Next Income" value={money(nextIncomeAmount)} sub={nextIncomeDate ? `${nextIncomeName || 'Income'} · ${dateLabel(nextIncomeDate)}` : 'No scheduled income'} onActivate={() => setActive('Income')}/><Kpi icon="🧾" label="Upcoming Commitments" value={money(commitmentsTotal)} sub={`${commitmentsCount} unresolved commitments`} onActivate={() => setActive('Payment Centre')}/><Kpi icon="💸" label="Discretionary" value={money(kpis.discretionary_spend)} sub={`Next ${rangeDays} days`} onActivate={() => setActive('Planned Spending')}/><Kpi icon="🏁" label="Goals" value={`${kpis.active_goal_count || 0} active`} sub={kpis.next_goal ? `Next: ${kpis.next_goal.name}` : 'No target dates'} onActivate={() => setActive('Goals')}/></section>
+    <PayCycleOverviewCard planning={data.paymentPlanning} loading={!data.paymentPlanning} onOpen={() => setActive('Payment Centre')} onIncome={() => setActive('Income')}/>
     <section className="dashboard-secondary-row">
       <article className="panel dashboard-compact-panel"><div className="panel-head compact"><h2>Top Planned Spending</h2><button type="button" className="link-button" onClick={() => setQuick(quickDefaults('planned'))}>+ Quick Add</button></div>{planned.length ? planned.slice(0, 3).map((row) => <button type="button" className="list-row button-row" key={`planned-${row.id || row.source_id}`} onClick={() => setActive('Planned Spending')}><span>{row.name}<small>{row.date || row.planned_date ? dateLabel(row.date || row.planned_date) : 'No date'}</small></span><strong>{money(row.amount || row.estimated_amount)}</strong></button>) : <Empty title="No planned spending">No planned purchases during this period.</Empty>}</article>
       <article className="panel dashboard-compact-panel dashboard-drilldown-panel" role="button" tabIndex="0" onClick={() => setActive('Payment Centre')} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); setActive('Payment Centre'); } }}><div className="panel-head compact"><h2>Financial Health</h2><span className="link-button">View All Payments →</span></div><strong className="dashboard-health-number">{attentionCount} item{attentionCount === 1 ? '' : 's'} need attention</strong><p className="muted">Review overdue, unconfirmed or incomplete payments in Payment Centre. Import-quality issues remain in Import & Data.</p></article>

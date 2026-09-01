@@ -293,8 +293,8 @@ def create_bill_v112(db: DbSession, user: User, payload: Any) -> dict[str, Any]:
     """), {
         "uid": user.id, "recurring_id": values.recurring_expense_id, "name": values.name.strip(),
         "provider": values.provider, "payee": values.payee_merchant or values.provider, "bill_type": values.bill_type,
-        "priority": values.priority, "amount": amount, "due": values.due_date, "account_id": account_id, "card_id": card_id,
-        "category_id": values.category_id, "expense_type_id": values.expense_type_id,
+        "priority": values.priority, "amount": amount, "due": values.due_date, "account_id": account_id,
+        "card_id": card_id, "category_id": values.category_id, "expense_type_id": values.expense_type_id,
         "method": values.payment_method, "handling": values.payment_handling, "grace": values.auto_payment_grace_days,
         "paid_through": values.paid_through_date, "notes": values.notes, "now": now,
     })
@@ -558,6 +558,13 @@ def payment_planning(current_user: User = USER, db: DbSession = DB):
     from .payment_planning import build_payment_planning
 
     return build_payment_planning(db, current_user)
+
+
+@router.get("/payment-planning/pay-cycle")
+def pay_cycle_planning(current_user: User = USER, db: DbSession = DB):
+    from .payment_planning import build_pay_cycle_planning
+
+    return build_pay_cycle_planning(db, current_user)
 
 
 @router.get("/payment-centre")

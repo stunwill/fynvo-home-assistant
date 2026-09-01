@@ -1,5 +1,18 @@
 # Fynvo Add-on Changelog
 
+## v1.17.0 - Pay-Cycle Cash Planning
+
+- Adds a Before next pay plan based on the chronologically next active Income occurrence and the existing Australia/Melbourne financial calendar.
+- Shows cash required before that Income, current active liquid cash, projected cash immediately before pay and projected cash immediately after pay.
+- Includes unresolved Scheduled Payments, Bills, overdue obligations, automatic payments requiring funding and forecast-included Planned Spending while preserving existing duplicate suppression and payment lifecycle exclusions.
+- Adds Account-level funding pressure and derives Card-funded commitments through the Card's linked Account without double-counting Card balances.
+- Handles unknown Income, unassigned commitments, archived/liability Accounts and incomplete funding information explicitly instead of treating missing values as zero.
+- Adds the compact Before next pay summary to Overview and the detailed operational summary to Payment Centre with responsive iPhone/Home Assistant ingress layouts.
+- Reconciles baseline Cash Flow and Calendar recurring outflows with authoritative Scheduled Payment lifecycle state, including skipped, reconciled and rescheduled occurrences.
+- Keeps preferred minimum-balance buffers neutral because the current Account model has no authoritative configured buffer field.
+- Requires no database migration and preserves existing household financial records.
+- Aligns add-on, backend, frontend package and production-shell version reporting to v1.17.0.
+
 ## v1.16.3 - Accounts & Cards Consolidation, Account Archiving & Record Reassignment
 
 - Combines Accounts and Cards into one responsive Accounts & Cards workspace with Accounts / Cards segmented views.
