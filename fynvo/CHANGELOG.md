@@ -1,5 +1,13 @@
 # Fynvo Add-on Changelog
 
+## v1.17.1 - Home Assistant Startup Loading Fix
+
+- Fixes the installed ingress startup condition where the outer Fynvo shell was authenticated but the nested main app could remain on `Loading...` while waiting for a second auth-state request.
+- Reuses the outer shell's already-known authentication state for the nested startup auth read, while keeping normal login, logout and session refresh requests authoritative.
+- Preserves all v1.17.0 pay-cycle, payment-planning, Cash Flow, Calendar, Accounts/Cards and reconciliation behaviour.
+- Adds regression protection for the duplicated startup auth path.
+- Requires no database migration.
+
 ## v1.17.0 - Pay-Cycle Cash Planning
 
 - Adds a Before next pay plan based on the chronologically next active Income occurrence and the existing Australia/Melbourne financial calendar.
