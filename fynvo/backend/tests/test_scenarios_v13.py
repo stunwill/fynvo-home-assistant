@@ -1,6 +1,14 @@
+from datetime import date
+
 
 def setup_user(client):
     client.post("/api/auth/setup", json={"username": "stu", "display_name": "Stu", "password": "Password123!"})
+
+
+def month_start_offset(months: int) -> str:
+    today = date.today()
+    index = today.year * 12 + (today.month - 1) + months
+    return date(index // 12, index % 12 + 1, 1).isoformat()
 
 
 def test_scenarios_are_protected(client):
@@ -24,22 +32,25 @@ def test_create_edit_archive_and_isolate_scenarios(client):
 
 def test_effective_dated_recurring_amount_change_is_scenario_only(client):
     setup_user(client)
+    first_due = month_start_offset(1)
+    effective_from = month_start_offset(2)
+    following_due = month_start_offset(3)
     account = client.post("/api/accounts", json={"name": "Everyday", "account_type": "transaction", "opening_balance": "5000"}).json()
-    recurring = client.post("/api/recurring-expenses", json={"name": "Internet", "amount": "140", "frequency": "monthly", "next_due_date": "2026-08-01", "account_id": account["id"], "category": "Utilities"}).json()
+    recurring = client.post("/api/recurring-expenses", json={"name": "Internet", "amount": "140", "frequency": "monthly", "next_due_date": first_due, "account_id": account["id"], "category": "Utilities"}).json()
     scenario = client.post("/api/scenarios", json={"name": "Internet Savings", "forecast_horizon": "184d"}).json()
-    adjustment = client.post(f"/api/scenarios/{scenario['id']}/adjustments", json={"kind": "change_recurring_expense_amount", "source_type": "recurring_expense", "source_id": recurring["id"], "amount": "80", "effective_from": "2026-10-01"})
+    adjustment = client.post(f"/api/scenarios/{scenario['id']}/adjustments", json={"kind": "change_recurring_expense_amount", "source_type": "recurring_expense", "source_id": recurring["id"], "amount": "80", "effective_from": effective_from})
     assert adjustment.status_code == 201
     comparison = client.get(f"/api/scenarios/{scenario['id']}/comparison?horizon=184d").json()
     baseline = [(row["date"], row["amount"]) for row in comparison["baseline"]["events"] if row["name"] == "Internet"]
     projected = [(row["date"], row["amount"]) for row in comparison["scenario"]["events"] if row["name"] == "Internet"]
-    assert ("2026-09-01", "-140.00") in baseline
-    assert ("2026-10-01", "-140.00") in baseline
-    assert ("2026-09-01", "-140.00") in projected
-    assert ("2026-10-01", "-80.00") in projected
-    assert ("2026-11-01", "-80.00") in projected
+    assert (first_due, "-140.00") in baseline
+    assert (effective_from, "-140.00") in baseline
+    assert (first_due, "-140.00") in projected
+    assert (effective_from, "-80.00") in projected
+    assert (following_due, "-80.00") in projected
 
     baseline_by_date = dict(baseline)
-    changed_dates = [when for when, amount in projected if when >= "2026-10-01" and amount == "-80.00"]
+    changed_dates = [when for when, amount in projected if when >= effective_from and amount == "-80.00"]
     assert changed_dates
     assert all(baseline_by_date[when] == "-140.00" for when in changed_dates)
     assert comparison["difference"] == f"{len(changed_dates) * 60:.2f}"
