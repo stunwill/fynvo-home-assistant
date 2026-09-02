@@ -1,5 +1,14 @@
 # Fynvo Add-on Changelog
 
+## v1.17.2 - Home Assistant Ingress Startup Recovery
+
+- Hardens the installed Home Assistant startup path after v1.17.1 still reproduced an inner `Loading...` freeze on iPhone ingress.
+- Publishes the authenticated outer-shell state before the nested Fynvo workspace mounts and accepts both relative and ingress-expanded auth-state URLs.
+- Removes the browser `Response` construction dependency from the startup auth bridge and stops the outer DOM observer from repeatedly refreshing authentication when the nested login/loading DOM is present.
+- Adds a 3.5-second startup watchdog: Fynvo automatically remounts the workspace once if the nested loading gate remains, then exposes an explicit Retry Fynvo recovery action instead of freezing indefinitely.
+- Preserves normal backend-authoritative login, logout and session refresh behaviour and all v1.17 financial functionality.
+- Requires no database migration.
+
 ## v1.17.1 - Home Assistant Startup Loading Fix
 
 - Fixes the installed ingress startup condition where the outer Fynvo shell was authenticated but the nested main app could remain on `Loading...` while waiting for a second auth-state request.
