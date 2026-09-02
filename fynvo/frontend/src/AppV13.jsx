@@ -5,12 +5,35 @@ import LoginPage from './LoginPage.jsx';
 import V11ControlCenter from './V11ControlCenter.jsx';
 import V13CashFlowPage from './V13CashFlowPage.jsx';
 
-const api = (path, options = {}) => fetch(`api${path}`, {
+const nativeFetch = window.fetch.bind(window);
+const api = (path, options = {}) => nativeFetch(`api${path}`, {
   credentials: 'same-origin',
   headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
   ...options,
 });
-const PRODUCTION_VERSION = '1.16.3';
+const PRODUCTION_VERSION = '1.17.1';
+
+function cacheAuthState(state) {
+  window.__fynvoSharedAuthState = state;
+}
+
+function authStateResponse(state) {
+  return new Response(JSON.stringify(state), {
+    status: 200,
+    headers: { 'Content-Type': 'application/json' },
+  });
+}
+
+if (!window.__fynvoAuthFetchBridgeInstalled) {
+  window.__fynvoAuthFetchBridgeInstalled = true;
+  window.fetch = (input, options) => {
+    const url = typeof input === 'string' ? input : input?.url;
+    if (url === 'api/auth/state' && window.__fynvoSharedAuthState) {
+      return Promise.resolve(authStateResponse(window.__fynvoSharedAuthState));
+    }
+    return nativeFetch(input, options);
+  };
+}
 
 export default function AppV13() {
   const [auth, setAuth] = useState(null);
@@ -27,10 +50,13 @@ export default function AppV13() {
       const response = await api('/auth/state');
       if (!response.ok) throw new Error('auth-state');
       const state = await response.json();
+      cacheAuthState(state);
       setAuth(state);
       return state;
     } catch {
-      setAuth({ authenticated: false, setup_required: false, user: null, message: 'Authentication service unavailable.' });
+      const unavailable = { authenticated: false, setup_required: false, user: null, message: 'Authentication service unavailable.' };
+      cacheAuthState(unavailable);
+      setAuth(unavailable);
       return null;
     }
   }

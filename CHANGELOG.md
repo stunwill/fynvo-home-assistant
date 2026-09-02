@@ -2,6 +2,15 @@
 
 All notable Fynvo changes are documented here. Starting with v0.3.0, every release must include a user-readable changelog entry, Home Assistant-visible release notes and GitHub release notes.
 
+## v1.17.1 - Home Assistant Startup Loading Fix
+
+- Fixes an installed Home Assistant ingress startup failure where the production shell authenticated successfully but the nested main app could remain indefinitely on its second `Loading...` authentication gate.
+- Adds a shared authentication-state bridge so the already-authenticated outer shell can satisfy the nested app's startup auth read immediately instead of depending on a second network request.
+- Keeps the outer production shell's authentication refresh authoritative, including logout, session expiry and login refresh behaviour.
+- Preserves all v1.17.0 pay-cycle planning, Payment Centre, Cash Flow, Calendar, Account/Card and reconciliation behaviour.
+- Adds regression coverage for the duplicated auth-state startup path and aligns the add-on, backend, frontend package and production-shell release version to v1.17.1.
+- No database migration is required.
+
 ## v1.17.0 - Pay-Cycle Cash Planning
 
 ### Before next pay
