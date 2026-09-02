@@ -5,31 +5,41 @@ import LoginPage from './LoginPage.jsx';
 import V11ControlCenter from './V11ControlCenter.jsx';
 import V13CashFlowPage from './V13CashFlowPage.jsx';
 
-const nativeFetch = window.fetch.bind(window);
+const nativeFetch = globalThis.__fynvoNativeFetch || window.fetch.bind(window);
+globalThis.__fynvoNativeFetch = nativeFetch;
 const api = (path, options = {}) => nativeFetch(`api${path}`, {
   credentials: 'same-origin',
   headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
   ...options,
 });
-const PRODUCTION_VERSION = '1.17.1';
+const PRODUCTION_VERSION = '1.17.2';
+const AUTH_BRIDGE_VERSION = '1.17.2';
 
 function cacheAuthState(state) {
-  window.__fynvoSharedAuthState = state;
+  globalThis.__fynvoSharedAuthState = state;
 }
 
-function authStateResponse(state) {
-  return new Response(JSON.stringify(state), {
+function authStateResult(state) {
+  return {
+    ok: true,
     status: 200,
-    headers: { 'Content-Type': 'application/json' },
-  });
+    statusText: 'OK',
+    json: async () => state,
+    text: async () => JSON.stringify(state),
+    clone: () => authStateResult(state),
+  };
 }
 
-if (!window.__fynvoAuthFetchBridgeInstalled) {
-  window.__fynvoAuthFetchBridgeInstalled = true;
-  window.fetch = (input, options) => {
-    const url = typeof input === 'string' ? input : input?.url;
-    if (url === 'api/auth/state' && window.__fynvoSharedAuthState) {
-      return Promise.resolve(authStateResponse(window.__fynvoSharedAuthState));
+function isAuthStateRequest(input) {
+  const url = typeof input === 'string' ? input : input?.url || '';
+  return url === 'api/auth/state' || url.endsWith('/api/auth/state');
+}
+
+if (globalThis.__fynvoAuthFetchBridgeVersion !== AUTH_BRIDGE_VERSION) {
+  globalThis.__fynvoAuthFetchBridgeVersion = AUTH_BRIDGE_VERSION;
+  globalThis.fetch = (input, options) => {
+    if (isAuthStateRequest(input) && globalThis.__fynvoSharedAuthState) {
+      return Promise.resolve(authStateResult(globalThis.__fynvoSharedAuthState));
     }
     return nativeFetch(input, options);
   };
@@ -43,6 +53,8 @@ export default function AppV13() {
   const [householdOpen, setHouseholdOpen] = useState(false);
   const [householdSecurity, setHouseholdSecurity] = useState(null);
   const [toolsOpen, setToolsOpen] = useState(false);
+  const [startupAttempt, setStartupAttempt] = useState(0);
+  const [startupError, setStartupError] = useState('');
   const observerRef = useRef(null);
 
   async function refreshAuth() {
@@ -85,16 +97,31 @@ export default function AppV13() {
       const expectedVersion = `Fynvo v${PRODUCTION_VERSION}`;
       if (footer && footer.textContent !== expectedVersion) footer.textContent = expectedVersion;
     };
-    const observer = new MutationObserver(() => {
-      syncProductionShell();
-      if (document.querySelector('main.login')) refreshAuth();
-    });
+    const observer = new MutationObserver(syncProductionShell);
     observer.observe(document.body, { childList: true, subtree: true });
     observerRef.current = observer;
     syncProductionShell();
     return () => { observer.disconnect(); document.body.classList.remove('fynvo-income-page'); };
   }, [auth?.authenticated]);
 
+  useEffect(() => {
+    if (!auth?.authenticated || !householdSecurity) return undefined;
+    setStartupError('');
+    const timer = window.setTimeout(() => {
+      const nestedLoading = [...document.querySelectorAll('main.login .login-card p')]
+        .some((node) => node.textContent?.trim() === 'Loading...');
+      if (!nestedLoading) return;
+      if (startupAttempt < 1) setStartupAttempt((value) => value + 1);
+      else setStartupError('Fynvo could not finish starting inside Home Assistant.');
+    }, 3500);
+    return () => window.clearTimeout(timer);
+  }, [auth?.authenticated, householdSecurity, startupAttempt]);
+
+  const retryStartup = () => {
+    cacheAuthState(auth);
+    setStartupError('');
+    setStartupAttempt((value) => value + 1);
+  };
   const openTool = (mode) => { setToolsOpen(false); if (mode === 'cash-flow') setV13CashFlowOpen(true); else if (mode === 'household') setHouseholdOpen(true); else setV11Mode(mode); };
   if (!auth) return <main className="fynvo-auth-page"><section className="fynvo-auth-form-panel"><div className="fynvo-auth-card" role="status">Loading Fynvo…</div></section></main>;
   if (!auth.authenticated) return <LoginPage authState={auth} onStateRefresh={refreshAuth} onAuthenticated={async () => { await refreshAuth(); }}/>;
@@ -104,9 +131,11 @@ export default function AppV13() {
   if (v13CashFlowOpen) return <V13CashFlowPage onClose={() => setV13CashFlowOpen(false)}/>;
   if (v11Mode) return <V11ControlCenter mode={v11Mode} onClose={() => setV11Mode(null)}/>;
 
+  cacheAuthState(auth);
   return <>
     {auth.recovery_mode && !recoveryWarningDismissed && <div className="fynvo-recovery-warning" role="status" aria-live="polite"><span><strong>Administrator recovery mode is enabled.</strong> Confirm this login works, then disable <code>admin_recovery_mode</code> in the Home Assistant add-on Configuration page and restart Fynvo.</span><button type="button" onClick={() => setRecoveryWarningDismissed(true)} aria-label="Dismiss administrator recovery warning">Dismiss</button></div>}
-    <App />
+    <App key={`fynvo-startup-${startupAttempt}`} authState={auth}/>
+    {startupError && <div className="fynvo-startup-recovery" role="alert"><strong>Fynvo did not finish loading.</strong><span>The Home Assistant session is active, but the Fynvo workspace did not start.</span><button type="button" onClick={retryStartup}>Retry Fynvo</button></div>}
     <div className="fynvo-tools-menu-shell"><button type="button" className="fynvo-tools-menu-trigger" aria-expanded={toolsOpen} aria-controls="fynvo-tools-menu" onClick={() => setToolsOpen((value) => !value)}>Tools</button>{toolsOpen && <nav id="fynvo-tools-menu" className="fynvo-tools-menu" aria-label="Fynvo tools"><button type="button" onClick={() => openTool('cash-flow')}>Cash Flow Intelligence</button><button type="button" onClick={() => openTool('household')}>Household</button><button type="button" onClick={() => openTool('coverage')}>Data Coverage</button><button type="button" onClick={() => openTool('splits')}>Split Transaction</button><button type="button" onClick={() => openTool('security')}>Security & MFA</button><button type="button" onClick={() => openTool('export')}>Data Export</button></nav>}</div>
   </>;
 }
