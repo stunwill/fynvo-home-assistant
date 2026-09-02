@@ -12,7 +12,8 @@ const api = (path, options = {}) => fetch(`api${path}`, {
   ...options,
 });
 
-export default function AppCorrectiveV1163() {
+export default function AppCorrectiveV1163({ authState = null }) {
+  if (authState) globalThis.__fynvoSharedAuthState = authState;
   const [legacyView, setLegacyView] = useState(() => localStorage.getItem('fynvo.view'));
   const [subview, setSubview] = useState(() => legacyView === 'Cards' ? 'cards' : localStorage.getItem('fynvo.accountsView') || 'accounts');
   const [accounts, setAccounts] = useState([]);
