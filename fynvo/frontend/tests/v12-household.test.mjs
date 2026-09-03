@@ -21,7 +21,7 @@ test('household management exposes the three approved roles', () => {
 
 
 test('temporary-password users are forced through a password-change experience', () => {
-  assert.match(app, /householdSecurity\.must_change_password/);
+  assert.match(app, /householdSecurity\?\.must_change_password/);
   assert.match(household, /Choose your own password/);
   assert.match(household, /change-temporary-password/);
   assert.match(household, /Please sign in again/);
