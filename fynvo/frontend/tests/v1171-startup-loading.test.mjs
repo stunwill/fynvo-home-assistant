@@ -34,7 +34,18 @@ test('stuck nested startup automatically retries and then exposes a manual recov
 });
 
 
-test('v1.17.2 production shell reports the corrective release version', () => {
-  assert.match(shell, /PRODUCTION_VERSION = '1\.17\.2'/);
-  assert.match(shell, /AUTH_BRIDGE_VERSION = '1\.17\.2'/);
+test('household security lookup cannot block the main Fynvo workspace', () => {
+  assert.match(shell, /HOUSEHOLD_SECURITY_TIMEOUT_MS = 3500/);
+  assert.match(shell, /controller\.abort\(\)/);
+  assert.match(shell, /signal: controller\.signal/);
+  assert.doesNotMatch(shell, /if \(!householdSecurity\) return/);
+  assert.doesNotMatch(shell, /Loading Household identity/);
+  assert.match(shell, /householdSecurity\?\.must_change_password/);
+  assert.match(shell, /Fynvo has continued loading\. Retry the household security check when convenient\./);
+});
+
+
+test('v1.17.3 production shell reports the corrective release version', () => {
+  assert.match(shell, /PRODUCTION_VERSION = '1\.17\.3'/);
+  assert.match(shell, /AUTH_BRIDGE_VERSION = '1\.17\.3'/);
 });

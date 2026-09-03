@@ -1,5 +1,14 @@
 # Fynvo Add-on Changelog
 
+## v1.17.3 - Non-blocking Household Identity Startup
+
+- Fixes the Home Assistant ingress freeze where the authenticated app could remain indefinitely on `Loading Household identity...`.
+- Stops `/household/me/security` from acting as a mandatory startup render gate.
+- Adds a 3.5-second abort timeout to the household-security refresh so a pending embedded-webview request cannot freeze the whole app.
+- Keeps temporary-password enforcement when household security state is available and shows a non-blocking Retry security check action if that secondary refresh cannot complete.
+- Preserves the v1.17.2 auth bridge, startup watchdog, Retry Fynvo recovery and all existing financial behaviour.
+- Requires no database migration.
+
 ## v1.17.2 - Home Assistant Ingress Startup Recovery
 
 - Hardens the installed Home Assistant startup path after v1.17.1 still reproduced an inner `Loading...` freeze on iPhone ingress.
@@ -150,7 +159,7 @@
 - The production shell reports Fynvo v1.8.0.
 
 ### Manual release gates
-- Real desktop Home Assistant ingress screenshots, iPhone 15 Pro-class ingress screenshots, Add/Edit, Direct Debit, Automatic Card, manual payment, Mark as Paid, Payments Requiring Attention, CSV-matched state and Calendar usability remain manual acceptance gates before merge.
+- Real desktop Home Assistant ingress screenshots, iPhone 15 Pro-class ingress screenshots, Add/Edit, Direct Debit, Automatic Card, manual payment, Mark as Paid, Payments Requiring Attention, CSV-matched state and Calendar usability remain manual gates before merge.
 
 ## v1.7.0 - Payment Handling, Card Management & Reconciliation
 
