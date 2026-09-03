@@ -97,5 +97,5 @@ export default function AppCorrectiveV1163({ authState = null }) {
     ? createPortal(<div className="accounts-cards-v1163-overlay"><AccountsCardsWorkspaceV1163 activeAccounts={accounts} cards={cards} initialView={subview} onViewChange={setSubview} onEditAccount={openAccountEdit} onAddAccount={addAccount} onRefresh={refreshAccountsCards}/></div>, mount)
     : null;
 
-  return <><BaseApp/>{workspace}</>;
+  return <><BaseApp authState={authState}/>{workspace}</>;
 }
