@@ -2,6 +2,16 @@
 
 All notable Fynvo changes are documented here. Starting with v0.3.0, every release must include a user-readable changelog entry, Home Assistant-visible release notes and GitHub release notes.
 
+## v1.17.3 - Non-blocking Household Identity Startup
+
+- Fixes the installed iPhone/Home Assistant ingress freeze where Fynvo could remain indefinitely on `Loading Household identity...` after authentication had already succeeded.
+- Removes the secondary `/household/me/security` request as a mandatory render gate for the main Fynvo workspace.
+- Gives the household-security refresh a 3.5-second abort timeout so a pending Home Assistant webview request cannot remain open forever.
+- Keeps temporary-password enforcement active whenever household security state is returned, while allowing the finance workspace to continue rendering if the secondary security-status refresh is unavailable.
+- Adds an explicit non-blocking Retry security check action instead of replacing the entire application with an endless loading card.
+- Preserves the v1.17.2 authentication bridge, startup watchdog and Retry Fynvo recovery path.
+- Preserves all v1.17 pay-cycle planning, Payment Centre, Cash Flow, Calendar, Accounts/Cards and reconciliation behaviour. No database migration is required.
+
 ## v1.17.2 - Home Assistant Ingress Startup Recovery
 
 - Corrects the installed iPhone/Home Assistant ingress startup path after v1.17.1 still reproduced an authenticated outer shell with the nested Fynvo workspace frozen on `Loading...`.
