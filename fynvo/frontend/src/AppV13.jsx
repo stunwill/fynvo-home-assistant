@@ -1,49 +1,30 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import App from './AppCorrectiveV1163.jsx';
 import HouseholdControlCenter from './HouseholdControlCenter.jsx';
 import LoginPage from './LoginPage.jsx';
 import V11ControlCenter from './V11ControlCenter.jsx';
 import V13CashFlowPage from './V13CashFlowPage.jsx';
 
-const nativeFetch = globalThis.__fynvoNativeFetch || window.fetch.bind(window);
-globalThis.__fynvoNativeFetch = nativeFetch;
+const nativeFetch = window.fetch.bind(window);
 const api = (path, options = {}) => nativeFetch(`api${path}`, {
   credentials: 'same-origin',
   headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
   ...options,
 });
-const PRODUCTION_VERSION = '1.17.4';
-const AUTH_BRIDGE_VERSION = '1.17.4';
+const PRODUCTION_VERSION = '1.17.5';
 const HOUSEHOLD_SECURITY_TIMEOUT_MS = 3500;
 
-function cacheAuthState(state) {
-  globalThis.__fynvoSharedAuthState = state;
-}
-
-function authStateResult(state) {
-  return {
-    ok: true,
-    status: 200,
-    statusText: 'OK',
-    json: async () => state,
-    text: async () => JSON.stringify(state),
-    clone: () => authStateResult(state),
-  };
-}
-
-function isAuthStateRequest(input) {
-  const url = typeof input === 'string' ? input : input?.url || '';
-  return url === 'api/auth/state' || url.endsWith('/api/auth/state');
-}
-
-if (globalThis.__fynvoAuthFetchBridgeVersion !== AUTH_BRIDGE_VERSION) {
-  globalThis.__fynvoAuthFetchBridgeVersion = AUTH_BRIDGE_VERSION;
-  globalThis.fetch = (input, options) => {
-    if (isAuthStateRequest(input) && globalThis.__fynvoSharedAuthState) {
-      return Promise.resolve(authStateResult(globalThis.__fynvoSharedAuthState));
-    }
-    return nativeFetch(input, options);
-  };
+function publishStartup(stage, detail = '') {
+  globalThis.__fynvoStartupStage = stage;
+  console.info(`[Fynvo startup] ${stage}${detail ? `: ${detail}` : ''}`);
+  if (stage === 'authenticated' || stage === 'workspace-mounted') {
+    nativeFetch('api/client-diagnostics', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ stage, detail, version: PRODUCTION_VERSION }),
+    }).catch(() => {});
+  }
 }
 
 export default function AppV13() {
@@ -55,22 +36,20 @@ export default function AppV13() {
   const [householdSecurity, setHouseholdSecurity] = useState(null);
   const [householdSecurityError, setHouseholdSecurityError] = useState('');
   const [toolsOpen, setToolsOpen] = useState(false);
-  const [startupAttempt, setStartupAttempt] = useState(0);
-  const [startupError, setStartupError] = useState('');
-  const observerRef = useRef(null);
 
   async function refreshAuth() {
+    publishStartup('auth-request');
     try {
       const response = await api('/auth/state');
       if (!response.ok) throw new Error('auth-state');
       const state = await response.json();
-      cacheAuthState(state);
       setAuth(state);
+      publishStartup(state.authenticated ? 'authenticated' : 'anonymous');
       return state;
     } catch {
       const unavailable = { authenticated: false, setup_required: false, user: null, message: 'Authentication service unavailable.' };
-      cacheAuthState(unavailable);
       setAuth(unavailable);
+      publishStartup('auth-error');
       return null;
     }
   }
@@ -103,6 +82,7 @@ export default function AppV13() {
   }, [auth?.authenticated, auth?.user?.id]);
   useEffect(() => {
     if (!auth?.authenticated) return undefined;
+    publishStartup('workspace-mounted');
     const syncProductionShell = () => {
       const heading = document.querySelector('main.content .header h1')?.textContent?.trim();
       document.body.classList.toggle('fynvo-income-page', heading === 'Income');
@@ -112,29 +92,10 @@ export default function AppV13() {
     };
     const observer = new MutationObserver(syncProductionShell);
     observer.observe(document.body, { childList: true, subtree: true });
-    observerRef.current = observer;
     syncProductionShell();
     return () => { observer.disconnect(); document.body.classList.remove('fynvo-income-page'); };
   }, [auth?.authenticated]);
 
-  useEffect(() => {
-    if (!auth?.authenticated) return undefined;
-    setStartupError('');
-    const timer = window.setTimeout(() => {
-      const nestedLoading = [...document.querySelectorAll('main.login .login-card p')]
-        .some((node) => node.textContent?.trim() === 'Loading...');
-      if (!nestedLoading) return;
-      if (startupAttempt < 1) setStartupAttempt((value) => value + 1);
-      else setStartupError('Fynvo could not finish starting inside Home Assistant.');
-    }, 3500);
-    return () => window.clearTimeout(timer);
-  }, [auth?.authenticated, startupAttempt]);
-
-  const retryStartup = () => {
-    cacheAuthState(auth);
-    setStartupError('');
-    setStartupAttempt((value) => value + 1);
-  };
   const openTool = (mode) => { setToolsOpen(false); if (mode === 'cash-flow') setV13CashFlowOpen(true); else if (mode === 'household') setHouseholdOpen(true); else setV11Mode(mode); };
   if (!auth) return <main className="fynvo-auth-page"><section className="fynvo-auth-form-panel"><div className="fynvo-auth-card" role="status">Loading Fynvo…</div></section></main>;
   if (!auth.authenticated) return <LoginPage authState={auth} onStateRefresh={refreshAuth} onAuthenticated={async () => { await refreshAuth(); }}/>;
@@ -143,12 +104,10 @@ export default function AppV13() {
   if (v13CashFlowOpen) return <V13CashFlowPage onClose={() => setV13CashFlowOpen(false)}/>;
   if (v11Mode) return <V11ControlCenter mode={v11Mode} onClose={() => setV11Mode(null)}/>;
 
-  cacheAuthState(auth);
   return <>
     {auth.recovery_mode && !recoveryWarningDismissed && <div className="fynvo-recovery-warning" role="status" aria-live="polite"><span><strong>Administrator recovery mode is enabled.</strong> Confirm this login works, then disable <code>admin_recovery_mode</code> in the Home Assistant add-on Configuration page and restart Fynvo.</span><button type="button" onClick={() => setRecoveryWarningDismissed(true)} aria-label="Dismiss administrator recovery warning">Dismiss</button></div>}
-    <App key={`fynvo-startup-${startupAttempt}`} authState={auth}/>
+    <App authState={auth} onAuthRefresh={refreshAuth}/>
     {householdSecurityError && <div className="fynvo-startup-recovery fynvo-household-security-warning" role="status"><strong>Household security status unavailable.</strong><span>Fynvo has continued loading. Retry the household security check when convenient.</span><button type="button" onClick={refreshHouseholdSecurity}>Retry security check</button></div>}
-    {startupError && <div className="fynvo-startup-recovery" role="alert"><strong>Fynvo did not finish loading.</strong><span>The Home Assistant session is active, but the Fynvo workspace did not start.</span><button type="button" onClick={retryStartup}>Retry Fynvo</button></div>}
     <div className="fynvo-tools-menu-shell"><button type="button" className="fynvo-tools-menu-trigger" aria-expanded={toolsOpen} aria-controls="fynvo-tools-menu" onClick={() => setToolsOpen((value) => !value)}>Tools</button>{toolsOpen && <nav id="fynvo-tools-menu" className="fynvo-tools-menu" aria-label="Fynvo tools"><button type="button" onClick={() => openTool('cash-flow')}>Cash Flow Intelligence</button><button type="button" onClick={() => openTool('household')}>Household</button><button type="button" onClick={() => openTool('coverage')}>Data Coverage</button><button type="button" onClick={() => openTool('splits')}>Split Transaction</button><button type="button" onClick={() => openTool('security')}>Security & MFA</button><button type="button" onClick={() => openTool('export')}>Data Export</button></nav>}</div>
   </>;
 }
