@@ -17,8 +17,8 @@ const HOUSEHOLD_SECURITY_TIMEOUT_MS = 3500;
 function publishStartup(stage, detail = '') {
   globalThis.__fynvoStartupStage = stage;
   console.info(`[Fynvo startup] ${stage}${detail ? `: ${detail}` : ''}`);
-  if (stage === 'authenticated' || stage === 'workspace-mounted') {
-    nativeFetch('api/client-diagnostics', {
+  if (['authenticated', 'workspace-mounted', 'workspace-rendered'].includes(stage)) {
+    nativeFetch('api/household/client-diagnostics', {
       method: 'POST',
       credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json' },
@@ -83,8 +83,13 @@ export default function AppV13() {
   useEffect(() => {
     if (!auth?.authenticated) return undefined;
     publishStartup('workspace-mounted');
+    let renderedReported = false;
     const syncProductionShell = () => {
       const heading = document.querySelector('main.content .header h1')?.textContent?.trim();
+      if (heading && !renderedReported) {
+        renderedReported = true;
+        publishStartup('workspace-rendered', heading);
+      }
       document.body.classList.toggle('fynvo-income-page', heading === 'Income');
       const footer = document.querySelector('.app-footer');
       const expectedVersion = `Fynvo v${PRODUCTION_VERSION}`;
@@ -106,7 +111,7 @@ export default function AppV13() {
 
   return <>
     {auth.recovery_mode && !recoveryWarningDismissed && <div className="fynvo-recovery-warning" role="status" aria-live="polite"><span><strong>Administrator recovery mode is enabled.</strong> Confirm this login works, then disable <code>admin_recovery_mode</code> in the Home Assistant add-on Configuration page and restart Fynvo.</span><button type="button" onClick={() => setRecoveryWarningDismissed(true)} aria-label="Dismiss administrator recovery warning">Dismiss</button></div>}
-    <App authState={auth} onAuthRefresh={refreshAuth}/>
+    <App authState={auth}/>
     {householdSecurityError && <div className="fynvo-startup-recovery fynvo-household-security-warning" role="status"><strong>Household security status unavailable.</strong><span>Fynvo has continued loading. Retry the household security check when convenient.</span><button type="button" onClick={refreshHouseholdSecurity}>Retry security check</button></div>}
     <div className="fynvo-tools-menu-shell"><button type="button" className="fynvo-tools-menu-trigger" aria-expanded={toolsOpen} aria-controls="fynvo-tools-menu" onClick={() => setToolsOpen((value) => !value)}>Tools</button>{toolsOpen && <nav id="fynvo-tools-menu" className="fynvo-tools-menu" aria-label="Fynvo tools"><button type="button" onClick={() => openTool('cash-flow')}>Cash Flow Intelligence</button><button type="button" onClick={() => openTool('household')}>Household</button><button type="button" onClick={() => openTool('coverage')}>Data Coverage</button><button type="button" onClick={() => openTool('splits')}>Split Transaction</button><button type="button" onClick={() => openTool('security')}>Security & MFA</button><button type="button" onClick={() => openTool('export')}>Data Export</button></nav>}</div>
   </>;
