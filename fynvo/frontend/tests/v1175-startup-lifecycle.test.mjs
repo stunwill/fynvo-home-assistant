@@ -31,7 +31,7 @@ test('authenticated state is passed through without keyed remounts', () => {
 
 test('installed startup emits observable backend stages', () => {
   assert.match(shell, /api\/household\/client-diagnostics/);
-  assert.match(shell, /publishStartup\('authenticated'\)/);
+  assert.match(shell, /publishStartup\(state\.authenticated \? 'authenticated' : 'anonymous'\)/);
   assert.match(shell, /publishStartup\('workspace-mounted'\)/);
   assert.match(shell, /publishStartup\('workspace-rendered', heading\)/);
 });
