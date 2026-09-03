@@ -1,4 +1,3 @@
-import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './AppV13.jsx';
 import './auth-v15.css';
@@ -23,8 +22,4 @@ import './corrective-v1162.css';
 import './accounts-cards-v1163.css';
 import './startup-v1172.css';
 
-ReactDOM.createRoot(document.getElementById('root')).render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>,
-);
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
