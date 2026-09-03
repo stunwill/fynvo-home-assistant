@@ -2,6 +2,16 @@
 
 All notable Fynvo changes are documented here. Starting with v0.3.0, every release must include a user-readable changelog entry, Home Assistant-visible release notes and GitHub release notes.
 
+## v1.17.4 - Direct Home Assistant Auth State Handoff
+
+- Fixes the remaining installed iPhone/Home Assistant ingress freeze where the outer shell was authenticated but the inner workspace could still remain indefinitely on its `Loading...` splash.
+- Identifies the underlying wrapper-chain defect: `AppCorrectiveV1163` received the authoritative `authState` from `AppV13` but rendered `AppCorrectiveV0174` without passing that state through.
+- Passes the authenticated state directly through the complete production component chain and initialises the base workspace from it synchronously.
+- Removes the second startup `/auth/state` dependency from the normal Home Assistant path. The base workspace only performs its own auth request when it is genuinely running without an outer/shared state, preserving standalone login/setup behaviour.
+- Keeps the v1.17.3 non-blocking household-security request, temporary-password enforcement and recovery controls.
+- Adds regression coverage for the complete auth-state prop chain and specifically rejects the previous unconditional base-workspace startup auth effect.
+- Preserves all financial workflows and data. No database migration is required.
+
 ## v1.17.3 - Non-blocking Household Identity Startup
 
 - Fixes the installed iPhone/Home Assistant ingress freeze where Fynvo could remain indefinitely on `Loading Household identity...` after authentication had already succeeded.

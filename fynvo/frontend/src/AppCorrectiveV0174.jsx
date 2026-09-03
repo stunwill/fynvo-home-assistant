@@ -100,8 +100,8 @@ function endpointFor(type, id) { return ({ accounts: `/accounts/${id}`, transact
 function createPath(type) { return ({ accounts: '/accounts', transactions: '/transactions', income: '/income', recurring: '/recurring-expenses', bills: '/bills', planned: '/planned-spending', categories: '/categories', budgets: '/budgets', goals: '/goals' })[type]; }
 function forecastSource(event, data) { const mapping = { income: ['income', data.income], recurring_expense: ['recurring', data.recurring], bill: ['bills', data.bills], planned_spending: ['planned', data.planned] }; const matched = mapping[event?.source_type]; if (!matched) return { type: null, record: null }; const [type, rows] = matched; return { type, record: (rows || []).find((row) => Number(row.id) === Number(event.source_id)) || null }; }
 
-export default function AppCorrectiveV0174() {
-  const [auth, setAuth] = useState(null);
+export default function AppCorrectiveV0174({ authState = null }) {
+  const [auth, setAuth] = useState(() => authState || globalThis.__fynvoSharedAuthState || null);
   const initialView = localStorage.getItem('fynvo.view') || 'Overview';
   const [active, setActive] = useState(initialView === 'Cards' ? 'Accounts' : initialView);
   const [rangeDays, setRangeDays] = useState(Number(localStorage.getItem('fynvo.rangeDays') || 90));
@@ -146,7 +146,13 @@ export default function AppCorrectiveV0174() {
     setData((current) => ({ ...current, cards: cards || [] }));
   }
 
-  useEffect(() => { loadAuth(); }, []);
+  useEffect(() => {
+    if (authState) {
+      setAuth(authState);
+      return;
+    }
+    if (!globalThis.__fynvoSharedAuthState) loadAuth();
+  }, [authState]);
   useEffect(() => { if (!auth?.authenticated) return; if (!initialLoadedRef.current) { initialLoadedRef.current = true; loadAll(); return; } refreshDashboard(rangeDays); }, [auth?.authenticated, rangeDays]);
   useEffect(() => { localStorage.setItem('fynvo.view', active); setSuccess(''); setError(''); }, [active]);
   useEffect(() => { localStorage.setItem('fynvo.rangeDays', String(rangeDays)); }, [rangeDays]);

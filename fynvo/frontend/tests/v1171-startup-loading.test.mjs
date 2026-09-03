@@ -10,6 +10,7 @@ test('production shell publishes authoritative auth state before the nested app 
   assert.match(shell, /cacheAuthState\(auth\)/);
   assert.match(shell, /<App key=\{`fynvo-startup-\$\{startupAttempt\}`\} authState=\{auth\}\/>/);
   assert.match(wrapper, /globalThis\.__fynvoSharedAuthState = authState/);
+  assert.match(wrapper, /<BaseApp authState=\{authState\}\/>/);
 });
 
 
@@ -30,7 +31,7 @@ test('stuck nested startup automatically retries and then exposes a manual recov
   assert.match(shell, /node\.textContent\?\.trim\(\) === 'Loading\.\.\.'/);
   assert.match(shell, /startupAttempt < 1/);
   assert.match(shell, /Fynvo could not finish starting inside Home Assistant\./);
-  assert.match(shell, />Retry Fynvo</);
+  assert.match(shell, />Retry Fynvo/);
 });
 
 
@@ -45,7 +46,7 @@ test('household security lookup cannot block the main Fynvo workspace', () => {
 });
 
 
-test('v1.17.3 production shell reports the corrective release version', () => {
-  assert.match(shell, /PRODUCTION_VERSION = '1\.17\.3'/);
-  assert.match(shell, /AUTH_BRIDGE_VERSION = '1\.17\.3'/);
+test('v1.17.4 production shell reports the corrective release version', () => {
+  assert.match(shell, /PRODUCTION_VERSION = '1\.17\.4'/);
+  assert.match(shell, /AUTH_BRIDGE_VERSION = '1\.17\.4'/);
 });
