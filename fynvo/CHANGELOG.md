@@ -1,5 +1,15 @@
 # Fynvo Add-on Changelog
 
+## v1.17.5 - Frontend Startup Lifecycle Correction & Diagnostics
+
+- Uses the installed Fynvo add-on logs to correct the remaining iPhone/Home Assistant startup freeze after authentication, household security, Accounts and Cards requests were all returning successfully.
+- Removes the global frontend auth `fetch` bridge and automatic keyed workspace remount/watchdog so a successful authenticated startup mounts one workspace instance and keeps it mounted.
+- Preserves the v1.17.4 direct auth-state prop handoff while removing the wrapper's shared-global auth mutation and deferring Accounts/Cards bootstrap until authentication is confirmed.
+- Removes the production StrictMode wrapper to keep installed startup effects and diagnostics single-pass.
+- Adds installed-runtime startup diagnostics to the Fynvo add-on log for `authenticated`, `workspace-mounted` and `workspace-rendered` stages.
+- Marks the HTML shell as non-cacheable at document level to reduce stale Home Assistant webview shells after add-on upgrades.
+- Requires no database migration and does not change financial records or calculations.
+
 ## v1.17.4 - Direct Home Assistant Auth State Handoff
 
 - Fixes the remaining iPhone/Home Assistant ingress freeze where the inner Fynvo workspace could still remain on `Loading...` after the outer shell had already authenticated.

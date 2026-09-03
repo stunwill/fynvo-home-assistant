@@ -6,32 +6,19 @@ const shell = await readFile(new URL('../src/AppV13.jsx', import.meta.url), 'utf
 const wrapper = await readFile(new URL('../src/AppCorrectiveV1163.jsx', import.meta.url), 'utf8');
 
 
-test('production shell publishes authoritative auth state before the nested app starts', () => {
-  assert.match(shell, /cacheAuthState\(auth\)/);
-  assert.match(shell, /<App key=\{`fynvo-startup-\$\{startupAttempt\}`\} authState=\{auth\}\/>/);
-  assert.match(wrapper, /globalThis\.__fynvoSharedAuthState = authState/);
+test('production shell passes authoritative auth state directly into the nested app', () => {
+  assert.match(shell, /<App authState=\{auth\}\/>/);
   assert.match(wrapper, /<BaseApp authState=\{authState\}\/>/);
+  assert.doesNotMatch(shell, /__fynvoSharedAuthState/);
+  assert.doesNotMatch(wrapper, /__fynvoSharedAuthState/);
 });
 
 
-test('auth bridge accepts relative and ingress-expanded auth-state URLs without constructing Response', () => {
-  assert.match(shell, /url === 'api\/auth\/state' \|\| url\.endsWith\('\/api\/auth\/state'\)/);
-  assert.match(shell, /Promise\.resolve\(authStateResult\(globalThis\.__fynvoSharedAuthState\)\)/);
-  assert.doesNotMatch(shell, /new Response\(/);
-});
-
-
-test('outer shell no longer refreshes auth when the nested loading DOM appears', () => {
-  assert.match(shell, /new MutationObserver\(syncProductionShell\)/);
-  assert.doesNotMatch(shell, /document\.querySelector\('main\.login'\).*refreshAuth/);
-});
-
-
-test('stuck nested startup automatically retries and then exposes a manual recovery action', () => {
-  assert.match(shell, /node\.textContent\?\.trim\(\) === 'Loading\.\.\.'/);
-  assert.match(shell, /startupAttempt < 1/);
-  assert.match(shell, /Fynvo could not finish starting inside Home Assistant\./);
-  assert.match(shell, />Retry Fynvo/);
+test('production startup no longer intercepts fetch or remounts the workspace', () => {
+  assert.doesNotMatch(shell, /globalThis\.fetch\s*=/);
+  assert.doesNotMatch(shell, /authStateResult/);
+  assert.doesNotMatch(shell, /startupAttempt/);
+  assert.doesNotMatch(shell, /Retry Fynvo/);
 });
 
 
@@ -46,7 +33,8 @@ test('household security lookup cannot block the main Fynvo workspace', () => {
 });
 
 
-test('v1.17.4 production shell reports the corrective release version', () => {
-  assert.match(shell, /PRODUCTION_VERSION = '1\.17\.4'/);
-  assert.match(shell, /AUTH_BRIDGE_VERSION = '1\.17\.4'/);
+test('v1.17.5 production shell exposes installed startup diagnostics', () => {
+  assert.match(shell, /PRODUCTION_VERSION = '1\.17\.5'/);
+  assert.match(shell, /publishStartup\('workspace-mounted'\)/);
+  assert.match(shell, /publishStartup\('workspace-rendered', heading\)/);
 });

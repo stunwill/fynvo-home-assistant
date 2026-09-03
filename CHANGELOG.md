@@ -2,6 +2,18 @@
 
 All notable Fynvo changes are documented here. Starting with v0.3.0, every release must include a user-readable changelog entry, Home Assistant-visible release notes and GitHub release notes.
 
+## v1.17.5 - Frontend Startup Lifecycle Correction & Diagnostics
+
+- Uses evidence from the installed Home Assistant and Fynvo add-on logs: authentication, household security, Accounts and Cards requests were returning successfully while the iPhone webview still remained on the Fynvo loading screen.
+- Removes the global `fetch` authentication bridge and the keyed automatic startup remount/watchdog from the production shell. A successful outer authentication now mounts one workspace instance and keeps it mounted.
+- Keeps the v1.17.4 direct `authState` prop handoff through the Accounts/Cards compatibility wrapper into the base workspace, while removing the shared-global auth mutation from that wrapper.
+- Restricts the compatibility wrapper's Accounts/Cards bootstrap calls to authenticated sessions.
+- Removes the production `React.StrictMode` wrapper so the installed startup lifecycle and diagnostic sequence have one root mount.
+- Adds explicit installed-runtime startup stages (`authenticated`, `workspace-mounted`, `workspace-rendered`) and records them in the Fynvo add-on log through a lightweight diagnostic endpoint.
+- Marks the HTML app shell as non-cacheable at document level so Home Assistant's embedded webview is less likely to retain a stale shell across add-on upgrades. Hashed built assets remain managed by Vite.
+- Adds regression coverage that rejects the removed auth bridge, keyed remount path and StrictMode wrapper, verifies direct auth propagation, startup diagnostics and no-cache document metadata.
+- Preserves all financial calculations, records and payment lifecycle behaviour. No database migration is required.
+
 ## v1.17.4 - Direct Home Assistant Auth State Handoff
 
 - Fixes the remaining installed iPhone/Home Assistant ingress freeze where the outer shell was authenticated but the inner workspace could still remain indefinitely on its `Loading...` splash.

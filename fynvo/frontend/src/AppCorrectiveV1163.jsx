@@ -13,7 +13,6 @@ const api = (path, options = {}) => fetch(`api${path}`, {
 });
 
 export default function AppCorrectiveV1163({ authState = null }) {
-  if (authState) globalThis.__fynvoSharedAuthState = authState;
   const [legacyView, setLegacyView] = useState(() => localStorage.getItem('fynvo.view'));
   const [subview, setSubview] = useState(() => legacyView === 'Cards' ? 'cards' : localStorage.getItem('fynvo.accountsView') || 'accounts');
   const [accounts, setAccounts] = useState([]);
@@ -21,12 +20,13 @@ export default function AppCorrectiveV1163({ authState = null }) {
   const [mount, setMount] = useState(null);
 
   async function refreshAccountsCards() {
+    if (!authState?.authenticated) return;
     const [accountResponse, cardResponse] = await Promise.all([api('/accounts'), api('/cards?include_inactive=true')]);
     if (accountResponse.ok) setAccounts(await accountResponse.json());
     if (cardResponse.ok) setCards(await cardResponse.json());
   }
 
-  useEffect(() => { refreshAccountsCards(); }, []);
+  useEffect(() => { refreshAccountsCards(); }, [authState?.authenticated]);
   useEffect(() => { localStorage.setItem('fynvo.accountsView', subview); }, [subview]);
 
   useEffect(() => {
