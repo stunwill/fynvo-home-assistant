@@ -10,7 +10,7 @@ test('production shell mounts the v1.16.3 Accounts and Cards correction', async 
   const entry = await read('src/main.jsx');
 
   assert.match(shell, /import App from '\.\/AppCorrectiveV1163\.jsx'/);
-  assert.match(shell, /PRODUCTION_VERSION = '1\.17\.3'/);
+  assert.match(shell, /PRODUCTION_VERSION = '1\.17\.4'/);
   assert.match(entry, /import '\.\/accounts-cards-v1163\.css';/);
   assert.match(wrapper, /fynvo-accounts-cards-v1163-active/);
   assert.match(wrapper, /onViewChange=\{setSubview\}/);
