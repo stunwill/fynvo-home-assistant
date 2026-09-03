@@ -12,8 +12,8 @@ const api = (path, options = {}) => nativeFetch(`api${path}`, {
   headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
   ...options,
 });
-const PRODUCTION_VERSION = '1.17.3';
-const AUTH_BRIDGE_VERSION = '1.17.3';
+const PRODUCTION_VERSION = '1.17.4';
+const AUTH_BRIDGE_VERSION = '1.17.4';
 const HOUSEHOLD_SECURITY_TIMEOUT_MS = 3500;
 
 function cacheAuthState(state) {
