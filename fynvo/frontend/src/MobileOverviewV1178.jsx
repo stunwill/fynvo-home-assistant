@@ -91,21 +91,16 @@ export default function MobileOverviewV1178({ authenticated = false }) {
 
   useEffect(() => {
     if (!active || !isOverview) return undefined;
-    let cancelled = false;
-    const readShared = () => globalThis.__fynvoMobileOverviewState || null;
-    const sync = () => {
-      const shared = readShared();
-      if (!shared || cancelled) return;
+    const readShared = () => {
+      const shared = globalThis.__fynvoMobileOverviewState;
+      if (!shared) return;
       setCommand(shared.command || null);
       setAccounts(shared.accounts || []);
       setPlanning(shared.paymentPlanning || null);
     };
-    sync();
-    window.addEventListener('fynvo:overview-data', sync);
-    return () => {
-      cancelled = true;
-      window.removeEventListener('fynvo:overview-data', sync);
-    };
+    readShared();
+    window.addEventListener('fynvo:overview-data', readShared);
+    return () => window.removeEventListener('fynvo:overview-data', readShared);
   }, [active, isOverview]);
 
   useEffect(() => {
