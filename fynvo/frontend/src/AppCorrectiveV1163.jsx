@@ -2,15 +2,10 @@ import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import BaseApp from './AppCorrectiveV0174.jsx';
 import AccountsCardsWorkspaceV1163 from './AccountsCardsWorkspaceV1163.jsx';
+import { apiRequest } from './apiClient.js';
 import './accounts-cards-v1163.css';
 
 export const APP_VERSION_V1163 = '1.16.3';
-
-const api = (path, options = {}) => fetch(`api${path}`, {
-  credentials: 'same-origin',
-  headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
-  ...options,
-});
 
 export default function AppCorrectiveV1163({ authState = null }) {
   const [legacyView, setLegacyView] = useState(() => localStorage.getItem('fynvo.view'));
@@ -21,9 +16,13 @@ export default function AppCorrectiveV1163({ authState = null }) {
 
   async function refreshAccountsCards() {
     if (!authState?.authenticated) return;
-    const [accountResponse, cardResponse] = await Promise.all([api('/accounts'), api('/cards?include_inactive=true')]);
-    if (accountResponse.ok) setAccounts(await accountResponse.json());
-    if (cardResponse.ok) setCards(await cardResponse.json());
+    try {
+      const [accountRows, cardRows] = await Promise.all([apiRequest('/accounts'), apiRequest('/cards?include_inactive=true')]);
+      setAccounts(accountRows || []);
+      setCards(cardRows || []);
+    } catch {
+      // The base workspace keeps its own non-blocking error handling. Do not block rendering here.
+    }
   }
 
   useEffect(() => { refreshAccountsCards(); }, [authState?.authenticated]);

@@ -12,8 +12,8 @@ const centreCss = fs.readFileSync(path.join(root, 'src/payment-centre-v112.css')
 const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
 
 
-test('v1.17 pay-cycle implementation remains active on the v1.17.6 corrective patch', () => {
-  assert.equal(pkg.version, '1.17.6');
+test('v1.17 pay-cycle implementation remains active on the v1.17.7 corrective patch', () => {
+  assert.equal(pkg.version, '1.17.7');
   assert.match(app, /const APP_VERSION = '1\.17\.0'/);
 });
 
