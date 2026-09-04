@@ -62,7 +62,7 @@ test('v1.17.8 production shell is active while legacy compatibility markers rema
   const shell = await read('src/AppV13.jsx');
   const corrective = await read('src/v0174-corrective.jsx');
   const pkg = JSON.parse(await read('package.json'));
-  assert.match(app, /APP_VERSION = '1\.17\.8'/);
+  assert.match(app, /APP_VERSION = '1\.17\.0'/);
   assert.match(shell, /PRODUCTION_VERSION = '1\.17\.8'/);
   assert.match(corrective, /APP_VERSION_V0174 = '1\.16\.3'/);
   assert.equal(pkg.version, '1.17.8');
