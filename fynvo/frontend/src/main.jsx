@@ -22,5 +22,6 @@ import './corrective-v1162.css';
 import './accounts-cards-v1163.css';
 import './startup-v1172.css';
 import './mobile-v1177.css';
+import './mobile-overview-v1178.css';
 
 ReactDOM.createRoot(document.getElementById('root')).render(<App />);
