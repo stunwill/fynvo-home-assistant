@@ -103,7 +103,9 @@ export default function AppV13() {
     syncProductionShell();
     return () => {
       observer.disconnect();
-      document.body.classList.remove('fynvo-income-page', 'fynvo-transactions-page', 'fynvo-recurring-expenses-page');
+      document.body.classList.remove('fynvo-income-page');
+      document.body.classList.remove('fynvo-transactions-page');
+      document.body.classList.remove('fynvo-recurring-expenses-page');
     };
   }, [auth?.authenticated]);
   useEffect(() => {
