@@ -31,11 +31,11 @@ test('standalone login fallback remains available for legacy direct mounting', a
   assert.match(base, /if \(!auth\) return/);
 });
 
-test('production shell reports v1.17.7 without the legacy fetch bridge', async () => {
+test('production shell reports v1.17.8 without the legacy fetch bridge', async () => {
   const shell = await read('src/AppV13.jsx');
   const pkg = JSON.parse(await read('package.json'));
 
-  assert.match(shell, /PRODUCTION_VERSION = '1\.17\.7'/);
+  assert.match(shell, /PRODUCTION_VERSION = '1\.17\.8'/);
   assert.doesNotMatch(shell, /AUTH_BRIDGE_VERSION/);
-  assert.equal(pkg.version, '1.17.7');
+  assert.equal(pkg.version, '1.17.8');
 });
