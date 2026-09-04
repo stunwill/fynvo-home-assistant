@@ -2,6 +2,16 @@
 
 All notable Fynvo changes are documented here. Starting with v0.3.0, every release must include a user-readable changelog entry, Home Assistant-visible release notes and GitHub release notes.
 
+## v1.17.7 - Mobile Performance & Ingress UX Optimisation
+
+- Reduces duplicate frontend startup work by deduplicating identical in-flight GET requests through the shared API client.
+- Reuses the already-authoritative Dashboard Command Centre response for the matching expected Forecast and Financial Health reads instead of asking the backend to calculate the same data again during the same startup cycle.
+- Moves the Accounts & Cards compatibility wrapper onto the shared API client so its Account/Card bootstrap reads can be coalesced with identical workspace requests rather than creating duplicate backend traffic.
+- Adds a short in-memory read cache for repeated navigation within the same Home Assistant webview and clears that cache immediately after any mutation so financial changes are never hidden behind stale cached state.
+- Adds a final iPhone/Home Assistant ingress responsive layer with tighter page spacing, smaller headings, more efficient two-column KPI cards, compact header controls, contained Account/Card rows, touch-friendly controls, safer modal actions and bottom safe-area spacing.
+- Keeps the v1.17.6 Accounts & Cards interactivity fix and the v1.17.5 single-owner startup lifecycle unchanged.
+- No database migration is required and no financial calculations, records, payment lifecycle, forecasting rules or reconciliation semantics are changed.
+
 ## v1.17.6 - Accounts & Cards Installed Interactivity Correction
 
 - Fixes the installed Home Assistant/iPhone condition where Accounts & Cards rendered successfully but the page and surrounding Home Assistant controls became unresponsive to taps/clicks.
