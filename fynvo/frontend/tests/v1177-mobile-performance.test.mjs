@@ -7,6 +7,7 @@ const apiClient = await read('src/apiClient.js');
 const wrapper = await read('src/AppCorrectiveV1163.jsx');
 const entry = await read('src/main.jsx');
 const mobile = await read('src/mobile-v1177.css');
+const mobile1178 = await read('src/mobile-overview-v1178.css');
 const shell = await read('src/AppV13.jsx');
 const pkg = JSON.parse(await read('package.json'));
 
@@ -37,16 +38,20 @@ test('Accounts and Cards wrapper shares the canonical API client', () => {
   assert.doesNotMatch(wrapper, /const api =/);
 });
 
-test('v1.17.7 mobile stylesheet loads last and keeps dense touch-friendly ingress layout', () => {
-  assert.match(entry, /import '\.\/mobile-v1177\.css';\s*\n\nReactDOM/s);
+test('v1.17.8 mobile styles retain v1.17.7 density protections and load the corrective layer last', () => {
+  assert.match(entry, /import '\.\/mobile-v1177\.css';\s*\nimport '\.\/mobile-overview-v1178\.css';\s*\n\nReactDOM/s);
   assert.match(mobile, /@media\(max-width:720px\)/);
   assert.match(mobile, /grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
   assert.match(mobile, /env\(safe-area-inset-bottom/);
   assert.match(mobile, /\.modal-actions\{position:sticky/);
   assert.match(mobile, /\.header h1\{font-size:clamp\(26px/);
+  assert.match(mobile1178, /@media\(max-width:980px\)/);
+  assert.match(mobile1178, /\.mobile-app-bar\{display:none!important\}/);
+  assert.match(mobile1178, /\.fynvo-tools-menu-shell\{display:none!important\}/);
+  assert.match(mobile1178, /body\.fynvo-accounts-cards-v1163-active main\.content>\.header-actions\{display:none!important\}/);
 });
 
-test('v1.17.7 version surfaces align', () => {
-  assert.match(shell, /PRODUCTION_VERSION = '1\.17\.7'/);
-  assert.equal(pkg.version, '1.17.7');
+test('v1.17.8 version surfaces align in the production shell', () => {
+  assert.match(shell, /PRODUCTION_VERSION = '1\.17\.8'/);
+  assert.equal(pkg.version, '1.17.8');
 });

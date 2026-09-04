@@ -2,6 +2,18 @@
 
 All notable Fynvo changes are documented here. Starting with v0.3.0, every release must include a user-readable changelog entry, Home Assistant-visible release notes and GitHub release notes.
 
+## v1.17.8 - Mobile Overview Redesign & Optimisation
+
+- Corrects Home Assistant ingress mobile chrome so the Home Assistant header remains authoritative and the duplicate internal Fynvo app bar no longer competes with or clips page content.
+- Removes the persistent floating Tools trigger on mobile while retaining Tools through the mobile More navigation sheet and preserving desktop access.
+- Adds a persistent five-destination mobile navigation bar for Overview, Accounts, Cash Flow, Transactions and More with iOS bottom safe-area handling.
+- Redesigns the mobile Overview hierarchy around four Snapshot KPIs followed by Cash Flow and Top Accounts while retaining existing command-centre, account and payment-planning data semantics.
+- Compacts Accounts & Cards for iPhone and Home Assistant ingress use with full-width Accounts/Cards tabs, a 2×2 summary, responsive search/status controls and denser account/card rows with balances and status visible.
+- Hides the global Date Range/Quick Add header controls on the current-state Accounts & Cards mobile workspace and removes the excess spacing they created above the primary account content.
+- Aligns Home Assistant add-on, backend, frontend package and production-shell release reporting to v1.17.8 and preserves the v1.17.5 startup lifecycle, v1.17.6 Accounts interactivity and v1.17.7 request-deduplication protections.
+- No database migration is required and no financial records, calculations, reconciliation semantics or payment lifecycle behaviour are changed.
+- Installed iPhone/Home Assistant ingress acceptance remains a manual gate before merge.
+
 ## v1.17.7 - Mobile Performance & Ingress UX Optimisation
 
 - Reduces duplicate frontend startup work by deduplicating identical in-flight GET requests through the shared API client.

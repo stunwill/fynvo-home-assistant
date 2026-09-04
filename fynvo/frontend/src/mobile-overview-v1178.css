@@ -1,0 +1,131 @@
+@media(max-width:980px){
+  html,body,#root{max-width:100%;overflow-x:hidden}
+  body{padding-bottom:calc(68px + env(safe-area-inset-bottom,0px))}
+  .content{min-width:0;padding:12px 14px calc(88px + env(safe-area-inset-bottom,0px))!important}
+  .mobile-app-bar{display:none!important}
+  .fynvo-tools-menu-shell{display:none!important}
+
+  /* Home Assistant owns the mobile ingress app chrome. Keep Fynvo's page header contextual and compact. */
+  main.content>.header{margin:0 0 12px!important;gap:8px!important;min-width:0}
+  main.content>.header>div:first-child{min-width:0}
+  main.content>.header h1{font-size:clamp(24px,6.7vw,30px);line-height:1.08;margin:0;overflow-wrap:anywhere}
+  main.content>.header p{font-size:13px;line-height:1.35;margin:4px 0 0}
+  main.content>.header-actions{margin-top:10px!important;display:grid!important;grid-template-columns:minmax(0,3fr) minmax(118px,2fr)!important;gap:8px!important;width:100%;min-width:0}
+  main.content>.header-actions>*{min-width:0;max-width:100%}
+  main.content>.header-actions .select-shell{width:100%;min-height:44px}
+  main.content>.header-actions .primary.ghost{width:100%;min-height:44px;white-space:nowrap}
+  body.fynvo-accounts-cards-v1163-active main.content>.header{margin-bottom:8px!important}
+  body.fynvo-accounts-cards-v1163-active main.content>.header p{display:none!important}
+  body.fynvo-accounts-cards-v1163-active main.content>.header-actions{display:none!important}
+  body.fynvo-accounts-cards-v1163-active main.content>.header h1{font-size:24px}
+  body.fynvo-accounts-cards-v1163-active .app-footer{display:none!important}
+
+  .fynvo-mobile-overview-host{display:block;min-width:0}
+  .fynvo-mobile-overview{display:grid;gap:16px;margin:0 0 14px;min-width:0}
+  .fynvo-mobile-section{min-width:0}
+  .fynvo-mobile-section-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 8px}
+  .fynvo-mobile-section-head h2{font-size:20px;line-height:1.2;margin:0}
+  .fynvo-mobile-section-head h2 span{font-size:13px;font-weight:600;color:var(--muted)}
+  .fynvo-mobile-section-head>button{border:0;background:transparent;color:var(--fynvo-blue);font-weight:700;padding:8px 0;min-height:44px}
+
+  .fynvo-mobile-snapshot-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+  .fynvo-mobile-snapshot-grid>button{min-width:0;min-height:118px;border:1px solid var(--line);border-radius:17px;background:#fff;padding:12px 10px;text-align:left;box-shadow:0 8px 24px rgba(31,54,89,.08)}
+  .fynvo-mobile-snapshot-grid small,.fynvo-mobile-snapshot-grid span{display:block;color:var(--muted);font-size:11px;line-height:1.2}
+  .fynvo-mobile-snapshot-grid strong{display:block;font-size:clamp(18px,5.2vw,24px);line-height:1.08;margin:6px 0;overflow-wrap:anywhere}
+
+  .fynvo-mobile-cashflow-card{width:100%;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;border:1px solid var(--line);border-radius:17px;background:#fff;padding:13px;text-align:left;box-shadow:0 8px 24px rgba(31,54,89,.06)}
+  .fynvo-mobile-cashflow-card>span{min-width:0;padding:0 10px;border-right:1px solid var(--line)}
+  .fynvo-mobile-cashflow-card>span:first-child{padding-left:0}
+  .fynvo-mobile-cashflow-card>span:last-child{padding-right:0;border-right:0}
+  .fynvo-mobile-cashflow-card small{display:block;color:var(--muted);font-size:11px;margin-bottom:4px}
+  .fynvo-mobile-cashflow-card strong{display:block;font-size:clamp(16px,4.7vw,22px);line-height:1.12;overflow-wrap:anywhere}
+
+  .fynvo-mobile-top-accounts{border:1px solid var(--line);border-radius:17px;background:#fff;padding:0 12px;overflow:hidden}
+  .fynvo-mobile-top-accounts>button{width:100%;display:grid;grid-template-columns:38px minmax(0,1fr) minmax(92px,auto) 14px;gap:9px;align-items:center;border:0;border-bottom:1px solid var(--line);background:#fff;padding:11px 0;text-align:left;color:inherit}
+  .fynvo-mobile-top-accounts>button:last-child{border-bottom:0}
+  .fynvo-mobile-account-mark{width:34px;height:34px;border-radius:999px;display:grid;place-items:center;background:#0b2a52;color:#fff;font-weight:800}
+  .fynvo-mobile-top-accounts strong,.fynvo-mobile-top-accounts small{display:block;min-width:0;overflow-wrap:anywhere}
+  .fynvo-mobile-top-accounts strong{font-size:14px;line-height:1.2}
+  .fynvo-mobile-top-accounts small{font-size:11px;color:var(--muted);margin-top:3px}
+  .fynvo-mobile-account-balance{text-align:right;min-width:0}
+  .fynvo-mobile-empty{padding:16px 2px;margin:0;color:var(--muted)}
+
+  body.fynvo-mobile-overview-active .dashboard-page>.kpi-grid.five{display:none!important}
+  body.fynvo-mobile-overview-active .dashboard-page .dashboard-forecast-panel{display:none!important}
+  body.fynvo-mobile-overview-active .dashboard-page{gap:12px}
+
+  /* Accounts & Cards is a current-state workspace, so global date-range controls are intentionally removed on mobile. */
+  body.fynvo-accounts-cards-v1163-active .accounts-cards-v1163-overlay{margin:0!important;padding:0 0 4px!important;min-width:0}
+  body.fynvo-accounts-cards-v1163-active .accounts-cards-v1163{gap:10px!important;min-width:0}
+  body.fynvo-accounts-cards-v1163-active .accounts-cards-action-row{display:flex!important;justify-content:flex-end!important;min-height:44px!important;margin:0!important}
+  body.fynvo-accounts-cards-v1163-active .accounts-cards-action-row .primary{min-height:44px;padding:9px 13px;font-size:14px}
+  body.fynvo-accounts-cards-v1163-active .accounts-cards-tabs{width:100%!important;grid-template-columns:1fr 1fr!important;border-radius:12px!important}
+  body.fynvo-accounts-cards-v1163-active .accounts-cards-tabs button{min-height:46px!important;padding:10px 8px!important;font-size:14px!important}
+  body.fynvo-accounts-cards-v1163-active .accounts-cards-summary{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important;min-width:0}
+  body.fynvo-accounts-cards-v1163-active .accounts-cards-summary article{min-height:84px!important;padding:10px!important;border-radius:14px!important;grid-template-columns:28px minmax(0,1fr)!important;gap:2px 8px!important;min-width:0}
+  body.fynvo-accounts-cards-v1163-active .accounts-cards-summary article>span{width:28px!important;height:28px!important;border-radius:9px!important;grid-row:1/4!important}
+  body.fynvo-accounts-cards-v1163-active .accounts-cards-summary small{font-size:11px;line-height:1.15;min-width:0}
+  body.fynvo-accounts-cards-v1163-active .accounts-cards-summary strong{font-size:18px!important;line-height:1.08!important;margin:2px 0 0!important;grid-column:2!important;min-width:0;overflow-wrap:anywhere}
+  body.fynvo-accounts-cards-v1163-active .accounts-cards-summary em{font-size:10px!important;line-height:1.15!important;grid-column:2!important;min-width:0}
+  body.fynvo-accounts-cards-v1163-active .accounts-cards-toolbar{display:grid!important;grid-template-columns:minmax(0,1fr) 106px!important;gap:7px!important;min-width:0}
+  body.fynvo-accounts-cards-v1163-active .accounts-cards-toolbar label{min-width:0!important;width:auto!important;flex:none!important}
+  body.fynvo-accounts-cards-v1163-active .accounts-cards-toolbar input,
+  body.fynvo-accounts-cards-v1163-active .accounts-cards-toolbar select{min-width:0;width:100%;min-height:44px;font-size:16px}
+  body.fynvo-accounts-cards-v1163-active .accounts-cards-list{border-radius:14px!important;min-width:0}
+  body.fynvo-accounts-cards-v1163-active .accounts-cards-list-title{padding:10px 12px!important;font-size:13px}
+  body.fynvo-accounts-cards-v1163-active .accounts-cards-account-row{grid-template-columns:38px minmax(0,1fr) minmax(90px,auto) 12px!important;grid-template-rows:auto auto!important;gap:4px 8px!important;padding:10px 11px!important;min-height:78px!important;min-width:0;overflow:hidden}
+  body.fynvo-accounts-cards-v1163-active .accounts-cards-avatar{width:36px!important;height:36px!important;font-size:10px!important;grid-row:1/3!important;align-self:center}
+  body.fynvo-accounts-cards-v1163-active .accounts-cards-primary{grid-column:2;grid-row:1/3;min-width:0!important;align-self:center}
+  body.fynvo-accounts-cards-v1163-active .accounts-cards-primary strong{font-size:14px!important;line-height:1.2;overflow-wrap:anywhere}
+  body.fynvo-accounts-cards-v1163-active .accounts-cards-primary small{font-size:11px!important;line-height:1.2!important;margin-top:2px!important;overflow-wrap:anywhere}
+  body.fynvo-accounts-cards-v1163-active .accounts-cards-balance{grid-column:3!important;grid-row:1!important;text-align:right!important;min-width:0}
+  body.fynvo-accounts-cards-v1163-active .accounts-cards-balance strong{font-size:14px;line-height:1.15;overflow-wrap:anywhere}
+  body.fynvo-accounts-cards-v1163-active .accounts-cards-balance small{display:none!important}
+  body.fynvo-accounts-cards-v1163-active .accounts-cards-status{grid-column:3!important;grid-row:2!important;justify-self:end!important;align-self:start!important;padding:3px 7px!important;font-size:10px!important}
+  body.fynvo-accounts-cards-v1163-active .accounts-cards-count{grid-column:2!important;grid-row:3!important;font-size:10px!important;color:var(--muted);padding-left:0}
+  body.fynvo-accounts-cards-v1163-active .accounts-cards-chevron{grid-column:4!important;grid-row:1/3!important;align-self:center!important;font-size:20px!important}
+  body.fynvo-accounts-cards-v1163-active .accounts-cards-card-row{grid-template-columns:58px minmax(0,1fr) auto 12px!important;gap:7px!important;padding:10px 11px!important;min-height:78px!important;min-width:0;overflow:hidden}
+  body.fynvo-accounts-cards-v1163-active .accounts-cards-card-visual{width:54px!important;height:38px!important;font-size:9px!important}
+  body.fynvo-accounts-cards-v1163-active .accounts-cards-bottom-action{min-height:44px!important;margin:9px!important;width:calc(100% - 18px)!important;padding:10px!important}
+
+  .fynvo-mobile-bottom-nav{position:fixed;z-index:50;left:0;right:0;bottom:0;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));min-height:62px;padding:4px 5px calc(4px + env(safe-area-inset-bottom,0px));background:rgba(255,255,255,.98);border-top:1px solid var(--line);box-shadow:0 -8px 28px rgba(31,54,89,.08)}
+  .fynvo-mobile-bottom-nav button{min-width:0;min-height:52px;border:0;background:transparent;color:var(--muted);display:grid;place-items:center;align-content:center;gap:2px;padding:3px 1px;border-radius:10px}
+  .fynvo-mobile-bottom-nav button span{font-size:20px;line-height:1}
+  .fynvo-mobile-bottom-nav button small{font-size:10px;line-height:1.1;white-space:nowrap}
+  .fynvo-mobile-bottom-nav button.active{color:var(--fynvo-blue);font-weight:800}
+
+  .fynvo-mobile-more-backdrop,.fynvo-mobile-tools-backdrop{position:fixed;z-index:70;inset:0;display:flex;align-items:flex-end;background:rgba(6,26,51,.48);padding:12px 12px calc(12px + env(safe-area-inset-bottom,0px))}
+  .fynvo-mobile-more-sheet,.fynvo-mobile-tools-sheet{width:100%;max-height:min(72dvh,560px);overflow:auto;background:#fff;border-radius:20px;padding:14px;box-shadow:0 24px 70px rgba(6,26,51,.28)}
+  .fynvo-mobile-sheet-head,.fynvo-mobile-tools-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px;font-size:18px}
+  .fynvo-mobile-sheet-head>button,.fynvo-mobile-tools-head>button{width:44px;height:44px;border:0;border-radius:999px;background:#eef4fb;font-size:24px}
+  .fynvo-mobile-more-sheet nav,.fynvo-mobile-tools-sheet nav{display:grid;gap:8px}
+  .fynvo-mobile-more-sheet nav button,.fynvo-mobile-tools-sheet nav button{min-height:48px;text-align:left;border:1px solid var(--line);border-radius:13px;background:#fff;padding:11px 13px;color:var(--text);font-weight:700}
+}
+
+@media(max-width:359px){
+  .fynvo-mobile-snapshot-grid{grid-template-columns:1fr 1fr}
+  .fynvo-mobile-snapshot-grid>button{min-height:112px;padding:10px 8px}
+  .fynvo-mobile-cashflow-card strong{font-size:15px}
+  .fynvo-mobile-top-accounts>button{grid-template-columns:34px minmax(0,1fr) minmax(82px,auto) 12px;gap:7px}
+  body.fynvo-accounts-cards-v1163-active .accounts-cards-toolbar{grid-template-columns:minmax(0,1fr) 100px!important}
+}
+
+@media(max-width:329px){
+  main.content>.header-actions{grid-template-columns:1fr!important}
+  .fynvo-mobile-snapshot-grid{grid-template-columns:1fr}
+  .fynvo-mobile-cashflow-card{grid-template-columns:1fr}
+  .fynvo-mobile-cashflow-card>span{padding:8px 0;border-right:0;border-bottom:1px solid var(--line)}
+  .fynvo-mobile-cashflow-card>span:last-child{border-bottom:0}
+  .fynvo-mobile-top-accounts>button{grid-template-columns:34px minmax(0,1fr) 12px}
+  .fynvo-mobile-account-balance{grid-column:2/3;text-align:left}
+  body.fynvo-accounts-cards-v1163-active .accounts-cards-toolbar{grid-template-columns:1fr!important}
+  body.fynvo-accounts-cards-v1163-active .accounts-cards-account-row{grid-template-columns:34px minmax(0,1fr) 12px!important;grid-template-rows:auto auto auto!important}
+  body.fynvo-accounts-cards-v1163-active .accounts-cards-balance{grid-column:2!important;grid-row:2!important;text-align:left!important}
+  body.fynvo-accounts-cards-v1163-active .accounts-cards-status{grid-column:2!important;grid-row:3!important;justify-self:start!important}
+  body.fynvo-accounts-cards-v1163-active .accounts-cards-count{display:none!important}
+  body.fynvo-accounts-cards-v1163-active .accounts-cards-chevron{grid-column:3!important;grid-row:1/4!important}
+}
+
+@media(min-width:981px){
+  .fynvo-mobile-overview-host,.fynvo-mobile-bottom-nav,.fynvo-mobile-more-backdrop,.fynvo-mobile-tools-backdrop{display:none!important}
+}

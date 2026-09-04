@@ -6,6 +6,7 @@ const read = (path) => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 const wrapper = await read('src/AppCorrectiveV1163.jsx');
 const shell = await read('src/AppV13.jsx');
 const pkg = JSON.parse(await read('package.json'));
+const mobile1178 = await read('src/mobile-overview-v1178.css');
 
 
 test('Accounts and Cards observer does not rewrite unchanged description text', () => {
@@ -20,9 +21,18 @@ test('Accounts and Cards portal mount does not churn identical DOM mount state',
 });
 
 
-test('v1.17.7 production shell owns the visible release version', () => {
-  assert.equal(pkg.version, '1.17.7');
-  assert.match(shell, /PRODUCTION_VERSION = '1\.17\.7'/);
+test('v1.17.8 production shell owns the visible release version', () => {
+  assert.equal(pkg.version, '1.17.8');
+  assert.match(shell, /PRODUCTION_VERSION = '1\.17\.8'/);
   assert.match(shell, /const expectedVersion = `Fynvo v\$\{PRODUCTION_VERSION\}`/);
   assert.match(shell, /footer && footer\.textContent !== expectedVersion/);
+});
+
+
+test('mobile Accounts workspace hides irrelevant global controls and stays compact', () => {
+  assert.match(mobile1178, /body\.fynvo-accounts-cards-v1163-active main\.content>\.header-actions\{display:none!important\}/);
+  assert.match(mobile1178, /accounts-cards-summary\{grid-template-columns:repeat\(2,minmax\(0,1fr\)\)!important/);
+  assert.match(mobile1178, /accounts-cards-summary article\{min-height:84px!important/);
+  assert.match(mobile1178, /accounts-cards-toolbar\{display:grid!important;grid-template-columns:minmax\(0,1fr\) 106px!important/);
+  assert.match(mobile1178, /accounts-cards-account-row\{grid-template-columns:38px minmax\(0,1fr\) minmax\(90px,auto\) 12px!important/);
 });
