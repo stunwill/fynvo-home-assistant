@@ -11,8 +11,8 @@ const entry = await read('src/main.jsx');
 const html = await read('index.html');
 
 
-test('v1.17.5 has one authoritative startup auth request owner', () => {
-  assert.match(shell, /PRODUCTION_VERSION = '1\.17\.5'/);
+test('v1.17.6 retains one authoritative startup auth request owner', () => {
+  assert.match(shell, /PRODUCTION_VERSION = '1\.17\.6'/);
   assert.match(shell, /useEffect\(\(\) => \{ refreshAuth\(\); \}, \[\]\)/);
   assert.doesNotMatch(shell, /__fynvoAuthFetchBridgeVersion/);
   assert.doesNotMatch(shell, /globalThis\.fetch\s*=/);
