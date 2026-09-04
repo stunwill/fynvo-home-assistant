@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { apiRequest } from './apiClient.js';
 
 const money = (value) => {
   const amount = Number(value);
@@ -26,9 +25,9 @@ function readRangeDays() {
   return Number.isFinite(value) && value > 0 ? value : 90;
 }
 
-function useMobileOverviewState(authenticated) {
+function useMobileShellState(authenticated) {
   const [isMobile, setIsMobile] = useState(() => window.matchMedia('(max-width: 980px)').matches);
-  const [isOverview, setIsOverview] = useState(false);
+  const [activePage, setActivePage] = useState('');
   const [rangeDays, setRangeDays] = useState(readRangeDays);
 
   useEffect(() => {
@@ -42,8 +41,8 @@ function useMobileOverviewState(authenticated) {
   useEffect(() => {
     if (!authenticated) return undefined;
     const sync = () => {
-      const heading = document.querySelector('main.content .header h1')?.textContent?.trim();
-      setIsOverview(heading === 'Overview');
+      const heading = document.querySelector('main.content .header h1')?.textContent?.trim() || '';
+      setActivePage(heading);
       const nextRange = readRangeDays();
       setRangeDays((current) => current === nextRange ? current : nextRange);
     };
@@ -57,11 +56,12 @@ function useMobileOverviewState(authenticated) {
     };
   }, [authenticated]);
 
-  return { active: authenticated && isMobile && isOverview, rangeDays };
+  return { active: authenticated && isMobile, activePage, rangeDays };
 }
 
 export default function MobileOverviewV1178({ authenticated = false }) {
-  const { active, rangeDays } = useMobileOverviewState(authenticated);
+  const { active, activePage, rangeDays } = useMobileShellState(authenticated);
+  const isOverview = activePage === 'Overview' || activePage.startsWith('Good ');
   const [host, setHost] = useState(null);
   const [command, setCommand] = useState(null);
   const [accounts, setAccounts] = useState([]);
@@ -69,9 +69,9 @@ export default function MobileOverviewV1178({ authenticated = false }) {
   const [moreOpen, setMoreOpen] = useState(false);
 
   useEffect(() => {
-    if (!active) {
+    if (!active || !isOverview) {
       document.body.classList.remove('fynvo-mobile-overview-active');
-      setMoreOpen(false);
+      setHost(null);
       return undefined;
     }
     const content = document.querySelector('main.content');
@@ -87,23 +87,30 @@ export default function MobileOverviewV1178({ authenticated = false }) {
       node.remove();
       setHost(null);
     };
-  }, [active]);
+  }, [active, isOverview]);
 
   useEffect(() => {
-    if (!active) return undefined;
+    if (!active || !isOverview) return undefined;
     let cancelled = false;
-    Promise.all([
-      apiRequest(`/dashboard/command-centre?range_days=${rangeDays}`),
-      apiRequest('/accounts'),
-      apiRequest('/payment-planning'),
-    ]).then(([nextCommand, nextAccounts, nextPlanning]) => {
-      if (cancelled) return;
-      setCommand(nextCommand || null);
-      setAccounts(nextAccounts || []);
-      setPlanning(nextPlanning || null);
-    }).catch(() => {});
-    return () => { cancelled = true; };
-  }, [active, rangeDays]);
+    const readShared = () => globalThis.__fynvoMobileOverviewState || null;
+    const sync = () => {
+      const shared = readShared();
+      if (!shared || cancelled) return;
+      setCommand(shared.command || null);
+      setAccounts(shared.accounts || []);
+      setPlanning(shared.paymentPlanning || null);
+    };
+    sync();
+    window.addEventListener('fynvo:overview-data', sync);
+    return () => {
+      cancelled = true;
+      window.removeEventListener('fynvo:overview-data', sync);
+    };
+  }, [active, isOverview]);
+
+  useEffect(() => {
+    if (!active) setMoreOpen(false);
+  }, [active]);
 
   const model = useMemo(() => {
     const kpis = command?.kpis || {};
@@ -131,55 +138,56 @@ export default function MobileOverviewV1178({ authenticated = false }) {
     };
   }, [accounts, command, planning]);
 
-  if (!active || !host) return null;
+  if (!active) return null;
 
   const open = (label) => {
     setMoreOpen(false);
     activateNavigation(label);
   };
 
-  const content = <>
-    <section className="fynvo-mobile-overview" aria-label="Mobile Overview">
-      <section className="fynvo-mobile-section" aria-labelledby="fynvo-mobile-snapshot">
-        <div className="fynvo-mobile-section-head"><h2 id="fynvo-mobile-snapshot">Snapshot</h2></div>
-        <div className="fynvo-mobile-snapshot-grid">
-          <button type="button" onClick={() => open('Accounts')}><small>Total Balance</small><strong>{money(model.totalBalance)}</strong><span>{accounts.length} accounts</span></button>
-          <button type="button" onClick={() => open('Income')}><small>Next Income</small><strong>{money(model.nextIncome?.amount)}</strong><span>{model.nextIncome ? `${model.nextIncome.name || 'Income'} · ${dateLabel(model.nextIncome.date)}` : 'No scheduled income'}</span></button>
-          <button type="button" onClick={() => open('Payment Centre')}><small>Upcoming Commitments</small><strong>{money(model.commitments)}</strong><span>{model.commitmentCount} unresolved</span></button>
-          <button type="button" onClick={() => open('Planned Spending')}><small>Discretionary</small><strong>{money(model.discretionary)}</strong><span>Available to use</span></button>
-        </div>
-      </section>
-
-      <section className="fynvo-mobile-section" aria-labelledby="fynvo-mobile-cashflow">
-        <div className="fynvo-mobile-section-head"><h2 id="fynvo-mobile-cashflow">Cash Flow <span>Next {rangeDays} days</span></h2><button type="button" onClick={() => open('Cash Flow')}>View details ›</button></div>
-        <button type="button" className="fynvo-mobile-cashflow-card" onClick={() => open('Cash Flow')}>
-          <span><small>Inflow</small><strong>{money(model.inflow)}</strong></span>
-          <span><small>Outflow</small><strong>{money(model.outflow)}</strong></span>
-          <span><small>Net</small><strong>{money(model.net)}</strong></span>
-        </button>
-      </section>
-
-      <section className="fynvo-mobile-section" aria-labelledby="fynvo-mobile-accounts">
-        <div className="fynvo-mobile-section-head"><h2 id="fynvo-mobile-accounts">Top Accounts</h2><button type="button" onClick={() => open('Accounts')}>View all ›</button></div>
-        <div className="fynvo-mobile-top-accounts">
-          {model.topAccounts.length ? model.topAccounts.map((account) => {
-            const balance = Number(account.current_balance ?? account.opening_balance ?? 0);
-            return <button type="button" key={account.id} onClick={() => open('Accounts')}>
-              <span className="fynvo-mobile-account-mark" aria-hidden="true">▥</span>
-              <span><strong>{account.name}</strong><small>{account.institution || accountTypeLabel(account.account_type)}</small></span>
-              <span className="fynvo-mobile-account-balance"><strong>{money(balance)}</strong><small>{balance < 0 ? 'Outstanding' : 'Available'}</small></span>
-              <b aria-hidden="true">›</b>
-            </button>;
-          }) : <p className="fynvo-mobile-empty">No accounts yet.</p>}
-        </div>
-      </section>
+  const overviewContent = isOverview && host ? createPortal(<section className="fynvo-mobile-overview" aria-label="Mobile Overview">
+    <section className="fynvo-mobile-section" aria-labelledby="fynvo-mobile-snapshot">
+      <div className="fynvo-mobile-section-head"><h2 id="fynvo-mobile-snapshot">Snapshot</h2></div>
+      <div className="fynvo-mobile-snapshot-grid">
+        <button type="button" onClick={() => open('Accounts')}><small>Total Balance</small><strong>{money(model.totalBalance)}</strong><span>{accounts.length} accounts</span></button>
+        <button type="button" onClick={() => open('Income')}><small>Next Income</small><strong>{money(model.nextIncome?.amount)}</strong><span>{model.nextIncome ? `${model.nextIncome.name || 'Income'} · ${dateLabel(model.nextIncome.date)}` : 'No scheduled income'}</span></button>
+        <button type="button" onClick={() => open('Payment Centre')}><small>Upcoming Commitments</small><strong>{money(model.commitments)}</strong><span>{model.commitmentCount} unresolved</span></button>
+        <button type="button" onClick={() => open('Planned Spending')}><small>Discretionary</small><strong>{money(model.discretionary)}</strong><span>Available to use</span></button>
+      </div>
     </section>
 
+    <section className="fynvo-mobile-section" aria-labelledby="fynvo-mobile-cashflow">
+      <div className="fynvo-mobile-section-head"><h2 id="fynvo-mobile-cashflow">Cash Flow <span>Next {rangeDays} days</span></h2><button type="button" onClick={() => open('Cash Flow')}>View details ›</button></div>
+      <button type="button" className="fynvo-mobile-cashflow-card" onClick={() => open('Cash Flow')}>
+        <span><small>Inflow</small><strong>{money(model.inflow)}</strong></span>
+        <span><small>Outflow</small><strong>{money(model.outflow)}</strong></span>
+        <span><small>Net</small><strong>{money(model.net)}</strong></span>
+      </button>
+    </section>
+
+    <section className="fynvo-mobile-section" aria-labelledby="fynvo-mobile-accounts">
+      <div className="fynvo-mobile-section-head"><h2 id="fynvo-mobile-accounts">Top Accounts</h2><button type="button" onClick={() => open('Accounts')}>View all ›</button></div>
+      <div className="fynvo-mobile-top-accounts">
+        {model.topAccounts.length ? model.topAccounts.map((account) => {
+          const balance = Number(account.current_balance ?? account.opening_balance ?? 0);
+          return <button type="button" key={account.id} onClick={() => open('Accounts')}>
+            <span className="fynvo-mobile-account-mark" aria-hidden="true">▥</span>
+            <span><strong>{account.name}</strong><small>{account.institution || accountTypeLabel(account.account_type)}</small></span>
+            <span className="fynvo-mobile-account-balance"><strong>{money(balance)}</strong><small>{balance < 0 ? 'Outstanding' : 'Available'}</small></span>
+            <b aria-hidden="true">›</b>
+          </button>;
+        }) : <p className="fynvo-mobile-empty">No accounts yet.</p>}
+      </div>
+    </section>
+  </section>, host) : null;
+
+  return <>
+    {overviewContent}
     <nav className="fynvo-mobile-bottom-nav" aria-label="Primary mobile navigation">
-      <button type="button" className="active" onClick={() => open('Overview')}><span aria-hidden="true">⌂</span><small>Overview</small></button>
-      <button type="button" onClick={() => open('Accounts')}><span aria-hidden="true">▭</span><small>Accounts</small></button>
-      <button type="button" onClick={() => open('Cash Flow')}><span aria-hidden="true">▥</span><small>Cash Flow</small></button>
-      <button type="button" onClick={() => open('Transactions')}><span aria-hidden="true">☷</span><small>Transactions</small></button>
+      <button type="button" className={isOverview ? 'active' : ''} onClick={() => open('Overview')}><span aria-hidden="true">⌂</span><small>Overview</small></button>
+      <button type="button" className={activePage === 'Accounts & Cards' ? 'active' : ''} onClick={() => open('Accounts')}><span aria-hidden="true">▭</span><small>Accounts</small></button>
+      <button type="button" className={activePage === 'Cash Flow' ? 'active' : ''} onClick={() => open('Cash Flow')}><span aria-hidden="true">▥</span><small>Cash Flow</small></button>
+      <button type="button" className={activePage === 'Transactions' ? 'active' : ''} onClick={() => open('Transactions')}><span aria-hidden="true">☷</span><small>Transactions</small></button>
       <button type="button" aria-expanded={moreOpen} onClick={() => setMoreOpen((value) => !value)}><span aria-hidden="true">•••</span><small>More</small></button>
     </nav>
 
@@ -187,12 +195,10 @@ export default function MobileOverviewV1178({ authenticated = false }) {
       <section className="fynvo-mobile-more-sheet" aria-label="More navigation">
         <div className="fynvo-mobile-sheet-head"><strong>More</strong><button type="button" onClick={() => setMoreOpen(false)} aria-label="Close More">×</button></div>
         <nav>
-          {['Calendar', 'Payment Centre', 'Bills', 'Recurring Expenses', 'Planned Spending', 'Goals'].map((label) => <button type="button" key={label} onClick={() => open(label)}>{label}</button>)}
+          {['Calendar', 'Payment Centre', 'Income', 'Bills', 'Recurring Expenses', 'Planned Spending', 'Budgeting', 'Goals', 'Insights', 'Spending Intelligence', 'CSV Import', 'Import History', 'Review Queue', 'Categories'].map((label) => <button type="button" key={label} onClick={() => open(label)}>{label}</button>)}
           <button type="button" onClick={() => { setMoreOpen(false); window.dispatchEvent(new CustomEvent('fynvo:open-tools')); }}>Tools</button>
         </nav>
       </section>
     </div>}
   </>;
-
-  return createPortal(content, host);
 }
