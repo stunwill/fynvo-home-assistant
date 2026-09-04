@@ -5,6 +5,7 @@ import test from 'node:test';
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 const mobileShell = await read('src/MobileOverviewV1178.jsx');
 const mobileCss = await read('src/mobile-overview-v1178.css');
+const refinementCss = await read('src/mobile-workspace-v1179.css');
 const appShell = await read('src/AppV13.jsx');
 const base = await read('src/AppCorrectiveV0174.jsx');
 const entry = await read('src/main.jsx');
@@ -39,9 +40,9 @@ test('Accounts mobile workspace removes irrelevant global controls and large emp
   assert.match(mobileCss, /accounts-cards-tabs\{width:100%!important/);
 });
 
-test('Accounts summary and rows are compact and responsive', () => {
+test('Accounts summary and rows remain compact and responsive with v1.17.9 refinement', () => {
   assert.match(mobileCss, /accounts-cards-summary\{grid-template-columns:repeat\(2,minmax\(0,1fr\)\)!important/);
-  assert.match(mobileCss, /accounts-cards-summary article\{min-height:84px!important/);
+  assert.match(refinementCss, /accounts-cards-summary article\{min-height:80px!important/);
   assert.match(mobileCss, /accounts-cards-toolbar\{display:grid!important;grid-template-columns:minmax\(0,1fr\) 106px!important/);
   assert.match(mobileCss, /@media\(max-width:329px\)/);
   assert.match(mobileCss, /accounts-cards-toolbar\{grid-template-columns:1fr!important\}/);
@@ -66,8 +67,8 @@ test('mobile Overview uses canonical deduplicating API client for already reques
   assert.match(mobileShell, /apiRequest\('\/payment-planning'\)/);
 });
 
-test('v1.17.8 production stylesheet is last and version surfaces agree', () => {
-  assert.match(entry, /import '\.\/mobile-overview-v1178\.css';\s*\n\nReactDOM/s);
-  assert.equal(pkg.version, '1.17.8');
-  assert.match(appShell, /PRODUCTION_VERSION = '1\.17\.8'/);
+test('v1.17.9 refinement loads after the preserved v1.17.8 mobile layer and release surfaces agree', () => {
+  assert.match(entry, /import '\.\/mobile-overview-v1178\.css';\s*\nimport '\.\/mobile-workspace-v1179\.css';\s*\n\nReactDOM/s);
+  assert.equal(pkg.version, '1.17.9');
+  assert.match(appShell, /PRODUCTION_VERSION = '1\.17\.9'/);
 });
