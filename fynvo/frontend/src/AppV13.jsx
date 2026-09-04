@@ -11,7 +11,7 @@ const api = (path, options = {}) => nativeFetch(`api${path}`, {
   headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
   ...options,
 });
-const PRODUCTION_VERSION = '1.17.5';
+const PRODUCTION_VERSION = '1.17.6';
 const HOUSEHOLD_SECURITY_TIMEOUT_MS = 3500;
 
 function publishStartup(stage, detail = '') {
