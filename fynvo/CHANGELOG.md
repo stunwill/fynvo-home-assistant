@@ -1,5 +1,14 @@
 # Fynvo Add-on Changelog
 
+## v1.17.7 - Mobile Performance & Ingress UX Optimisation
+
+- Deduplicates identical in-flight frontend GET requests so the Home Assistant webview does not issue the same Account/Card reads multiple times during startup.
+- Reuses the Dashboard Command Centre's expected Forecast and Financial Health data for matching startup reads instead of recalculating those same datasets through separate API requests.
+- Moves the Accounts & Cards compatibility workspace onto the shared API client and adds a short mutation-safe read cache for repeated in-app navigation.
+- Adds a final iPhone/Home Assistant ingress responsive layer with tighter spacing, smaller headings, denser two-column KPI cards, compact header controls, contained Account/Card rows, touch-friendly actions, safer modals and iOS safe-area handling.
+- Preserves the v1.17.6 interactivity fix, authentication/startup lifecycle and all financial calculation semantics.
+- Requires no database migration and does not change household financial records.
+
 ## v1.17.6 - Accounts & Cards Installed Interactivity Correction
 
 - Fixes the installed Home Assistant/iPhone condition where Accounts & Cards rendered but the page and surrounding Home Assistant controls became unresponsive to taps/clicks.
