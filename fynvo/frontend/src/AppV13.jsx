@@ -12,7 +12,7 @@ const api = (path, options = {}) => nativeFetch(`api${path}`, {
   headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
   ...options,
 });
-const PRODUCTION_VERSION = '1.17.8';
+const PRODUCTION_VERSION = '1.17.9';
 const HOUSEHOLD_SECURITY_TIMEOUT_MS = 3500;
 
 function publishStartup(stage, detail = '') {
@@ -92,6 +92,8 @@ export default function AppV13() {
         publishStartup('workspace-rendered', heading);
       }
       document.body.classList.toggle('fynvo-income-page', heading === 'Income');
+      document.body.classList.toggle('fynvo-transactions-page', heading === 'Transactions');
+      document.body.classList.toggle('fynvo-recurring-expenses-page', heading === 'Recurring Expenses');
       const footer = document.querySelector('.app-footer');
       const expectedVersion = `Fynvo v${PRODUCTION_VERSION}`;
       if (footer && footer.textContent !== expectedVersion) footer.textContent = expectedVersion;
@@ -99,7 +101,10 @@ export default function AppV13() {
     const observer = new MutationObserver(syncProductionShell);
     observer.observe(document.body, { childList: true, subtree: true });
     syncProductionShell();
-    return () => { observer.disconnect(); document.body.classList.remove('fynvo-income-page'); };
+    return () => {
+      observer.disconnect();
+      document.body.classList.remove('fynvo-income-page', 'fynvo-transactions-page', 'fynvo-recurring-expenses-page');
+    };
   }, [auth?.authenticated]);
   useEffect(() => {
     const openTools = () => setToolsOpen(true);
