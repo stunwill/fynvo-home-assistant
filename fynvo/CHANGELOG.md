@@ -1,5 +1,14 @@
 # Fynvo Add-on Changelog
 
+## v1.17.6 - Accounts & Cards Installed Interactivity Correction
+
+- Fixes the installed Home Assistant/iPhone condition where Accounts & Cards rendered but the page and surrounding Home Assistant controls became unresponsive to taps/clicks.
+- Corrects a self-triggering document-wide `MutationObserver` in the Accounts/Cards compatibility wrapper. The wrapper now updates its heading/description only when the DOM actually differs from the expected state.
+- Avoids repeatedly setting the same Accounts/Cards portal mount node.
+- Keeps the v1.17.5 single-owner authentication/startup lifecycle and installed startup diagnostics intact.
+- Updates the production shell, frontend package, backend API and add-on manifest to v1.17.6 so the installed footer can be used as a build-version check.
+- Requires no database migration and does not change financial records or calculations.
+
 ## v1.17.5 - Frontend Startup Lifecycle Correction & Diagnostics
 
 - Uses the installed Fynvo add-on logs to correct the remaining iPhone/Home Assistant startup freeze after authentication, household security, Accounts and Cards requests were all returning successfully.
