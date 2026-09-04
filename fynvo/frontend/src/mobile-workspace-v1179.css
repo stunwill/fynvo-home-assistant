@@ -16,7 +16,7 @@
   .fynvo-mobile-snapshot-grid>button:nth-child(3)::before{background:#fff3e3;color:#a6671d}
   .fynvo-mobile-snapshot-grid>button:nth-child(4)::before{background:#f0eafd;color:#7444bf}
   .fynvo-mobile-snapshot-grid small{font-size:12px;line-height:1.18}
-  .fynvo-mobile-snapshot-grid strong{font-size:clamp(20px,5.6vw,26px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;overflow-wrap:normal;font-variant-numeric:tabular-nums}
+  .fynvo-mobile-snapshot-grid strong{display:block;font-size:clamp(20px,5.6vw,26px);line-height:1.08;margin:6px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;overflow-wrap:normal;font-variant-numeric:tabular-nums}
   .fynvo-mobile-snapshot-grid span{font-size:11px;line-height:1.3}
 
   .fynvo-mobile-cashflow-card{position:relative;padding:16px 14px 26px}
@@ -42,14 +42,13 @@
   .cashflow-chart-legend i.baseline{background:#155eef}
   .cashflow-chart-legend i.expected{background:#079455}
   .cashflow-event-row{min-height:62px}
-  .cashflow-impact-note{display:flex;align-items:center;justify-content:space-between;gap:10px}
 
   /* Transactions: keep search and primary period visible, move secondary filters into a sheet. */
   body.fynvo-transactions-page .transaction-workspace-head p{display:none}
-  body.fynvo-transactions-page .transaction-filters{grid-template-columns:minmax(0,1fr) 124px auto!important;gap:8px!important}
+  body.fynvo-transactions-page .transaction-filters{display:grid!important;grid-template-columns:minmax(0,1fr) 124px auto!important;gap:8px!important}
   body.fynvo-transactions-page .transaction-filters>input{grid-column:1/-1;min-height:44px}
-  body.fynvo-transactions-page .transaction-filters>select:nth-of-type(1){grid-column:1;min-height:44px}
-  body.fynvo-transactions-page .transaction-filters>select:nth-of-type(n+2){display:none}
+  body.fynvo-transactions-page .transaction-filters>select{grid-column:1;min-height:44px}
+  body.fynvo-transactions-page .transaction-desktop-secondary-filters{display:none!important}
   body.fynvo-transactions-page .transaction-filters>.transaction-mobile-filter-trigger{display:block;grid-column:2;min-height:44px}
   body.fynvo-transactions-page .transaction-filters>button:not(.transaction-mobile-filter-trigger){grid-column:3;min-height:44px}
   .transaction-mobile-filter-trigger{display:none;border:1px solid var(--line);border-radius:12px;background:#fff;color:var(--text);font-weight:700;padding:10px 12px}
@@ -65,6 +64,11 @@
   body.fynvo-recurring-expenses-page .recurring-v18-card{padding:12px!important;gap:6px!important}
   body.fynvo-recurring-expenses-page .recurring-v18-card h3{font-size:15px!important;line-height:1.2!important}
   body.fynvo-recurring-expenses-page .recurring-v18-card .recurring-v18-meta{gap:4px 8px!important}
+}
+
+@media(min-width:981px){
+  .transaction-desktop-secondary-filters{display:contents}
+  .transaction-mobile-filter-backdrop{display:none!important}
 }
 
 @media(max-width:359px){
