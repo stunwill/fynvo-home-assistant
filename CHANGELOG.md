@@ -2,6 +2,17 @@
 
 All notable Fynvo changes are documented here. Starting with v0.3.0, every release must include a user-readable changelog entry, Home Assistant-visible release notes and GitHub release notes.
 
+## v1.17.6 - Accounts & Cards Installed Interactivity Correction
+
+- Fixes the installed Home Assistant/iPhone condition where Accounts & Cards rendered successfully but the page and surrounding Home Assistant controls became unresponsive to taps/clicks.
+- Identifies the cause in the v1.16.3 Accounts/Cards compatibility wrapper: its document-wide `MutationObserver` rewrote the same page description on every callback, and that write retriggered the same observer indefinitely.
+- Makes the observer idempotent by changing the heading/description only when the DOM actually differs from the expected Accounts & Cards state.
+- Avoids repeatedly setting the same portal mount node, reducing unnecessary React state work while the compatibility observer is active.
+- Keeps the v1.17.5 single-owner authentication/startup lifecycle and installed startup diagnostics unchanged.
+- Aligns the production release version to v1.17.6. The outer production shell remains authoritative for the visible footer so an installed build can be verified directly in the UI.
+- Adds regression protection that rejects unconditional self-triggering Accounts/Cards DOM writes and repeated identical portal mount state.
+- No database migration is required and no financial calculations, records, payment lifecycle, forecasting, Accounts or Cards data are changed.
+
 ## v1.17.5 - Frontend Startup Lifecycle Correction & Diagnostics
 
 - Uses evidence from the installed Home Assistant and Fynvo add-on logs: authentication, household security, Accounts and Cards requests were returning successfully while the iPhone webview still remained on the Fynvo loading screen.

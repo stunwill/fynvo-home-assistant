@@ -58,9 +58,10 @@ export default function AppCorrectiveV1163({ authState = null }) {
         }
         if (heading && current !== 'Accounts & Cards') heading.textContent = 'Accounts & Cards';
         const description = heading?.closest('.header')?.querySelector('p');
-        if (description) description.textContent = 'Manage your accounts and cards in one place.';
+        const expectedDescription = 'Manage your accounts and cards in one place.';
+        if (description && description.textContent !== expectedDescription) description.textContent = expectedDescription;
         const content = document.querySelector('main.content');
-        if (content) setMount(content);
+        if (content) setMount((currentMount) => currentMount === content ? currentMount : content);
       } else if (current) {
         setLegacyView(current);
         setMount(null);
