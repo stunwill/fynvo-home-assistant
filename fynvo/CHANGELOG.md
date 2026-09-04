@@ -1,5 +1,17 @@
 # Fynvo Add-on Changelog
 
+## v1.17.8 - Mobile Overview Redesign & Optimisation
+
+- Removes the duplicate internal Fynvo app bar from the effective Home Assistant mobile ingress presentation so Home Assistant owns the outer header and Fynvo content begins cleanly beneath it.
+- Removes the floating mobile Tools trigger and keeps Tools available through the More navigation flow and a dedicated mobile tools sheet.
+- Adds persistent mobile primary navigation for Overview, Accounts, Cash Flow, Transactions and More with iOS safe-area handling.
+- Reorganises the mobile Overview around four Snapshot metrics followed by Cash Flow and Top Accounts while preserving existing financial calculations and data sources.
+- Compacts Accounts & Cards on iPhone and ingress-sized viewports with full-width tabs, a 2×2 summary, responsive search/status filters and denser account/card rows.
+- Removes irrelevant Date Range/Quick Add header controls from the Accounts & Cards mobile workspace and reduces excess space above account content.
+- Aligns add-on, backend, frontend package and production-shell reporting to v1.17.8 while preserving v1.17.5 startup, v1.17.6 Accounts interactivity and v1.17.7 request-deduplication protections.
+- Requires no database migration and does not change household financial records or financial calculation semantics.
+- Installed iPhone/Home Assistant ingress acceptance remains a manual gate before merge.
+
 ## v1.17.7 - Mobile Performance & Ingress UX Optimisation
 
 - Deduplicates identical in-flight frontend GET requests so the Home Assistant webview does not issue the same Account/Card reads multiple times during startup.
@@ -30,7 +42,7 @@
 
 ## v1.17.4 - Direct Home Assistant Auth State Handoff
 
-- Fixes the remaining iPhone/Home Assistant ingress freeze where the inner Fynvo workspace could still remain on `Loading...` after the outer shell had already authenticated.
+- Fixes the remaining installed iPhone/Home Assistant ingress freeze where the inner Fynvo workspace could still remain on `Loading...` after the outer shell had already authenticated.
 - Corrects the production wrapper chain so `AppV13` passes authenticated state through `AppCorrectiveV1163` into `AppCorrectiveV0174` instead of dropping it before the base workspace mounts.
 - Initialises the base workspace directly from the supplied authoritative authentication state, eliminating the second startup `/auth/state` request from the normal Home Assistant path.
 - Retains the standalone login/setup fallback when the base workspace is run without an outer authentication state.
