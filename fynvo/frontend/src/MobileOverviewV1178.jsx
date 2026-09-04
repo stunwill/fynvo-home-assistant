@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { apiRequest } from './apiClient.js';
 
 const money = (value) => {
   const amount = Number(value);
@@ -91,17 +92,19 @@ export default function MobileOverviewV1178({ authenticated = false }) {
 
   useEffect(() => {
     if (!active || !isOverview) return undefined;
-    const readShared = () => {
-      const shared = globalThis.__fynvoMobileOverviewState;
-      if (!shared) return;
-      setCommand(shared.command || null);
-      setAccounts(shared.accounts || []);
-      setPlanning(shared.paymentPlanning || null);
-    };
-    readShared();
-    window.addEventListener('fynvo:overview-data', readShared);
-    return () => window.removeEventListener('fynvo:overview-data', readShared);
-  }, [active, isOverview]);
+    let cancelled = false;
+    Promise.all([
+      apiRequest(`/dashboard/command-centre?range_days=${rangeDays}`),
+      apiRequest('/accounts'),
+      apiRequest('/payment-planning'),
+    ]).then(([nextCommand, nextAccounts, nextPlanning]) => {
+      if (cancelled) return;
+      setCommand(nextCommand || null);
+      setAccounts(nextAccounts || []);
+      setPlanning(nextPlanning || null);
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [active, isOverview, rangeDays]);
 
   useEffect(() => {
     if (!active) setMoreOpen(false);
