@@ -9,11 +9,25 @@ const money = (value) => {
     : '—';
 };
 
+const compactMoney = (value) => {
+  const amount = Number(value);
+  if (!Number.isFinite(amount)) return '—';
+  const absolute = Math.abs(amount);
+  const digits = absolute >= 100000 ? 0 : 2;
+  return new Intl.NumberFormat('en-AU', {
+    style: 'currency',
+    currency: 'AUD',
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+  }).format(amount);
+};
+
 const dateLabel = (value) => value
-  ? new Intl.DateTimeFormat('en-AU', { day: '2-digit', month: 'short' }).format(new Date(`${String(value).slice(0, 10)}T00:00:00`))
+  ? new Intl.DateTimeFormat('en-AU', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(`${String(value).slice(0, 10)}T00:00:00`))
   : 'No date';
 
 const accountTypeLabel = (value) => String(value || 'Account').replaceAll('_', ' ').replace(/\b\w/g, (char) => char.toUpperCase());
+const rangeLabel = (days) => ({ 7: 'Next 7 days', 30: 'Next 30 days', 90: 'Next 90 days', 184: 'Next 6 months', 365: 'Next 12 months' })[Number(days)] || `Next ${days} days`;
 
 function activateNavigation(label) {
   const buttons = [...document.querySelectorAll('#fynvo-navigation button, .sidebar button, main.content button')];
@@ -116,13 +130,15 @@ export default function MobileOverviewV1178({ authenticated = false }) {
     const inflow = events.filter((row) => row.direction === 'income').reduce((sum, row) => sum + Math.abs(Number(row.amount) || 0), 0);
     const outflow = events.filter((row) => row.direction === 'expense').reduce((sum, row) => sum + Math.abs(Number(row.amount) || 0), 0);
     const nextIncome = events.filter((row) => row.direction === 'income').sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')))[0] || null;
-    const totalBalance = accounts.reduce((sum, account) => sum + Number(account.current_balance ?? account.opening_balance ?? 0), 0);
+    const activeAccounts = accounts.filter((account) => account.is_active !== false && !account.archived_at);
+    const totalBalance = activeAccounts.reduce((sum, account) => sum + Number(account.current_balance ?? account.opening_balance ?? 0), 0);
     const commitments = Number(planning?.periods?.next_30_days?.remaining_funding ?? kpis.next_bills_total ?? kpis.scheduled_commitments ?? command?.upcoming_commitments_summary?.total ?? 0);
     const commitmentCount = Number(planning?.periods?.next_30_days?.remaining_count ?? kpis.next_bills_count ?? command?.upcoming_commitments?.length ?? 0);
-    const topAccounts = [...accounts]
-      .filter((account) => account.is_active !== false && !account.archived_at)
+    const topAccounts = [...activeAccounts]
       .sort((a, b) => Math.abs(Number(b.current_balance ?? b.opening_balance ?? 0)) - Math.abs(Number(a.current_balance ?? a.opening_balance ?? 0)))
       .slice(0, 3);
+    const totalFlow = inflow + outflow;
+    const inflowShare = totalFlow > 0 ? Math.round((inflow / totalFlow) * 100) : 50;
     return {
       inflow,
       outflow,
@@ -133,6 +149,8 @@ export default function MobileOverviewV1178({ authenticated = false }) {
       commitmentCount,
       discretionary: Number(kpis.discretionary_spend ?? 0),
       topAccounts,
+      activeAccountCount: activeAccounts.length,
+      inflowShare,
     };
   }, [accounts, command, planning]);
 
@@ -143,23 +161,25 @@ export default function MobileOverviewV1178({ authenticated = false }) {
     activateNavigation(label);
   };
 
+  const flowStyle = { '--inflow-share': `${model.inflowShare}%`, '--flow-share': '100%' };
+
   const overviewContent = isOverview && host ? createPortal(<section className="fynvo-mobile-overview" aria-label="Mobile Overview">
     <section className="fynvo-mobile-section" aria-labelledby="fynvo-mobile-snapshot">
       <div className="fynvo-mobile-section-head"><h2 id="fynvo-mobile-snapshot">Snapshot</h2></div>
       <div className="fynvo-mobile-snapshot-grid">
-        <button type="button" onClick={() => open('Accounts')}><small>Total Balance</small><strong>{money(model.totalBalance)}</strong><span>{accounts.length} accounts</span></button>
-        <button type="button" onClick={() => open('Income')}><small>Next Income</small><strong>{money(model.nextIncome?.amount)}</strong><span>{model.nextIncome ? `${model.nextIncome.name || 'Income'} · ${dateLabel(model.nextIncome.date)}` : 'No scheduled income'}</span></button>
-        <button type="button" onClick={() => open('Payment Centre')}><small>Upcoming Commitments</small><strong>{money(model.commitments)}</strong><span>{model.commitmentCount} unresolved</span></button>
-        <button type="button" onClick={() => open('Planned Spending')}><small>Discretionary</small><strong>{money(model.discretionary)}</strong><span>Available to use</span></button>
+        <button type="button" data-icon="▣" onClick={() => open('Accounts')}><small>Total Balance</small><strong>{money(model.totalBalance)}</strong><span>{model.activeAccountCount} account{model.activeAccountCount === 1 ? '' : 's'}</span></button>
+        <button type="button" data-icon="↗" onClick={() => open('Income')}><small>Next Income</small><strong>{money(model.nextIncome?.amount)}</strong><span>{model.nextIncome ? `${model.nextIncome.name || 'Income'} · ${dateLabel(model.nextIncome.date)}` : 'No scheduled income'}</span></button>
+        <button type="button" data-icon="$" onClick={() => open('Payment Centre')}><small>Upcoming Commitments</small><strong>{compactMoney(model.commitments)}</strong><span>{model.commitmentCount} unresolved</span></button>
+        <button type="button" data-icon="◇" onClick={() => open('Planned Spending')}><small>Discretionary</small><strong>{money(model.discretionary)}</strong><span>Available to use</span></button>
       </div>
     </section>
 
     <section className="fynvo-mobile-section" aria-labelledby="fynvo-mobile-cashflow">
-      <div className="fynvo-mobile-section-head"><h2 id="fynvo-mobile-cashflow">Cash Flow <span>Next {rangeDays} days</span></h2><button type="button" onClick={() => open('Cash Flow')}>View details ›</button></div>
-      <button type="button" className="fynvo-mobile-cashflow-card" onClick={() => open('Cash Flow')}>
-        <span><small>Inflow</small><strong>{money(model.inflow)}</strong></span>
-        <span><small>Outflow</small><strong>{money(model.outflow)}</strong></span>
-        <span><small>Net</small><strong>{money(model.net)}</strong></span>
+      <div className="fynvo-mobile-section-head"><h2 id="fynvo-mobile-cashflow">Cash Flow <span>({rangeLabel(rangeDays)})</span></h2><button type="button" onClick={() => open('Cash Flow')}>View details ›</button></div>
+      <button type="button" className="fynvo-mobile-cashflow-card" style={flowStyle} onClick={() => open('Cash Flow')}>
+        <span><small>Inflow</small><strong>{compactMoney(model.inflow)}</strong></span>
+        <span><small>Outflow</small><strong>{compactMoney(model.outflow)}</strong></span>
+        <span><small>Net</small><strong className={model.net < 0 ? 'negative' : 'positive'}>{compactMoney(model.net)}</strong></span>
       </button>
     </section>
 

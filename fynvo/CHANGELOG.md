@@ -1,5 +1,16 @@
 # Fynvo Add-on Changelog
 
+## v1.17.9 - Mobile Overview & Workspace UX Refinement
+
+- Refines the mobile Overview to follow the supplied iPhone design direction with a four-card Snapshot, compact Cash Flow summary and Top Accounts hierarchy while retaining authoritative Fynvo financial data.
+- Prevents mobile currency values from wrapping into isolated digits and uses human-readable period labels such as `Next 6 months`.
+- Repairs the Cash Flow forecast graph and Baseline/Expected legend styling for the active SVG path implementation, and limits the default event preview to five high-impact movements with full-list access.
+- Reworks Transactions mobile filtering around Search, period and a Filters sheet that retains Account, Category, direction, reconciliation and source filters with active-filter indication.
+- Keeps Accounts & Cards compact and current-state focused and removes redundant global mobile toolbar actions from specialised Transactions and Recurring Expenses workspaces.
+- Preserves the five-item mobile bottom navigation, More → Tools, Home Assistant ingress header ownership, iOS safe-area handling and horizontal-overflow protections introduced in v1.17.8.
+- Preserves v1.17.5 startup lifecycle, v1.17.6 Accounts/Cards interactivity and v1.17.7 request deduplication/read caching.
+- Requires no database migration and does not change household financial records, payment lifecycle semantics, reconciliation rules or forecast calculations.
+
 ## v1.17.8 - Mobile Overview Redesign & Optimisation
 
 - Removes the duplicate internal Fynvo app bar from the effective Home Assistant mobile ingress presentation so Home Assistant owns the outer header and Fynvo content begins cleanly beneath it.
@@ -25,7 +36,7 @@
 
 - Fixes the installed Home Assistant/iPhone condition where Accounts & Cards rendered but the page and surrounding Home Assistant controls became unresponsive to taps/clicks.
 - Corrects a self-triggering document-wide `MutationObserver` in the Accounts/Cards compatibility wrapper. The wrapper now updates its heading/description only when the DOM actually differs from the expected state.
-- Avoids repeatedly setting the same Accounts/Cards portal mount node.
+- Avoids repeatedly setting the same Accounts/Cards portal mount DOM node.
 - Keeps the v1.17.5 single-owner authentication/startup lifecycle and installed startup diagnostics intact.
 - Updates the production shell, frontend package, backend API and add-on manifest to v1.17.6 so the installed footer can be used as a build-version check.
 - Requires no database migration and does not change financial records or calculations.

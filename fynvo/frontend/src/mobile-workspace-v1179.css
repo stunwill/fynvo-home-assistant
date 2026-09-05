@@ -1,0 +1,85 @@
+@media(max-width:980px){
+  /* v1.17.9 contextual mobile workspace actions */
+  body.fynvo-accounts-cards-v1163-active main.content>.header-actions,
+  body.fynvo-transactions-page main.content>.header-actions,
+  body.fynvo-recurring-expenses-page main.content>.header-actions{display:none!important}
+
+  /* Overview visual language follows the supplied mobile concept without duplicating HA chrome. */
+  .fynvo-mobile-overview{gap:18px}
+  .fynvo-mobile-section-head{margin-bottom:10px}
+  .fynvo-mobile-section-head h2{font-size:21px;letter-spacing:-.01em}
+  .fynvo-mobile-section-head>button{color:#10213f;font-weight:700}
+  .fynvo-mobile-snapshot-grid{gap:12px}
+  .fynvo-mobile-snapshot-grid>button{position:relative;min-height:148px;padding:18px 14px 15px 70px;border-radius:18px;overflow:hidden}
+  .fynvo-mobile-snapshot-grid>button::before{content:attr(data-icon);position:absolute;left:16px;top:18px;width:42px;height:42px;border-radius:13px;display:grid;place-items:center;font-size:22px;background:#edf4ff;color:#385a86}
+  .fynvo-mobile-snapshot-grid>button:nth-child(2)::before{background:#e9f8e8;color:#168a36}
+  .fynvo-mobile-snapshot-grid>button:nth-child(3)::before{background:#fff3e3;color:#a6671d}
+  .fynvo-mobile-snapshot-grid>button:nth-child(4)::before{background:#f0eafd;color:#7444bf}
+  .fynvo-mobile-snapshot-grid small{font-size:12px;line-height:1.18}
+  .fynvo-mobile-snapshot-grid strong{display:block;font-size:clamp(20px,5.6vw,26px);line-height:1.08;margin:6px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;overflow-wrap:normal;font-variant-numeric:tabular-nums}
+  .fynvo-mobile-snapshot-grid span{font-size:11px;line-height:1.3}
+
+  .fynvo-mobile-cashflow-card{position:relative;padding:16px 14px 26px}
+  .fynvo-mobile-cashflow-card::after{content:"";position:absolute;left:14px;right:14px;bottom:13px;height:6px;border-radius:999px;background:linear-gradient(90deg,#0b9f45 0 var(--inflow-share,50%),#c9182e var(--inflow-share,50%) var(--flow-share,100%),#e7ebf2 var(--flow-share,100%))}
+  .fynvo-mobile-cashflow-card strong{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;overflow-wrap:normal;font-size:clamp(14px,4.3vw,20px);font-variant-numeric:tabular-nums}
+  .fynvo-mobile-cashflow-card>span:nth-child(1) strong,.fynvo-mobile-cashflow-card>span:nth-child(3) strong{color:var(--green)}
+  .fynvo-mobile-cashflow-card>span:nth-child(2) strong{color:var(--red)}
+
+  .fynvo-mobile-top-accounts>button{min-height:70px}
+
+  /* Accounts & Cards stays compact and contextual. */
+  body.fynvo-accounts-cards-v1163-active .accounts-cards-summary article{min-height:80px!important;padding:9px!important}
+
+  /* Cash Flow: fix malformed fill/legend and keep the chart responsive. */
+  .cashflow-chart-v0174{min-width:0}
+  .cashflow-chart-v0174 svg{display:block;width:100%;height:220px;min-width:0;background:linear-gradient(180deg,#fff,#f7fbff);border:1px solid #edf2f7;border-radius:16px}
+  .cashflow-chart-v0174 svg path{fill:none!important;vector-effect:non-scaling-stroke;stroke-width:3;stroke-linejoin:round;stroke-linecap:round}
+  .cashflow-chart-v0174 svg path.baseline{stroke:#155eef;stroke-dasharray:7 5}
+  .cashflow-chart-v0174 svg path.expected{stroke:#079455}
+  .cashflow-chart-legend{display:flex;align-items:center;gap:18px;flex-wrap:wrap;margin-top:10px;color:var(--muted);font-size:12px}
+  .cashflow-chart-legend span{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+  .cashflow-chart-legend i{width:18px;height:3px;border-radius:999px;display:inline-block}
+  .cashflow-chart-legend i.baseline{background:#155eef}
+  .cashflow-chart-legend i.expected{background:#079455}
+  .cashflow-event-row{min-height:62px}
+
+  /* Transactions: keep search and primary period visible, move secondary filters into a sheet. */
+  body.fynvo-transactions-page .transaction-workspace-head p{display:none}
+  body.fynvo-transactions-page .transaction-filters{display:grid!important;grid-template-columns:minmax(0,1fr) 124px auto!important;gap:8px!important}
+  body.fynvo-transactions-page .transaction-filters>input{grid-column:1/-1;min-height:44px}
+  body.fynvo-transactions-page .transaction-filters>select{grid-column:1;min-height:44px}
+  body.fynvo-transactions-page .transaction-desktop-secondary-filters{display:none!important}
+  body.fynvo-transactions-page .transaction-filters>.transaction-mobile-filter-trigger{display:block;grid-column:2;min-height:44px}
+  body.fynvo-transactions-page .transaction-filters>button:not(.transaction-mobile-filter-trigger){grid-column:3;min-height:44px}
+  .transaction-mobile-filter-trigger{display:none;border:1px solid var(--line);border-radius:12px;background:#fff;color:var(--text);font-weight:700;padding:10px 12px}
+  .transaction-mobile-filter-backdrop{position:fixed;z-index:80;inset:0;display:flex;align-items:flex-end;background:rgba(6,26,51,.48);padding:12px 12px calc(12px + env(safe-area-inset-bottom,0px))}
+  .transaction-mobile-filter-sheet{width:100%;max-height:min(76dvh,600px);overflow:auto;background:#fff;border-radius:20px;padding:14px;box-shadow:0 24px 70px rgba(6,26,51,.28)}
+  .transaction-mobile-filter-sheet header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}
+  .transaction-mobile-filter-sheet header button{width:44px;height:44px;border:0;border-radius:999px;background:#eef4fb;font-size:24px}
+  .transaction-mobile-filter-sheet .transaction-secondary-filter-grid{display:grid;gap:9px}
+  .transaction-mobile-filter-sheet select{width:100%;min-height:46px}
+
+  /* Recurring Expenses: reduce redundant chrome and improve scan density. */
+  body.fynvo-recurring-expenses-page .recurring-v18-head{margin-bottom:10px}
+  body.fynvo-recurring-expenses-page .recurring-v18-card{padding:12px!important;gap:6px!important}
+  body.fynvo-recurring-expenses-page .recurring-v18-card h3{font-size:15px!important;line-height:1.2!important}
+  body.fynvo-recurring-expenses-page .recurring-v18-card .recurring-v18-meta{gap:4px 8px!important}
+}
+
+@media(min-width:981px){
+  .transaction-desktop-secondary-filters{display:contents}
+  .transaction-mobile-filter-backdrop{display:none!important}
+}
+
+@media(max-width:359px){
+  .fynvo-mobile-snapshot-grid>button{min-height:132px;padding-left:58px}
+  .fynvo-mobile-snapshot-grid>button::before{left:10px;top:14px;width:38px;height:38px}
+  .fynvo-mobile-cashflow-card strong{font-size:14px}
+}
+
+@media(max-width:329px){
+  .fynvo-mobile-snapshot-grid{grid-template-columns:1fr}
+  .fynvo-mobile-snapshot-grid>button{min-height:108px}
+  body.fynvo-transactions-page .transaction-filters{grid-template-columns:1fr!important}
+  body.fynvo-transactions-page .transaction-filters>*{grid-column:1!important}
+}

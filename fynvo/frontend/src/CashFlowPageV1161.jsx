@@ -18,6 +18,7 @@ const dateLabel = (value) => value
   ? new Intl.DateTimeFormat('en-AU', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(`${String(value).slice(0, 10)}T00:00:00`))
   : 'No date';
 
+const rangeLabel = (days) => ({ 7: 'Next 7 days', 30: 'Next 30 days', 90: 'Next 90 days', 184: 'Next 6 months', 365: 'Next 12 months' })[Number(days)] || `Next ${days} days`;
 const amountClass = (value) => Number(value || 0) >= 0 ? 'positive' : 'negative';
 
 const forecastNumber = (forecast, keys) => {
@@ -64,6 +65,7 @@ export default function CashFlowPageV1161({ rangeDays, onView, initialForecast =
   const hasCompleteSeed = Boolean(initialExpected && initialBase);
   const hasAnySeed = Boolean(initialExpected || initialBase);
   const [state, setState] = useState({ loading: !hasAnySeed, refreshing: false, error: '', baseline: initialBase, expected: initialExpected });
+  const [showAllEvents, setShowAllEvents] = useState(false);
 
   const load = async ({ background = false, seedBaseline = null, seedExpected = null } = {}) => {
     const existingBaseline = seedBaseline || state.baseline;
@@ -90,6 +92,7 @@ export default function CashFlowPageV1161({ rangeDays, onView, initialForecast =
     const complete = Boolean(seededBaseline && seededExpected);
     const anySeed = Boolean(seededBaseline || seededExpected);
     setState({ loading: !anySeed, refreshing: false, error: '', baseline: seededBaseline, expected: seededExpected });
+    setShowAllEvents(false);
     if (!complete) load({ background: anySeed, seedBaseline: seededBaseline, seedExpected: seededExpected });
   }, [rangeDays]);
 
@@ -98,7 +101,7 @@ export default function CashFlowPageV1161({ rangeDays, onView, initialForecast =
   const hasExisting = Boolean(state.baseline || state.expected);
   const summary = useMemo(() => deriveSummary(forecast), [forecast]);
   const sortedImpactEvents = useMemo(() => [...events].sort((a, b) => Math.abs(Number(b?.amount || 0)) - Math.abs(Number(a?.amount || 0))), [events]);
-  const visibleImpactEvents = sortedImpactEvents.slice(0, 8);
+  const visibleImpactEvents = showAllEvents ? sortedImpactEvents : sortedImpactEvents.slice(0, 5);
 
   return <div className="cashflow-page-v1161 cashflow-page-v1162">
     <section className="cashflow-summary-v1162" aria-label="Cash Flow summary">
@@ -111,7 +114,7 @@ export default function CashFlowPageV1161({ rangeDays, onView, initialForecast =
     </section>
 
     <section className="panel cashflow-chart-panel">
-      <div className="panel-head compact"><div><h2>Cash Flow Forecast</h2><p className="muted">What will happen to your household balance over the selected period.</p></div><small>Next {rangeDays} days</small></div>
+      <div className="panel-head compact"><div><h2>Cash Flow Forecast</h2><p className="muted">What will happen to your household balance over the selected period.</p></div><small>{rangeLabel(rangeDays)}</small></div>
       {state.loading && !hasExisting && <div className="cashflow-loading" role="status" aria-live="polite"><div><strong>Loading cash flow…</strong><p>Building the latest household forecast.</p></div></div>}
       {state.error && !hasExisting && <div className="cashflow-error" role="alert"><div><strong>Cash Flow could not load</strong><p>{state.error}</p><button type="button" onClick={() => load()}>Retry</button></div></div>}
       {hasExisting && <CashFlowChartV0174 baseline={state.baseline} expected={state.expected} Empty={Empty}/>} 
@@ -122,7 +125,7 @@ export default function CashFlowPageV1161({ rangeDays, onView, initialForecast =
     <section className="panel cashflow-event-panel">
       <div className="panel-head compact"><div><h2>Events affecting this forecast</h2><p className="muted">The largest movements behind the projected balance.</p></div>{hasExisting && <small>{events.length} events</small>}</div>
       <div className="cashflow-event-list">{visibleImpactEvents.length ? visibleImpactEvents.map((event, index) => <button type="button" className="cashflow-event-row" onClick={() => onView(event)} key={`${event.source_type}-${event.source_id}-${event.date}-${index}`}><span><strong>{event.name}</strong><small>{dateLabel(event.date)} · {(event.source_type || 'financial event').replaceAll('_', ' ')}</small></span><strong className={amountClass(event.amount)}>{money(event.amount)}</strong></button>) : !state.loading && !state.error && hasExisting ? <Empty title="No forecast events">No financial events affect this selected period.</Empty> : null}</div>
-      {events.length > visibleImpactEvents.length && <p className="muted cashflow-impact-note">Showing the 8 largest movements by absolute value.</p>}
+      {events.length > 5 && <div className="cashflow-impact-note"><span className="muted">{showAllEvents ? `Showing all ${events.length} movements.` : 'Showing the 5 largest movements by absolute value.'}</span><button type="button" className="link-button" onClick={() => setShowAllEvents((value) => !value)}>{showAllEvents ? 'Show less' : `View all ${events.length} events`}</button></div>}
     </section>
   </div>;
 }
