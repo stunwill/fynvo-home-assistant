@@ -8,6 +8,7 @@ const paymentCentre = await read('src/PaymentCentreV1161.jsx');
 const cashFlow = await read('src/CashFlowPageV1161.jsx');
 const recurring = await read('src/RecurringExpensesPage.jsx');
 const payCycle = await read('src/PayCycleOverviewCard.jsx');
+const payCycleCss = await read('src/pay-cycle-overview.css');
 const css = await read('src/mobile-financial-decision-v1180.css');
 const config = await read('../config.yaml');
 const backendConfig = await read('../backend/app/config.py');
@@ -67,7 +68,7 @@ test('Recurring Expenses reports overdue aggregates and incomplete payment detai
 test('pay-cycle loading uses a skeleton instead of a textual loading card', () => {
   assert.match(payCycle, /overview-pay-cycle-skeleton/);
   assert.doesNotMatch(payCycle, /Loading cash plan/);
-  assert.match(css, /prefers-reduced-motion/);
+  assert.match(payCycleCss, /prefers-reduced-motion/);
 });
 
 test('mobile decision styles prevent ellipsis and retain responsive narrow-screen fallbacks', () => {
