@@ -2,6 +2,18 @@
 
 All notable Fynvo changes are documented here. Starting with v0.3.0, every release must include a user-readable changelog entry, Home Assistant-visible release notes and GitHub release notes.
 
+## v1.17.9 - Mobile Overview & Workspace UX Refinement
+
+- Refines the iPhone/Home Assistant Overview around the supplied visual direction with a compact greeting, contextual Date Range and Quick Add controls, exactly four Snapshot actions, a concise Cash Flow summary and Top Accounts using authoritative Account data.
+- Keeps mobile financial values readable on one line, uses human-facing horizon labels such as `Next 6 months`, and preserves the existing command-centre, Accounts and payment-planning calculations rather than introducing duplicate finance logic.
+- Repairs the Cash Flow forecast presentation by explicitly styling the active SVG baseline/expected path implementation with no fill, responsive sizing and separated legend items.
+- Reduces the default Cash Flow event list to five high-impact movements with explicit access to the complete event set.
+- Reworks Transactions mobile filtering so Search and the primary period remain visible while secondary Account, Category, direction, reconciliation and source filters are available through a touch-friendly filter sheet with active-filter indication.
+- Keeps Accounts & Cards compact and current-state focused, and removes redundant global mobile header actions from Transactions and Recurring Expenses where page-specific controls are more useful.
+- Adds a final responsive refinement layer while preserving the v1.17.5 startup lifecycle, v1.17.6 Accounts/Cards interactivity, v1.17.7 GET deduplication/read caching and v1.17.8 ingress header, bottom navigation, More → Tools and safe-area protections.
+- No database migration is required and no household financial records, payment lifecycle rules, reconciliation semantics or forecast calculations are changed.
+- Installed iPhone/Home Assistant ingress acceptance remains a manual release gate.
+
 ## v1.17.8 - Mobile Overview Redesign & Optimisation
 
 - Corrects Home Assistant ingress mobile chrome so the Home Assistant header remains authoritative and the duplicate internal Fynvo app bar no longer competes with or clips page content.
