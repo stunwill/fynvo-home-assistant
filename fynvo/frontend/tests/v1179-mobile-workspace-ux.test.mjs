@@ -5,17 +5,19 @@ import test from 'node:test';
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 const overview = await read('src/MobileOverviewV1178.jsx');
 const css = await read('src/mobile-workspace-v1179.css');
+const v1180Css = await read('src/mobile-financial-decision-v1180.css');
 const cashFlow = await read('src/CashFlowPageV1161.jsx');
 const transactions = await read('src/TransactionWorkspace.jsx');
 const appShell = await read('src/AppV13.jsx');
 const entry = await read('src/main.jsx');
 const pkg = JSON.parse(await read('package.json'));
 
-test('v1.17.9 Overview follows the supplied mobile hierarchy and human-readable range labels', () => {
+test('Overview preserves the established Snapshot, Cash Flow and Accounts hierarchy beneath the decision summary', () => {
+  const decisionIndex = overview.indexOf('fynvo-mobile-decision');
   const snapshotIndex = overview.indexOf('fynvo-mobile-snapshot');
   const cashIndex = overview.indexOf('fynvo-mobile-cashflow');
   const accountsIndex = overview.indexOf('fynvo-mobile-accounts');
-  assert.ok(snapshotIndex >= 0 && cashIndex > snapshotIndex && accountsIndex > cashIndex);
+  assert.ok(decisionIndex >= 0 && snapshotIndex > decisionIndex && cashIndex > snapshotIndex && accountsIndex > cashIndex);
   const snapshot = overview.match(/fynvo-mobile-snapshot-grid[\s\S]*?<\/div>\s*<\/section>/)?.[0] || '';
   assert.equal((snapshot.match(/<button/g) || []).length, 4);
   assert.match(overview, /184: 'Next 6 months'/);
@@ -23,9 +25,9 @@ test('v1.17.9 Overview follows the supplied mobile hierarchy and human-readable 
   assert.match(overview, /data-icon=/);
 });
 
-test('Overview currency values are protected from isolated-digit wrapping', () => {
+test('v1.18.0 overrides prior currency ellipsis without losing numeric no-wrap protection', () => {
   assert.match(css, /fynvo-mobile-snapshot-grid strong[^}]*white-space:nowrap/);
-  assert.match(css, /fynvo-mobile-cashflow-card strong[^}]*white-space:nowrap/);
+  assert.match(v1180Css, /fynvo-mobile-snapshot-grid strong,.fynvo-mobile-cashflow-card strong\{overflow:visible!important;text-overflow:clip!important;white-space:nowrap!important/);
   assert.match(overview, /compactMoney\(model\.inflow\)/);
   assert.match(overview, /compactMoney\(model\.outflow\)/);
   assert.match(overview, /compactMoney\(model\.net\)/);
@@ -46,11 +48,13 @@ test('Cash Flow chart has explicit no-fill series styling and separated legend',
   assert.match(css, /cashflow-chart-legend span\{display:inline-flex/);
 });
 
-test('Cash Flow defaults to five impact events with full-list disclosure', () => {
-  assert.match(cashFlow, /slice\(0, 5\)/);
+test('Cash Flow keeps five-event progressive disclosure and now defaults to chronological events', () => {
+  assert.match(cashFlow, /orderedEvents\.slice\(0, 5\)/);
   assert.match(cashFlow, /View all \$\{events\.length\} events/);
   assert.match(cashFlow, /Show less/);
-  assert.match(cashFlow, /184: 'Next 6 months'/);
+  assert.match(cashFlow, /useState\('next'\)/);
+  assert.match(cashFlow, /Next events/);
+  assert.match(cashFlow, /Largest movements/);
 });
 
 test('Transactions uses mobile Search + period + Filters and preserves secondary filters in a sheet', () => {
@@ -70,8 +74,8 @@ test('specialised mobile workspaces suppress redundant global header actions', (
   assert.match(appShell, /fynvo-recurring-expenses-page/);
 });
 
-test('v1.17.9 stylesheet is final and production version surfaces agree', () => {
-  assert.match(entry, /import '\.\/mobile-workspace-v1179\.css';\s*\n\nReactDOM/s);
-  assert.equal(pkg.version, '1.17.9');
-  assert.match(appShell, /PRODUCTION_VERSION = '1\.17\.9'/);
+test('v1.18.0 stylesheet is final and production version surfaces agree', () => {
+  assert.match(entry, /import '\.\/mobile-financial-decision-v1180\.css';\s*\n\nReactDOM/s);
+  assert.equal(pkg.version, '1.18.0');
+  assert.match(appShell, /PRODUCTION_VERSION = '1\.18\.0'/);
 });

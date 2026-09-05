@@ -1,0 +1,55 @@
+@media(max-width:980px){
+  :root{--fynvo-status-funded:#067647;--fynvo-status-attention:#b54708;--fynvo-status-danger:#b42318;--fynvo-status-info:#175cd3;--fynvo-status-unknown:#667085}
+  .fynvo-mobile-decision-card{border:1px solid var(--line);border-radius:20px;background:#fff;padding:16px;display:grid;gap:14px;box-shadow:0 10px 28px rgba(31,54,89,.08)}
+  .fynvo-mobile-decision-card header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+  .fynvo-mobile-decision-card header small{display:block;color:var(--muted);font-weight:700}
+  .fynvo-mobile-decision-card header strong{display:block;font-size:clamp(28px,8vw,38px);line-height:1.02;margin-top:4px;white-space:nowrap;font-variant-numeric:tabular-nums}
+  .fynvo-mobile-decision-status{border-radius:999px;padding:7px 10px;font-size:11px;font-weight:800;white-space:nowrap;background:#f2f4f7;color:var(--fynvo-status-unknown)}
+  .fynvo-mobile-decision-status.funded{background:#ecfdf3;color:var(--fynvo-status-funded)}
+  .fynvo-mobile-decision-status.shortfall{background:#fef3f2;color:var(--fynvo-status-danger)}
+  .fynvo-mobile-decision-status.unknown{background:#f2f4f7;color:var(--fynvo-status-unknown)}
+  .fynvo-mobile-decision-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+  .fynvo-mobile-decision-grid>div{min-width:0;border:1px solid var(--line);border-radius:14px;padding:11px;background:#fbfcfe}
+  .fynvo-mobile-decision-grid span,.fynvo-mobile-decision-grid small{display:block;color:var(--muted);font-size:11px;line-height:1.25}
+  .fynvo-mobile-decision-grid strong{display:block;font-size:clamp(17px,5vw,22px);line-height:1.08;margin:4px 0;white-space:nowrap;font-variant-numeric:tabular-nums}
+  .fynvo-mobile-decision-message{margin:0;font-size:13px;line-height:1.45;font-weight:700}
+  .fynvo-mobile-decision-message.danger{color:var(--fynvo-status-danger)}
+  .fynvo-mobile-decision-actions{display:flex;gap:8px;flex-wrap:wrap}
+  .fynvo-mobile-decision-actions button{min-height:44px;border:0;border-radius:12px;padding:10px 12px;font-weight:800;background:#edf4ff;color:#123a70}
+  .fynvo-mobile-exceptions{display:grid;gap:8px}
+  .fynvo-mobile-exception{width:100%;min-height:52px;border:1px solid var(--line);border-radius:14px;background:#fff;padding:11px 12px;text-align:left;display:flex;justify-content:space-between;align-items:center;gap:10px}
+  .fynvo-mobile-exception strong,.fynvo-mobile-exception small{display:block}.fynvo-mobile-exception small{color:var(--muted);margin-top:2px}.fynvo-mobile-exception b{color:var(--fynvo-status-danger);white-space:nowrap}
+  .fynvo-mobile-snapshot-grid strong,.fynvo-mobile-cashflow-card strong{overflow:visible!important;text-overflow:clip!important;white-space:nowrap!important;font-size:clamp(16px,4.8vw,23px)!important}
+  .fynvo-mobile-snapshot-grid>button{min-height:126px!important;padding-left:60px!important}
+  .fynvo-mobile-snapshot-grid>button::before{left:12px!important;top:14px!important;width:38px!important;height:38px!important}
+  .fynvo-mobile-more-sheet nav{display:grid;gap:12px}
+  .fynvo-mobile-more-group{display:grid;gap:7px}
+  .fynvo-mobile-more-group>strong{font-size:11px;letter-spacing:.08em;color:var(--muted);padding:0 3px}
+  .fynvo-mobile-more-group>div{display:grid;gap:7px}
+  .fynvo-mobile-more-group button{min-height:46px;text-align:left;border:1px solid var(--line);border-radius:13px;background:#fff;padding:10px 12px;color:var(--text);font-weight:700}
+  .cashflow-decision-v1180{border:1px solid var(--line);border-radius:16px;background:#fff;padding:14px;display:grid;gap:6px}
+  .cashflow-decision-v1180 strong{font-size:clamp(20px,6vw,28px);line-height:1.1}.cashflow-decision-v1180 p{margin:0;color:var(--muted)}.cashflow-decision-v1180.risk strong,.cashflow-decision-v1180.risk p{color:var(--fynvo-status-danger)}
+  .payment-v1180-decision{border:1px solid var(--line);border-radius:18px;background:#fff;padding:15px;display:grid;gap:8px}
+  .payment-v1180-decision small{color:var(--muted);font-weight:700}.payment-v1180-decision strong{font-size:clamp(25px,7vw,34px);line-height:1;white-space:nowrap}.payment-v1180-decision p{margin:0;line-height:1.4}.payment-v1180-decision.shortfall{border-color:#fecdca;background:#fff7f6}.payment-v1180-decision.shortfall strong,.payment-v1180-decision.shortfall p{color:var(--fynvo-status-danger)}.payment-v1180-decision.funded{border-color:#abefc6;background:#f6fef9}.payment-v1180-decision.funded strong{color:var(--fynvo-status-funded)}.payment-v1180-decision.unknown{background:#f9fafb}
+  .payment-v1180-filter-bar{display:flex;gap:7px;overflow-x:auto;padding:2px 0 4px;scrollbar-width:none}.payment-v1180-filter-bar::-webkit-scrollbar{display:none}.payment-v1180-filter-bar button{flex:0 0 auto;min-height:42px;border:1px solid var(--line);border-radius:999px;background:#fff;padding:8px 12px;font-weight:700}.payment-v1180-filter-bar button.active{background:#edf4ff;border-color:#9ec5ff;color:#123a70}
+  .payment-v1161-filters{display:none!important}.payment-v1180-filter-sheet-backdrop{position:fixed;z-index:85;inset:0;display:flex;align-items:flex-end;background:rgba(6,26,51,.48);padding:12px 12px calc(12px + env(safe-area-inset-bottom,0px))}.payment-v1180-filter-sheet{width:100%;max-height:min(78dvh,620px);overflow:auto;background:#fff;border-radius:20px;padding:14px}.payment-v1180-filter-sheet header{display:flex;justify-content:space-between;align-items:center;gap:10px}.payment-v1180-filter-sheet header button{width:44px;height:44px;border:0;border-radius:999px;background:#eef4fb;font-size:24px}.payment-v1180-filter-grid{display:grid;gap:9px;margin-top:10px}.payment-v1180-filter-grid label{display:grid;gap:5px}.payment-v1180-filter-grid label>span{font-size:12px;color:var(--muted);font-weight:700}.payment-v1180-filter-grid input,.payment-v1180-filter-grid select{width:100%;min-height:46px;font-size:16px}.payment-v1180-filter-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}.payment-v1180-filter-actions button{min-height:46px}
+  .payment-v1161-row-main{grid-template-areas:'name amount' 'status date' 'funding funding'!important}.payment-v1161-row-main .payment-centre-status{justify-self:start!important}.payment-v1161-row-main .amount{font-size:18px}.payment-v1161-row-action{min-height:46px!important;font-weight:800}
+  .payment-v1180-incomplete{grid-column:1/-1;border-radius:10px;background:#fffaeb;color:#93370d;padding:8px 10px;font-size:12px;font-weight:700}
+  .pay-cycle-panel{padding:14px!important}.pay-cycle-metrics{grid-template-columns:1fr 1fr!important}.pay-cycle-metrics article strong{font-size:clamp(16px,4.7vw,21px);white-space:nowrap}
+  body.fynvo-recurring-expenses-page .recurring-v18-card{position:relative}.recurring-v1180-incomplete{border-radius:10px;background:#fffaeb;color:#93370d;padding:7px 9px;font-size:11px;font-weight:700}
+  .recurring-v18-table{display:block!important;border:0!important;background:transparent!important;overflow:visible!important}
+  .recurring-v18-table-head{display:none!important}
+  .recurring-v18-group{display:grid;gap:8px;margin-bottom:12px}
+  .recurring-v18-group-label{border:0;border-radius:10px;padding:7px 10px}
+  .recurring-v18-table-row.recurring-v1180-row{display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;gap:7px 12px!important;align-items:start!important;min-height:0!important;padding:13px!important;border:1px solid var(--line)!important;border-radius:14px!important;background:#fff!important}
+  .recurring-v18-table-row.recurring-v1180-row>span{grid-column:1;min-width:0}
+  .recurring-v18-table-row.recurring-v1180-row>span:nth-child(1){grid-row:2}
+  .recurring-v18-table-row.recurring-v1180-row>span:nth-child(2){grid-row:1}
+  .recurring-v18-table-row.recurring-v1180-row>span:nth-child(3){grid-row:3;color:var(--muted);font-size:12px}
+  .recurring-v18-table-row.recurring-v1180-row>span:nth-child(4){grid-column:2;grid-row:1;justify-self:end;align-self:start;text-align:right;font-size:18px;white-space:nowrap}
+  .recurring-v18-table-row.recurring-v1180-row>span:nth-child(5){grid-row:4;color:var(--muted);font-size:12px}
+  .recurring-v18-table-row.recurring-v1180-row>span:nth-child(6){grid-row:5}
+  .recurring-v18-table-row.recurring-v1180-row>span:nth-child(7){grid-column:2;grid-row:2 / span 4;justify-self:end;align-self:end}
+}
+@media(min-width:981px){.payment-v1180-filter-bar,.payment-v1180-filter-sheet-backdrop{display:none!important}.cashflow-decision-v1180,.payment-v1180-decision{margin-bottom:2px}}
+@media(max-width:359px){.fynvo-mobile-decision-grid{grid-template-columns:1fr}.fynvo-mobile-decision-card header{display:grid}.fynvo-mobile-decision-status{justify-self:start}.fynvo-mobile-snapshot-grid strong,.fynvo-mobile-cashflow-card strong{font-size:15px!important}}

@@ -12,16 +12,17 @@ const centreCss = fs.readFileSync(path.join(root, 'src/payment-centre-v112.css')
 const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
 
 
-test('v1.17 pay-cycle implementation remains active on the v1.17.9 mobile refinement release', () => {
-  assert.equal(pkg.version, '1.17.9');
+test('v1.17 pay-cycle implementation remains authoritative on the v1.18.0 decision UX release', () => {
+  assert.equal(pkg.version, '1.18.0');
   assert.match(app, /const APP_VERSION = '1\.17\.0'/);
 });
 
 
-test('Overview renders a Before next pay summary with explicit states and drill-through', () => {
+test('Overview renders a Before next pay summary with explicit states, skeleton loading and drill-through', () => {
   assert.match(app, /PayCycleOverviewCard/);
   assert.match(overview, /Before next pay/);
-  assert.match(overview, /Loading cash plan/);
+  assert.match(overview, /overview-pay-cycle-skeleton/);
+  assert.doesNotMatch(overview, /Loading cash plan/);
   assert.match(overview, /Next income not known/);
   assert.match(overview, /No commitments are due before the next pay/);
   assert.match(overview, /Need before pay/);

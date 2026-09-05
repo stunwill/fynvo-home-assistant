@@ -66,6 +66,7 @@ export default function CashFlowPageV1161({ rangeDays, onView, initialForecast =
   const hasAnySeed = Boolean(initialExpected || initialBase);
   const [state, setState] = useState({ loading: !hasAnySeed, refreshing: false, error: '', baseline: initialBase, expected: initialExpected });
   const [showAllEvents, setShowAllEvents] = useState(false);
+  const [eventMode, setEventMode] = useState('next');
 
   const load = async ({ background = false, seedBaseline = null, seedExpected = null } = {}) => {
     const existingBaseline = seedBaseline || state.baseline;
@@ -100,17 +101,26 @@ export default function CashFlowPageV1161({ rangeDays, onView, initialForecast =
   const events = forecast?.events || [];
   const hasExisting = Boolean(state.baseline || state.expected);
   const summary = useMemo(() => deriveSummary(forecast), [forecast]);
-  const sortedImpactEvents = useMemo(() => [...events].sort((a, b) => Math.abs(Number(b?.amount || 0)) - Math.abs(Number(a?.amount || 0))), [events]);
-  const visibleImpactEvents = showAllEvents ? sortedImpactEvents : sortedImpactEvents.slice(0, 5);
+  const chronologicalEvents = useMemo(() => [...events].sort((a, b) => String(a.date || '').localeCompare(String(b.date || ''))), [events]);
+  const impactEvents = useMemo(() => [...events].sort((a, b) => Math.abs(Number(b?.amount || 0)) - Math.abs(Number(a?.amount || 0))), [events]);
+  const orderedEvents = eventMode === 'largest' ? impactEvents : chronologicalEvents;
+  const visibleEvents = showAllEvents ? orderedEvents : orderedEvents.slice(0, 5);
+  const risk = summary?.lowest !== null && Number(summary?.lowest) < 0;
 
   return <div className="cashflow-page-v1161 cashflow-page-v1162">
+    {summary && <section className={`cashflow-decision-v1180 ${risk ? 'risk' : ''}`} aria-label="Cash Flow decision summary">
+      <small>{risk ? 'Cash shortfall predicted' : 'Lowest projected balance'}</small>
+      <strong>{money(summary.lowest) || 'Not known'}{summary.lowestDate ? ` · ${dateLabel(summary.lowestDate)}` : ''}</strong>
+      <p>{risk ? `The forecast drops below $0 by ${money(Math.abs(summary.lowest)) || 'an unknown amount'}.` : 'No cash shortfall is predicted in the selected forecast period.'}</p>
+    </section>}
+
     <section className="cashflow-summary-v1162" aria-label="Cash Flow summary">
       <article><span>Starting balance</span><strong>{summary ? money(summary.starting) || '—' : '—'}</strong></article>
       <article><span>Income</span><strong className="positive">{summary ? money(summary.income) || '—' : '—'}</strong></article>
       <article><span>Outgoing</span><strong className="negative">{summary ? money(summary.outgoing ? -summary.outgoing : summary.outgoing) || '—' : '—'}</strong></article>
       <article><span>Net movement</span><strong className={summary && Number(summary.net || 0) < 0 ? 'negative' : 'positive'}>{summary ? money(summary.net) || '—' : '—'}</strong></article>
       <article><span>Projected balance</span><strong>{summary ? money(summary.ending) || '—' : '—'}</strong></article>
-      <article className={summary && summary.lowest !== null && summary.lowest < 0 ? 'risk' : ''}><span>Lowest balance</span><strong>{summary ? money(summary.lowest) || '—' : '—'}</strong>{summary?.lowestDate && <small>{dateLabel(summary.lowestDate)}</small>}</article>
+      <article className={risk ? 'risk' : ''}><span>Lowest balance</span><strong>{summary ? money(summary.lowest) || '—' : '—'}</strong>{summary?.lowestDate && <small>{dateLabel(summary.lowestDate)}</small>}</article>
     </section>
 
     <section className="panel cashflow-chart-panel">
@@ -123,9 +133,10 @@ export default function CashFlowPageV1161({ rangeDays, onView, initialForecast =
     </section>
 
     <section className="panel cashflow-event-panel">
-      <div className="panel-head compact"><div><h2>Events affecting this forecast</h2><p className="muted">The largest movements behind the projected balance.</p></div>{hasExisting && <small>{events.length} events</small>}</div>
-      <div className="cashflow-event-list">{visibleImpactEvents.length ? visibleImpactEvents.map((event, index) => <button type="button" className="cashflow-event-row" onClick={() => onView(event)} key={`${event.source_type}-${event.source_id}-${event.date}-${index}`}><span><strong>{event.name}</strong><small>{dateLabel(event.date)} · {(event.source_type || 'financial event').replaceAll('_', ' ')}</small></span><strong className={amountClass(event.amount)}>{money(event.amount)}</strong></button>) : !state.loading && !state.error && hasExisting ? <Empty title="No forecast events">No financial events affect this selected period.</Empty> : null}</div>
-      {events.length > 5 && <div className="cashflow-impact-note"><span className="muted">{showAllEvents ? `Showing all ${events.length} movements.` : 'Showing the 5 largest movements by absolute value.'}</span><button type="button" className="link-button" onClick={() => setShowAllEvents((value) => !value)}>{showAllEvents ? 'Show less' : `View all ${events.length} events`}</button></div>}
+      <div className="panel-head compact"><div><h2>Events affecting this forecast</h2><p className="muted">{eventMode === 'next' ? 'The next movements in chronological order.' : 'The largest movements by absolute value.'}</p></div>{hasExisting && <small>{events.length} events</small>}</div>
+      <div className="payment-v1161-mode" aria-label="Cash Flow event ordering"><button type="button" className={eventMode === 'next' ? 'active' : ''} aria-pressed={eventMode === 'next'} onClick={() => { setEventMode('next'); setShowAllEvents(false); }}>Next events</button><button type="button" className={eventMode === 'largest' ? 'active' : ''} aria-pressed={eventMode === 'largest'} onClick={() => { setEventMode('largest'); setShowAllEvents(false); }}>Largest movements</button></div>
+      <div className="cashflow-event-list">{visibleEvents.length ? visibleEvents.map((event, index) => <button type="button" className="cashflow-event-row" onClick={() => onView(event)} key={`${event.source_type}-${event.source_id}-${event.date}-${index}`}><span><strong>{event.name}</strong><small>{dateLabel(event.date)} · {(event.source_type || 'financial event').replaceAll('_', ' ')}</small></span><strong className={amountClass(event.amount)}>{money(event.amount)}</strong></button>) : !state.loading && !state.error && hasExisting ? <Empty title="No forecast events">No financial events affect this selected period.</Empty> : null}</div>
+      {events.length > 5 && <div className="cashflow-impact-note"><span className="muted">{showAllEvents ? `Showing all ${events.length} events.` : `Showing the first 5 ${eventMode === 'next' ? 'chronological events' : 'largest movements'}.`}</span><button type="button" className="link-button" onClick={() => setShowAllEvents((value) => !value)}>{showAllEvents ? 'Show less' : `View all ${events.length} events`}</button></div>}
     </section>
   </div>;
 }

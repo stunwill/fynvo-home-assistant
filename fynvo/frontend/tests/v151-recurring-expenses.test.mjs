@@ -5,6 +5,7 @@ import fs from 'node:fs';
 const compatibility = fs.readFileSync(new URL('../src/RecurringExpensesPageV151.jsx', import.meta.url), 'utf8');
 const page = fs.readFileSync(new URL('../src/RecurringExpensesPage.jsx', import.meta.url), 'utf8');
 const css = fs.readFileSync(new URL('../src/recurring-v18.css', import.meta.url), 'utf8');
+const decisionCss = fs.readFileSync(new URL('../src/mobile-financial-decision-v1180.css', import.meta.url), 'utf8');
 
 const expectSource = (needle, message) => assert.ok(page.includes(needle), message || `Expected durable RecurringExpensesPage.jsx to contain ${needle}`);
 
@@ -42,8 +43,9 @@ test('relative due states remain textual and accessible', () => {
 });
 
 test('explicit empty states and responsive layouts remain', () => {
-  for (const text of ['No recurring expenses yet', 'No expenses match these filters', 'recurring-v18-mobile-list', 'recurring-v18-sheet']) expectSource(text);
+  for (const text of ['No recurring expenses yet', 'No expenses match these filters', 'recurring-v1180-row', 'recurring-v18-sheet']) expectSource(text);
   assert.match(css, /@media\(max-width:980px\)/);
   assert.match(css, /\.recurring-v18-table\{display:none\}/);
-  assert.match(css, /\.recurring-v18-mobile-list\{display:grid/);
+  assert.match(decisionCss, /\.recurring-v18-table\{display:block!important/);
+  assert.match(decisionCss, /\.recurring-v18-table-row\.recurring-v1180-row\{display:grid!important/);
 });
