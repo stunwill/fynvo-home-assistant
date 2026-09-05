@@ -39,7 +39,7 @@ test('Payment Centre interprets funded, shortfall and unknown states', () => {
 });
 
 test('Payment Centre uses compact mobile filters and explicit incomplete states', () => {
-  for (const label of ['Next 30 days', 'Overdue', 'Needs attention', '+ Filters']) assert.match(paymentCentre, new RegExp(label.replace('+', '\\+')));
+  for (const label of ['Next 30 days', 'Overdue', 'Needs attention', '+ Filters']) assert.ok(paymentCentre.includes(label), `Expected Payment Centre source to include ${label}`);
   assert.match(paymentCentre, /payment-v1180-filter-sheet/);
   assert.match(paymentCentre, /Payment details incomplete: missing/);
   assert.match(paymentCentre, /missing\.push\('due date'\)/);
