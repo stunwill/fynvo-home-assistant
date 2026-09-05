@@ -37,6 +37,19 @@
   .payment-v1180-incomplete{grid-column:1/-1;border-radius:10px;background:#fffaeb;color:#93370d;padding:8px 10px;font-size:12px;font-weight:700}
   .pay-cycle-panel{padding:14px!important}.pay-cycle-metrics{grid-template-columns:1fr 1fr!important}.pay-cycle-metrics article strong{font-size:clamp(16px,4.7vw,21px);white-space:nowrap}
   body.fynvo-recurring-expenses-page .recurring-v18-card{position:relative}.recurring-v1180-incomplete{border-radius:10px;background:#fffaeb;color:#93370d;padding:7px 9px;font-size:11px;font-weight:700}
+  .recurring-v18-table{display:block!important;border:0!important;background:transparent!important;overflow:visible!important}
+  .recurring-v18-table-head{display:none!important}
+  .recurring-v18-group{display:grid;gap:8px;margin-bottom:12px}
+  .recurring-v18-group-label{border:0;border-radius:10px;padding:7px 10px}
+  .recurring-v18-table-row.recurring-v1180-row{display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;gap:7px 12px!important;align-items:start!important;min-height:0!important;padding:13px!important;border:1px solid var(--line)!important;border-radius:14px!important;background:#fff!important}
+  .recurring-v18-table-row.recurring-v1180-row>span{grid-column:1;min-width:0}
+  .recurring-v18-table-row.recurring-v1180-row>span:nth-child(1){grid-row:2}
+  .recurring-v18-table-row.recurring-v1180-row>span:nth-child(2){grid-row:1}
+  .recurring-v18-table-row.recurring-v1180-row>span:nth-child(3){grid-row:3;color:var(--muted);font-size:12px}
+  .recurring-v18-table-row.recurring-v1180-row>span:nth-child(4){grid-column:2;grid-row:1;justify-self:end;align-self:start;text-align:right;font-size:18px;white-space:nowrap}
+  .recurring-v18-table-row.recurring-v1180-row>span:nth-child(5){grid-row:4;color:var(--muted);font-size:12px}
+  .recurring-v18-table-row.recurring-v1180-row>span:nth-child(6){grid-row:5}
+  .recurring-v18-table-row.recurring-v1180-row>span:nth-child(7){grid-column:2;grid-row:2 / span 4;justify-self:end;align-self:end}
 }
 @media(min-width:981px){.payment-v1180-filter-bar,.payment-v1180-filter-sheet-backdrop{display:none!important}.cashflow-decision-v1180,.payment-v1180-decision{margin-bottom:2px}}
 @media(max-width:359px){.fynvo-mobile-decision-grid{grid-template-columns:1fr}.fynvo-mobile-decision-card header{display:grid}.fynvo-mobile-decision-status{justify-self:start}.fynvo-mobile-snapshot-grid strong,.fynvo-mobile-cashflow-card strong{font-size:15px!important}}
