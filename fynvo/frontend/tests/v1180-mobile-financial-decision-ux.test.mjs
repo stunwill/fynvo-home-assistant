@@ -57,7 +57,8 @@ test('Cash Flow states forecast risk and supports chronological or impact orderi
 
 test('Recurring Expenses reports overdue aggregates and incomplete payment details', () => {
   assert.match(recurring, /const overdueRows = rows\.filter/);
-  assert.match(recurring, /overdue: /);
+  assert.match(recurring, /const overdue = \{ count: overdueRows\.length/);
+  assert.match(recurring, /const incompleteRows = rows\.filter/);
   assert.match(recurring, /Payment details incomplete: missing/);
   assert.match(recurring, /Needs attention/);
   assert.match(recurring, /navigateReload\('Payment Centre'\)/);
