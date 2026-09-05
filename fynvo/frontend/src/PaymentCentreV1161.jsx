@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import PaymentCentreV112 from './PaymentCentreV112.jsx';
 import { apiRequest } from './apiClient.js';
@@ -128,9 +128,41 @@ function MobileFilterBar({ filters, setDraft, setFilters, onOpen }) {
 }
 
 function MobileFilterSheet({ open, draft, setDraft, data, onApply, onClear, onClose }) {
+  const dialogRef = useRef(null);
+  const priorFocus = useRef(null);
+  useEffect(() => {
+    if (!open) return undefined;
+    priorFocus.current = document.activeElement;
+    const frame = requestAnimationFrame(() => dialogRef.current?.querySelector('input, select, button')?.focus());
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        onClose();
+        return;
+      }
+      if (event.key !== 'Tab') return;
+      const focusable = [...(dialogRef.current?.querySelectorAll('button, input, select, textarea, [tabindex]:not([tabindex="-1"])') || [])].filter((element) => !element.disabled);
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable.at(-1);
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      cancelAnimationFrame(frame);
+      document.removeEventListener('keydown', handleKeyDown);
+      priorFocus.current?.focus?.();
+    };
+  }, [open, onClose]);
   if (!open) return null;
   const set = (key, value) => setDraft((current) => ({ ...current, [key]: value }));
-  return <div className="payment-v1180-filter-sheet-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}><section className="payment-v1180-filter-sheet" role="dialog" aria-modal="true" aria-label="Payment filters"><header><strong>Filters</strong><button type="button" onClick={onClose} aria-label="Close filters">×</button></header><div className="payment-v1180-filter-grid"><label><span>Search</span><input value={draft.search} onChange={(event) => set('search', event.target.value)} placeholder="Name, merchant, category, account or card"/></label><label><span>Date range</span><select value={draft.dateRange} onChange={(event) => set('dateRange', event.target.value)}>{PAYMENT_DATE_RANGES.map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label><label><span>Status</span><select value={draft.status} onChange={(event) => set('status', event.target.value)}><option value="">All statuses</option>{Object.entries(PAYMENT_STATUS_LABELS).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label><label><span>Category</span><select value={draft.categoryId} onChange={(event) => set('categoryId', event.target.value)}><option value="">All categories</option>{(data.categories || []).filter((row) => row.is_active !== false).map((row) => <option value={row.id} key={row.id}>{row.path || row.name}</option>)}</select></label><label><span>Account</span><select value={draft.accountId} onChange={(event) => set('accountId', event.target.value)}><option value="">All Accounts</option>{(data.accounts || []).filter((row) => row.is_active !== false && !row.archived_at).map((row) => <option value={row.id} key={row.id}>{row.name}</option>)}</select></label><label><span>Payment method</span><select value={draft.paymentMethod} onChange={(event) => set('paymentMethod', event.target.value)}><option value="">All methods</option>{Object.entries(PAYMENT_METHOD_LABELS).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label><label className="payment-centre-check"><input type="checkbox" checked={draft.requiresAction} onChange={(event) => set('requiresAction', event.target.checked)}/><span>Requires action only</span></label></div><div className="payment-v1180-filter-actions"><button type="button" onClick={() => { onClear(); onClose(); }}>Clear</button><button type="button" className="primary" onClick={() => { onApply(); onClose(); }}>Apply</button></div></section></div>;
+  return <div className="payment-v1180-filter-sheet-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}><section ref={dialogRef} className="payment-v1180-filter-sheet" role="dialog" aria-modal="true" aria-label="Payment filters"><header><strong>Filters</strong><button type="button" onClick={onClose} aria-label="Close filters">×</button></header><div className="payment-v1180-filter-grid"><label><span>Search</span><input value={draft.search} onChange={(event) => set('search', event.target.value)} placeholder="Name, merchant, category, account or card"/></label><label><span>Date range</span><select value={draft.dateRange} onChange={(event) => set('dateRange', event.target.value)}>{PAYMENT_DATE_RANGES.map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label><label><span>Status</span><select value={draft.status} onChange={(event) => set('status', event.target.value)}><option value="">All statuses</option>{Object.entries(PAYMENT_STATUS_LABELS).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label><label><span>Category</span><select value={draft.categoryId} onChange={(event) => set('categoryId', event.target.value)}><option value="">All categories</option>{(data.categories || []).filter((row) => row.is_active !== false).map((row) => <option value={row.id} key={row.id}>{row.path || row.name}</option>)}</select></label><label><span>Account</span><select value={draft.accountId} onChange={(event) => set('accountId', event.target.value)}><option value="">All Accounts</option>{(data.accounts || []).filter((row) => row.is_active !== false && !row.archived_at).map((row) => <option value={row.id} key={row.id}>{row.name}</option>)}</select></label><label><span>Payment method</span><select value={draft.paymentMethod} onChange={(event) => set('paymentMethod', event.target.value)}><option value="">All methods</option>{Object.entries(PAYMENT_METHOD_LABELS).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label><label className="payment-centre-check"><input type="checkbox" checked={draft.requiresAction} onChange={(event) => set('requiresAction', event.target.checked)}/><span>Requires action only</span></label></div><div className="payment-v1180-filter-actions"><button type="button" onClick={() => { onClear(); onClose(); }}>Clear</button><button type="button" className="primary" onClick={() => { onApply(); onClose(); }}>Apply</button></div></section></div>;
 }
 
 function CompactPaymentRow({ row, onView, onMarkPaid }) {
