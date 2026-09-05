@@ -57,7 +57,8 @@ test('Transactions uses mobile Search + period + Filters and preserves secondary
   assert.match(transactions, /transaction-mobile-filter-trigger/);
   assert.match(transactions, /transaction-mobile-filter-sheet/);
   for (const label of ['Account filter', 'Category filter', 'Transaction type filter', 'Reconciliation filter', 'Transaction source filter']) assert.match(transactions, new RegExp(label));
-  assert.match(transactions, /Filters\$\{activeSecondaryFilters \? ` \(\$\{activeSecondaryFilters\}\)` : ''\}/);
+  assert.match(transactions, /const activeSecondaryFilters = \['account', 'category', 'type', 'reconciliation', 'source'\]\.filter/);
+  assert.match(transactions, /Filters\{activeSecondaryFilters \? ` \(\$\{activeSecondaryFilters\}\)` : ''\}/);
   assert.match(css, /fynvo-transactions-page \.transaction-desktop-secondary-filters\{display:none!important\}/);
 });
 
