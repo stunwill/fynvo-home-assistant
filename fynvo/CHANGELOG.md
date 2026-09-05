@@ -1,5 +1,17 @@
 # Fynvo Add-on Changelog
 
+## v1.18.0 - Mobile Financial Decision UX
+
+- Puts the before-next-pay financial decision first on mobile, showing available cash, next income, commitments, projected after-pay balance and either a safe-to-spend surplus, funding shortfall or incomplete-funding state.
+- Promotes overdue payments, payments requiring attention and incomplete funding information into actionable Overview exceptions.
+- Prevents final mobile financial values from being ellipsised, replaces the textual cash-plan loader with a stable skeleton and respects reduced-motion preferences.
+- Makes Cash Flow explicitly explain its lowest projected balance and any predicted shortfall, with Next events as the default mobile ordering and Largest movements retained as an alternate view.
+- Adds interpreted Payment Centre funding states, compact filter chips, a mobile filter sheet and visible incomplete-payment warnings for missing dates, payment methods and funding accounts.
+- Improves Recurring Expenses with overdue aggregates and incomplete-payment warnings while keeping Mark as paid, Skip and Edit available through explicit accessible controls.
+- Groups More navigation into Plan, Payments, Money, Data & System and Tools sections.
+- Reuses the existing pay-cycle, payment-planning and forecast calculations. No database migration is required and financial semantics are unchanged.
+- Installed iPhone/Home Assistant ingress acceptance remains a manual gate before merge.
+
 ## v1.17.9 - Mobile Overview & Workspace UX Refinement
 
 - Refines the mobile Overview to follow the supplied iPhone design direction with a four-card Snapshot, compact Cash Flow summary and Top Accounts hierarchy while retaining authoritative Fynvo financial data.
@@ -217,48 +229,3 @@
 ### Versioning
 - Updated Home Assistant add-on, frontend and backend API release metadata to 1.8.0.
 - The production shell reports Fynvo v1.8.0.
-
-### Manual release gates
-- Real desktop Home Assistant ingress screenshots, iPhone 15 Pro-class ingress screenshots, Add/Edit, Direct Debit, Automatic Card, manual payment, Mark as Paid, Payments Requiring Attention, CSV-matched state and Calendar usability remain manual gates before merge.
-
-## v1.7.0 - Payment Handling, Card Management & Reconciliation
-
-### Payment handling
-- Completed automatic/manual Payment Handling in the production Recurring Expense form.
-- Direct Debit now conditionally uses a Bank Account, while Automatic Card Payment uses a Card and derives its linked Account automatically.
-- Manual payment methods no longer require an unnecessary Account or Card.
-- Added a configurable automatic-payment confirmation grace period, defaulting to 3 days.
-
-### Account → Card management
-- Added production UI Card creation, editing, activation/deactivation and linked-Account display.
-- Existing Card IDs and Account relationships are preserved, and multiple Cards may belong to the same Account.
-- Only Card last-four identification is stored/displayed by this workflow.
-
-### Scheduled Payments
-- Added additive Scheduled Payment records separate from Recurring Expense rules.
-- Added Upcoming, Due, Overdue, Expected Automatically, Automatic Payment Not Confirmed, Paid, Skipped and Cancelled states.
-- Added recurrence-aware generation across weekly, fortnightly, every-four-weeks, monthly, quarterly, yearly and custom-day schedules.
-- Automatic payments are not blindly marked Paid on the due date.
-
-### Reconciliation
-- Added Payments requiring attention, Mark as Paid, Skip Payment and expected-vs-actual values.
-- Added transaction matching foundations with confidence, merchant evidence, Card-derived Account evidence and one-to-one duplicate protection.
-- Confirmed transaction matches record actual date/amount and may establish learned merchant mappings.
-
-### Data safety
-- v1.7 migration is additive and idempotent.
-- Existing Accounts, Cards, Recurring Expenses and historical financial records are preserved.
-- Legacy Account relationships are not falsely converted to Direct Debit without reliable existing evidence.
-
-### Versioning
-- Updated the Home Assistant add-on and frontend release metadata to 1.7.0.
-
-### Manual release gates
-- Installed Home Assistant ingress, representative upgrade/backup validation, real iPhone/mobile acceptance and production screenshots remain manual gates where repository CI cannot execute them.
-
-## v1.2.0 - Household Identity & Access
-
-### Household identity
-- Added a first-class Household identity and explicit Household Membership records separate from User identity.
-- Existing installations migrate automatically to an initial Household without resetting the database or recreating financial records.
-- Existing administrators are preserved and become Administrator members of the migrated Household.
