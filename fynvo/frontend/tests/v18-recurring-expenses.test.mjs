@@ -5,6 +5,7 @@ import fs from 'node:fs';
 const page = fs.readFileSync(new URL('../src/RecurringExpensesPage.jsx', import.meta.url), 'utf8');
 const shim = fs.readFileSync(new URL('../src/RecurringExpensesPageV151.jsx', import.meta.url), 'utf8');
 const css = fs.readFileSync(new URL('../src/recurring-v18.css', import.meta.url), 'utf8');
+const decisionCss = fs.readFileSync(new URL('../src/mobile-financial-decision-v1180.css', import.meta.url), 'utf8');
 
 const has = (value, message) => assert.ok(page.includes(value), message || `Expected RecurringExpensesPage.jsx to contain ${value}`);
 
@@ -37,10 +38,11 @@ test('mobile filters use draft state and explicit Apply/Clear semantics', () => 
   assert.match(css, /env\(safe-area-inset-bottom\)/);
 });
 
-test('summary totals, next payment, breakdown, largest expense and status totals share filtered payments', () => {
+test('summary totals, next payment evidence, breakdown, largest expense and status totals share filtered payments', () => {
   has('const summary = useMemo(() => summarisePayments(filtered), [filtered])');
   has('Scheduled total');
-  has('Next payment');
+  has('Needs attention');
+  has('Next: {summary.next.name}');
   has('Breakdown by period');
   has('Largest upcoming expense');
   has('Expected automatically');
@@ -85,11 +87,12 @@ test('payment lifecycle presentation uses v1.7 statuses and matched transaction 
   has("payment.payment_method === 'automatic_card_payment'");
 });
 
-test('responsive styles prevent normal mobile horizontal tables and provide touch-friendly controls', () => {
+test('responsive styles keep the current recurring list visible and touch-friendly on mobile', () => {
   assert.match(css, /@media\(max-width:980px\)/);
   assert.match(css, /overflow-x:hidden/);
   assert.match(css, /\.recurring-v18-table\{display:none\}/);
-  assert.match(css, /\.recurring-v18-mobile-list\{display:grid/);
+  assert.match(decisionCss, /\.recurring-v18-table\{display:block!important/);
+  assert.match(decisionCss, /\.recurring-v18-table-row\.recurring-v1180-row\{display:grid!important/);
   assert.match(css, /width:44px;height:44px/);
   assert.match(css, /grid-template-columns:repeat\(7,minmax\(0,1fr\)\)/);
 });
