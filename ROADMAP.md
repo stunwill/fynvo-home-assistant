@@ -2,38 +2,40 @@
 
 Fynvo is a household finance and cash-planning application for understanding upcoming commitments, available cash, pay-cycle pressure, spending decisions and near-term financial risk. The roadmap prioritises practical household planning over business accounting, tax, payroll or investment-trading functionality.
 
-The current development baseline is v1.17.0. Payment Centre, recurring-payment lifecycle, 7/14/30-day commitment planning, pay-cycle cash planning, account funding requirements, available-cash comparisons, transactions, reconciliation, budgets, goals, scenarios, date-oriented financial Calendar, Cash Flow forecasting/impact analysis, CSV import, insights, Overview drill-down navigation and responsive Home Assistant ingress are already delivered and are not repeated below as new scope.
+The current development baseline is v1.18.0. Payment Centre, recurring-payment lifecycle, 7/14/30-day commitment planning, pay-cycle cash planning, account funding requirements, available-cash comparisons, transactions, reconciliation, budgets, goals, scenarios, date-oriented financial Calendar, Cash Flow forecasting/impact analysis, CSV import, insights, Overview drill-down navigation and responsive Home Assistant ingress are already delivered and are not repeated below as new scope.
 
-## v1.17.0 - Pay-Cycle Cash Planning
+## v1.18.0 - Mobile Financial Decision UX
 
 Status: Implemented in release branch, pending PR review and manual installed acceptance
 
-Objective: Extend v1.16 payment planning so Fynvo can answer how much cash is required before the household's next expected income event, what will be left afterwards, and which accounts are under pressure.
+Objective: Make the existing authoritative pay-cycle, payment-planning and forecast results immediately understandable and actionable on iPhone and Home Assistant ingress without changing financial calculation semantics.
 
 ### Features
 
-- [x] Add a shared pay-cycle planning service that identifies the next expected household income date from existing active Income records without creating a separate income model.
-- [x] Calculate committed payments due before the next expected income event, including overdue unresolved obligations and automatic payments that still require funding.
-- [x] Show cash required before next pay at household and Account level, while preserving Card-to-Account derivation and explicit unknown-account handling.
-- [x] Calculate projected available cash immediately before and after the next expected income event using existing account balances, scheduled commitments and expected income.
-- [x] Support multiple household income sources by showing the next income event and the commitments covered before following income events where practical.
-- [x] Respect existing income recurrence, effective-dated changes, occurrence dates, payment status and reconciliation rules rather than introducing parallel forecast logic.
-- [x] Inspect minimum-balance/buffer support. The current Account model has no authoritative preferred-buffer field, so v1.17.0 keeps buffer values neutral rather than inventing defaults. Configurable Low buffer behaviour remains available for a later additive enhancement.
+- [x] Put the before-next-pay position first on mobile Overview, including available cash, next income, commitments and projected after-pay balance.
+- [x] Express an authoritative positive before-pay remainder as safe-to-spend context and a negative projected position as a funding shortfall.
+- [x] Promote overdue payments, payments requiring attention and incomplete funding information into explicit exceptions.
+- [x] Add interpreted funded, shortfall and incomplete states to Payment Centre without duplicating the pay-cycle service.
+- [x] Add explicit Cash Flow lowest-balance and shortfall interpretation while retaining the forecast chart.
+- [x] Default Cash Flow events to chronological next events while retaining Largest movements as an alternate view.
+- [x] Add compact mobile Payment Centre filters and visible incomplete-payment states.
+- [x] Improve Recurring Expenses overdue aggregation and incomplete-payment visibility while retaining explicit lifecycle actions.
+- [x] Group mobile More navigation into task-oriented sections.
 
 ### UX / Quality
 
-- [x] Add a concise "Before next pay" summary to Overview and Payment Centre using the same backend calculation.
-- [x] Clearly distinguish known shortfall and unknown balance/account states instead of treating missing information as zero. Low buffer is not emitted without a configured authoritative buffer.
-- [x] Keep the planning summary compact and touch-friendly on Home Assistant ingress and iPhone-sized screens without horizontal scrolling.
+- [x] Prevent final mobile financial values from being ellipsised.
+- [x] Replace the disruptive textual pay-cycle loader with a stable skeleton and reduced-motion fallback.
+- [x] Preserve Home Assistant ingress safe-area handling, touch-friendly controls and desktop analytical layouts.
+- [x] Keep status meaning explicit in text and labels rather than relying on colour alone.
 
 ### Testing / Validation
 
-- [x] Add regression coverage for weekly, fortnightly, monthly and multiple-income pay cycles, overdue commitments, automatic payments and no-income-known states.
-- [x] Add reconciliation regression coverage across Payment Centre, Overview data, Cash Flow, Calendar and pay-cycle planning using the same authoritative occurrences and amounts.
-- [x] Add Australia/Melbourne planning semantics and month-end/fortnightly recurrence coverage.
+- [x] Add frontend regression coverage for decision summaries, funded/shortfall/unknown states, compact filters, incomplete records, Cash Flow interpretation and release metadata.
+- [x] Preserve existing backend pay-cycle, payment-planning, forecast and payment lifecycle test suites unchanged because calculation semantics are unchanged.
 - [ ] Complete installed desktop, tablet, iPhone and Home Assistant ingress manual acceptance before merge.
 
-## v1.18.0 - Budget Decision Support
+## v1.19.0 - Budget Decision Support
 
 Status: Planned
 
@@ -61,7 +63,7 @@ Objective: Build on Fynvo's existing Budget model so households can see what rem
 - [ ] Verify budget projections use the same actual/committed/planned records as Cash Flow and Forecast.
 - [ ] Validate month-boundary and true-fortnightly budget periods against representative Australian household examples.
 
-## v1.19.0 - Commitment Intelligence & Renewal Planning
+## v1.20.0 - Commitment Intelligence & Renewal Planning
 
 Status: Planned
 
@@ -89,7 +91,7 @@ Objective: Make recurring household obligations easier to maintain by identifyin
 - [ ] Verify accepted suggestions update only the intended recurring rule/effective date and preserve historical Scheduled Payments and Transactions.
 - [ ] Verify no intelligence workflow automatically creates, pays, skips or reconciles a payment.
 
-## v1.20.0 - Household Reporting & Cost Trends
+## v1.21.0 - Household Reporting & Cost Trends
 
 Status: Planned
 
@@ -100,7 +102,7 @@ Objective: Turn Fynvo's existing transactions, commitments, budgets and forecast
 - [ ] Add monthly household income-versus-expense reporting with drill-through to the underlying Transactions.
 - [ ] Add category spending trends across recent months with clear treatment of transfers, refunds and uncategorised activity.
 - [ ] Show recurring-cost growth over time, including material changes to regular household commitments.
-- [ ] Add committed-versus-discretionary spending trend reporting using the classification introduced in v1.18.0.
+- [ ] Add committed-versus-discretionary spending trend reporting using the classification introduced in v1.19.0.
 - [ ] Add year-to-date household totals for income, expenses, committed costs and selected major categories.
 - [ ] Add account-level cash movement summaries while keeping internal transfers separate from household income/expense totals.
 - [ ] Add simple export of report-ready CSV data where useful, reusing existing canonical records and privacy boundaries.
@@ -117,101 +119,34 @@ Objective: Turn Fynvo's existing transactions, commitments, budgets and forecast
 - [ ] Reconcile report totals against canonical Transaction and commitment data for representative periods.
 - [ ] Verify exported values match on-screen totals and retain Australian date/currency conventions.
 
-## v1.21.0 - Home Assistant Financial Entities & Alerts
+## v1.22.0 - Home Assistant Financial Entities & Alerts
 
 Status: Planned
 
-Objective: Expose a small, privacy-conscious set of Fynvo planning states to Home Assistant so automations and dashboards can surface important household finance events without duplicating Fynvo calculations.
+Objective: Deepen Fynvo's Home Assistant value by exposing a small, stable set of household financial entities and actionable alerts based on the same authoritative Fynvo calculations.
 
 ### Features
 
-- [ ] Add Home Assistant entities for next-7-day amount required, overdue amount/count, next payment date/amount and next-pay cash requirement.
-- [ ] Add projected available cash/shortfall entities only where the underlying Fynvo balance information is sufficiently reliable.
-- [ ] Add optional entities for budget risk and selected savings-goal progress where the state can be represented safely and clearly.
-- [ ] Add event/trigger support for material states such as payment overdue, automatic payment unconfirmed, projected shortfall and commitment due soon.
-- [ ] Add notification actions that deep-link back into the relevant Fynvo screen or payment detail.
-- [ ] Keep sensitive transaction descriptions, credentials and detailed household data out of entity attributes by default.
-- [ ] Reuse Payment Planning, Budgeting, Goals and Forecast services as authoritative sources rather than recalculating finance rules inside the Home Assistant layer.
+- [ ] Expose stable Home Assistant-facing values for available cash, next income date/amount, cash required before next pay, projected before-pay balance and near-term shortfall state.
+- [ ] Add entities or equivalent HA integration surfaces for upcoming commitment totals and payment-attention counts where they remain semantically stable.
+- [ ] Add opt-in alerts for predicted before-pay shortfall, overdue payment attention and materially incomplete funding information.
+- [ ] Keep alerts state-based and idempotent so Home Assistant restarts do not create repeated notifications for the same unchanged condition.
+- [ ] Provide clear entity availability/unknown behaviour when Fynvo lacks sufficient source data.
 
 ### UX / Quality
 
-- [ ] Add a Settings area for enabling/disabling optional finance entities and selecting alert thresholds where appropriate.
-- [ ] Document practical Home Assistant dashboard and automation examples without making Home Assistant the primary Fynvo interface.
-- [ ] Ensure entity names and units are stable, understandable and migration-safe.
+- [ ] Document entity meanings and update cadence in household language.
+- [ ] Keep Home Assistant alerts opt-in and avoid noisy notifications for low-value state changes.
+- [ ] Ensure the Fynvo ingress UI remains the detailed investigation surface while HA entities serve dashboards and automations.
 
 ### Testing / Validation
 
-- [ ] Add entity-state tests for known, unknown and shortfall cases plus update behaviour after payment lifecycle changes.
-- [ ] Verify no sensitive values are exposed in unauthenticated endpoints or inappropriate Home Assistant attributes.
-- [ ] Validate add-on restart, upgrade and entity availability without modifying existing household financial records.
-
-## v1.22.0 - Debt & Liability Planning
-
-Status: Planned
-
-Objective: Extend Fynvo's existing liability Account types into useful household repayment planning while keeping the feature focused on visibility and cash requirements rather than lending advice.
-
-### Features
-
-- [ ] Add optional liability metadata for loans and credit facilities, including current balance/amount owing, minimum payment, repayment frequency, next repayment date and interest rate where the user chooses to record it.
-- [ ] Link liability repayments to existing Scheduled Payments/Transactions where practical instead of creating a second payment workflow.
-- [ ] Show upcoming minimum repayments alongside other household commitments and include them in cash planning when not already represented by a recurring payment.
-- [ ] Add repayment-progress views for mortgage, car/personal loans and credit-card style liabilities.
-- [ ] Add simple payoff projections based on recorded balance, rate and planned repayment amount, clearly labelled as estimates rather than financial advice.
-- [ ] Prevent double counting when a liability repayment already exists as a Recurring Expense, Bill or reconciled Scheduled Payment.
-- [ ] Investigate whether buy-now-pay-later schedules can be represented safely using the same liability/commitment architecture before adding dedicated support.
-
-### UX / Quality
-
-- [ ] Add liability detail that shows amount owing, next repayment, minimum requirement and projected progress in plain household language.
-- [ ] Keep debt projections separate from cash-flow certainty and explain assumptions used in any estimate.
-- [ ] Ensure mobile layouts prioritise amount owing, next payment and progress rather than dense amortisation tables.
-
-### Testing / Validation
-
-- [ ] Add regression coverage for liability balance direction, internal transfers/repayments, repayment deduplication and payoff estimates.
-- [ ] Verify liability balances are never counted as available cash in Payment Planning or Forecast.
-- [ ] Validate historical Transactions and existing Account types remain intact through any additive migration.
-
-## v1.23.0 - Savings Goals & Surplus Allocation
-
-Status: Planned
-
-Objective: Build on Fynvo's existing Goals capability so households can understand what surplus is realistically available for goals after near-term commitments and preferred cash buffers.
-
-### Features
-
-- [ ] Calculate goal contribution capacity from projected surplus after committed payments and configured account buffers, without automatically moving money.
-- [ ] Show whether planned goal contributions remain affordable before the next pay cycle and over a selected forecast horizon.
-- [ ] Support emergency-fund goals with target coverage expressed in practical household terms such as selected months of committed expenses.
-- [ ] Add goal progress history from actual linked contributions where reliable Account/Transaction evidence exists.
-- [ ] Show the effect of changing a planned contribution using existing Scenario/What-If foundations rather than mutating the real Goal immediately.
-- [ ] Allow multiple active savings goals to be prioritised for planning while keeping allocation suggestions optional and explainable.
-- [ ] Preserve a clear distinction between available cash, committed money, planned goal contributions and completed actual transfers.
-
-### UX / Quality
-
-- [ ] Add an "Available for goals" summary only when the underlying cash and commitment picture is sufficiently complete.
-- [ ] Present goal affordability and progress without implying guaranteed outcomes or financial advice.
-- [ ] Provide drill-through from goal contribution evidence to the relevant Transactions/Accounts.
-
-### Testing / Validation
-
-- [ ] Add regression coverage for multiple goals, unknown balances, cash buffers, planned versus actual contributions and scenario isolation.
-- [ ] Verify goal calculations never reduce Payment Planning funding requirements or silently create Transfers/Transactions.
-- [ ] Verify goal progress remains consistent across Overview, Goals and reporting views.
+- [ ] Verify entities reconcile with the same pay-cycle and payment-planning service values shown in Fynvo.
+- [ ] Add restart/idempotency coverage for alert state.
+- [ ] Verify unknown values remain unavailable rather than silently becoming zero.
 
 ## Future
 
-The following are longer-term possibilities and are not committed release scope:
+Status: Planned
 
-- [ ] Richer cross-account cash optimisation, including suggested internal transfers before commitments, subject to explicit user review and no automatic money movement.
-- [ ] More advanced household forecast confidence and uncertainty ranges where they can remain explainable.
-- [ ] Additional financial alerts and Home Assistant entities based on demonstrated household usefulness.
-- [ ] Import automation and broader bank-file support after reviewing practical Australian institution export formats.
-- [ ] Production Australian CDR/Open Banking connectivity only if a secure provider, consent model and sustainable implementation path are established.
-- [ ] Optional local financial intelligence that highlights patterns or risks without providing regulated financial advice or silently changing financial records.
-- [ ] Deeper audit/change-history coverage for important household finance mutations where existing lifecycle history is incomplete.
-- [ ] Further backup/restore, migration resilience, data-retention and diagnostic controls as the household data model grows.
-
-Fynvo will not pursue double-entry bookkeeping, BAS/GST reporting, payroll, business invoicing, corporate accounting, tax preparation, investment trading or personalised financial advice as part of its household-finance product direction.
+- [ ] Continue evidence-led improvements that strengthen household financial decisions without turning Fynvo into business accounting software.
