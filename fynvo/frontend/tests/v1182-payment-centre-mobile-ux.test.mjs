@@ -177,9 +177,9 @@ test('responsive breakpoints cover narrow iPhone, standard iPhone, tablet edge a
   assert.match(css, /@media\(min-width:981px\)/);
 });
 
-test('release metadata is aligned to v1.18.2', () => {
-  assert.match(config, /version: "1\.18\.2"/);
-  assert.equal(packageJson.version, '1.18.2');
-  assert.match(backendConfig, /APP_VERSION = "1\.18\.2"/);
-  assert.match(shell, /PRODUCTION_VERSION = '1\.18\.2'/);
+test('current release metadata remains aligned while v1.18.2 behaviour stays under regression coverage', () => {
+  assert.match(config, /version: "1\.18\.3"/);
+  assert.equal(packageJson.version, '1.18.3');
+  assert.match(backendConfig, /APP_VERSION = "1\.18\.3"/);
+  assert.match(shell, /PRODUCTION_VERSION = '1\.18\.3'/);
 });
