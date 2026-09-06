@@ -13,14 +13,15 @@ const transactions = await read('src/TransactionWorkspace.jsx');
 const appShell = await read('src/AppV13.jsx');
 const entry = await read('src/main.jsx');
 const pkg = JSON.parse(await read('package.json'));
+const renderedOverview = overview.slice(overview.indexOf('const overviewContent ='), overview.indexOf('const moreGroups ='));
 
 test('v1.18.1 intentionally supersedes the legacy Snapshot hierarchy with the decision-first Overview', () => {
   assert.match(legacyOverview, /fynvo-mobile-snapshot-grid/);
-  const decisionIndex = overview.indexOf('Before next pay');
-  const attentionIndex = overview.indexOf('Needs attention');
-  const neededIndex = overview.indexOf('Money needed soon');
-  const cashIndex = overview.indexOf('Cash position');
-  const accountsIndex = overview.indexOf('Accounts</h2>');
+  const decisionIndex = renderedOverview.indexOf('<h2 id="fynvo-mobile-decision">Before next pay</h2>');
+  const attentionIndex = renderedOverview.indexOf('<h2 id="fynvo-mobile-attention">Needs attention</h2>');
+  const neededIndex = renderedOverview.indexOf('<h2>Money needed soon</h2>');
+  const cashIndex = renderedOverview.indexOf('<h2>Cash position</h2>');
+  const accountsIndex = renderedOverview.indexOf('<h2>Accounts</h2>');
   assert.ok(decisionIndex >= 0 && attentionIndex > decisionIndex && neededIndex > attentionIndex && cashIndex > neededIndex && accountsIndex > cashIndex);
   assert.doesNotMatch(overview, /fynvo-mobile-snapshot-grid/);
   assert.match(overview, /184: 'Next 6 months'/);
