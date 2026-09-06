@@ -6,18 +6,20 @@
 
 ## Current release
 
-Current development release: **v1.18.1 Overview Decision Dashboard**.
+Current development release: **v1.18.2 Payment Centre Mobile UX Completion**.
 
-v1.18.1 builds on the merged v1.18.0 Mobile Financial Decision UX baseline. It:
+v1.18.2 builds on the merged v1.18.1 Overview Decision Dashboard baseline. It:
 
-- makes the mobile Overview a decision-first financial home screen for iPhone and Home Assistant ingress;
-- presents one authoritative **Before next pay** state with Available now, Committed before pay, Next income and Projected after pay in compact stacked rows;
-- explains incomplete funding using authoritative pay-cycle data instead of repeating generic unknown states;
-- promotes **Needs attention** directly below the pay-cycle decision, limits Overview to the top priority exceptions and keeps detailed payment management in Payment Centre;
-- adds compact **Money needed soon** horizons for the next 7 days, before next pay and the next 30 days;
-- condenses Cash position and Accounts, adds a lightweight **What changed?** comparison and moves lower-priority forecast detail behind progressive disclosure;
-- preserves the five-item mobile navigation, Home Assistant ingress shell ownership, iOS safe-area handling and existing authoritative financial calculations;
-- aligns active frontend, backend, Home Assistant add-on and production-shell version reporting to v1.18.1.
+- redesigns Payment Centre on iPhone/Home Assistant ingress as a compact financial-management queue rather than a vertically heavy desktop-style card stack;
+- keeps payment name and full amount prominent while consolidating due/overdue state, payment handling, payment method and funding metadata;
+- makes incomplete payment information compact and actionable and keeps **Mark paid** visible while lower-frequency lifecycle actions remain available through an overflow path and the existing detailed Payment Centre workspace;
+- replaces separate Grouped/Chronological controls with a segmented selector and improves date-group counts and within-group priority ordering;
+- consolidates Quick Add, Add Bill and quick filters into a compact sticky mobile toolbar with active-filter counts and reset behaviour;
+- simplifies the authoritative **Before next pay** funding summary around Available now, Required before pay and Next income, with explicit unavailable states and progressive disclosure of the full calculation;
+- uses skeleton loading plus independent payment-list and funding-summary error states, deliberate empty states, and iOS/Home Assistant safe-area clearance;
+- removes the redundant Payment Centre mobile footer and exposes the installed release version through **More → About**;
+- preserves the existing Payment Planning, Pay-Cycle Cash Planning, Scheduled Payments, Bills, Recurring Expenses and reconciliation calculations and lifecycle semantics;
+- aligns active frontend, backend, Home Assistant add-on and production-shell version reporting to v1.18.2.
 
 Fynvo preserves the financial architecture established in earlier releases:
 
