@@ -1,5 +1,16 @@
 # Fynvo Add-on Changelog
 
+## v1.18.3 - Payment Centre Actionability & Planning UX
+
+- Adds authoritative counts and monetary summaries for Overdue, Before next pay and Next 30 days directly in the mobile Payment Centre.
+- Replaces the generic unavailable before-pay message with an actionable cash-position setup state, direct Fix setup or Review Income actions and progressively disclosed calculation detail.
+- Makes missing due date, payment method, funding account and category information explicit and interactive rather than only showing a generic missing-detail count.
+- Refines payment-card hierarchy, reduces repeated full-width action weight and clearly distinguishes expected automatic payments from confirmed paid or reconciled state.
+- Adds collapsible planning groups for Overdue, Due before next pay, Next 7 days and Later this month with payment counts and reliable totals.
+- Adds deliberate bulk selection with confirmed Mark paid and Skip actions that reuse the existing authoritative payment lifecycle endpoints, including version checks and matched-transaction protections.
+- Preserves desktop Payment Centre, Scheduled Payments, Bills, Recurring Expenses, transaction matching, reconciliation and pay-cycle calculation semantics.
+- Adds mobile safe-area, narrow-iPhone, reduced-motion and sticky modal-action protections. No database migration is required.
+
 ## v1.18.2 - Payment Centre Mobile UX Completion
 
 - Redesigns Payment Centre for iPhone and Home Assistant ingress as a compact working queue with materially denser payment cards and clearer name/amount hierarchy.
