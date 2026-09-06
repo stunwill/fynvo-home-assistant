@@ -11,6 +11,7 @@ const mobile1178 = await read('src/mobile-overview-v1178.css');
 const mobile1179 = await read('src/mobile-workspace-v1179.css');
 const mobile1180 = await read('src/mobile-financial-decision-v1180.css');
 const overview1181 = await read('src/overview-decision-v1181.css');
+const payment1182 = await read('src/payment-centre-mobile-v1182.css');
 const shell = await read('src/AppV13.jsx');
 const pkg = JSON.parse(await read('package.json'));
 
@@ -41,8 +42,8 @@ test('Accounts and Cards wrapper shares the canonical API client', () => {
   assert.doesNotMatch(wrapper, /const api =/);
 });
 
-test('v1.18.1 styles retain v1.17.7 through v1.18.0 protections and load the Overview layer last', () => {
-  assert.match(entry, /import '\.\/mobile-v1177\.css';\s*\nimport '\.\/mobile-overview-v1178\.css';\s*\nimport '\.\/mobile-workspace-v1179\.css';\s*\nimport '\.\/mobile-financial-decision-v1180\.css';\s*\nimport '\.\/overview-decision-v1181\.css';\s*\n\nReactDOM/s);
+test('v1.18.2 styles retain v1.17.7 through v1.18.1 protections before the Payment Centre layer', () => {
+  assert.match(entry, /import '\.\/mobile-v1177\.css';\s*\nimport '\.\/mobile-overview-v1178\.css';\s*\nimport '\.\/mobile-workspace-v1179\.css';\s*\nimport '\.\/mobile-financial-decision-v1180\.css';\s*\nimport '\.\/overview-decision-v1181\.css';\s*\nimport '\.\/payment-centre-mobile-v1182\.css';\s*\n\nReactDOM/s);
   assert.match(mobile, /@media\(max-width:720px\)/);
   assert.match(mobile, /grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
   assert.match(mobile, /env\(safe-area-inset-bottom/);
@@ -54,9 +55,10 @@ test('v1.18.1 styles retain v1.17.7 through v1.18.0 protections and load the Ove
   assert.match(mobile1179, /cashflow-chart-v0174 svg path\{fill:none!important/);
   assert.match(mobile1180, /fynvo-mobile-decision-card/);
   assert.match(overview1181, /fynvo-overview-v1181-before/);
+  assert.match(payment1182, /payment-v1182-shell/);
 });
 
-test('v1.18.1 version surfaces align in the production shell', () => {
-  assert.match(shell, /PRODUCTION_VERSION = '1\.18\.1'/);
-  assert.equal(pkg.version, '1.18.1');
+test('v1.18.2 version surfaces align in the production shell', () => {
+  assert.match(shell, /PRODUCTION_VERSION = '1\.18\.2'/);
+  assert.equal(pkg.version, '1.18.2');
 });
