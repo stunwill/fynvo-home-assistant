@@ -31,7 +31,7 @@ test('compact payment cards keep name and full currency amount prominent', () =>
 
 test('payment metadata is consolidated and overdue state is expressed once in readable text', () => {
   assert.match(payment, /const meta = \[/);
-  assert.match(payment, /days? overdue/);
+  assert.match(payment, /overdue > 0 \? `Due \$\{dateLabel\(due\)\} · \$\{overdue\} day\$\{overdue === 1 \? '' : 's'\} overdue`/);
   assert.match(payment, /payment_handling === 'automatic' \? 'Automatic' : 'Manual'/);
   assert.match(payment, /PAYMENT_METHOD_LABELS/);
   assert.match(css, /payment-v1182-card-meta/);
