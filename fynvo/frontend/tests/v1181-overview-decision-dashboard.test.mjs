@@ -33,7 +33,6 @@ test('Before next pay uses one explicit state and compact stacked metrics', () =
   for (const label of ['Available now', 'Committed before pay', 'Next income', 'Projected after pay']) assert.match(overview, new RegExp(label));
   assert.match(overview, /Funding information incomplete/);
   assert.doesNotMatch(overview, />UNKNOWN</);
-  assert.doesNotMatch(overview, /decisionValue === null \? 'Not known'/);
   assert.match(css, /fynvo-overview-v1181-metrics>button/);
   assert.doesNotMatch(css, /fynvo-overview-v1181-metrics\{[^}]*grid-template-columns:1fr 1fr/);
 });
@@ -44,6 +43,30 @@ test('incomplete funding is explained from authoritative pay-cycle data', () => 
   assert.match(overview, /no funding account/);
   assert.match(overview, /next_income_known/);
   assert.match(overview, /Fix missing information/);
+  assert.match(overview, /missingInfoDestination = model\.unassignedCount > 0 \? 'Payment Centre' : 'Income'/);
+});
+
+test('unknown before-pay window never falls back to a 30-day commitment total', () => {
+  assert.match(overview, /const beforeCommitments = finite\(before\?\.commitments_total\)/);
+  assert.doesNotMatch(overview, /beforeCommitments\) \? beforeCommitments : Number\(planning\?\.periods\?\.next_30_days/);
+  assert.match(overview, /model\.commitments === null \? 'Not known' : money\(model\.commitments\)/);
+  assert.match(overview, /Next-pay window unavailable/);
+});
+
+test('unknown next income also makes projected-after-pay unknown', () => {
+  assert.match(overview, /const afterProjected = nextIncomeKnown \? afterProjectedRaw : null/);
+  assert.match(overview, /model\.afterProjected === null \? 'Not known' : money\(model\.afterProjected\)/);
+  assert.match(overview, /Requires a confirmed next income/);
+});
+
+test('loading and unavailable values are not silently presented as zero', () => {
+  assert.match(overview, /const \[accounts, setAccounts\] = useState\(null\)/);
+  assert.match(overview, /hasCommand/);
+  assert.match(overview, /hasAccounts/);
+  assert.match(overview, /hasPlanning/);
+  assert.match(overview, /model\.attentionCount === null \? '—'/);
+  assert.match(overview, /model\.next7 === null \? '—'/);
+  assert.match(overview, /model\.totalBalance/);
 });
 
 test('Needs attention shows top three exceptions and leaves full workflow in Payment Centre', () => {
@@ -55,14 +78,16 @@ test('Needs attention shows top three exceptions and leaves full workflow in Pay
   assert.match(overview, /incompleteCount/);
 });
 
-test('Money needed soon reuses Payment Planning periods and pay-cycle commitments', () => {
+test('Money needed soon reuses Payment Planning periods and authoritative before-pay commitments', () => {
   assert.match(overview, /planning\?\.periods\?\.next_7_days\?\.remaining_funding/);
   assert.match(overview, /planning\?\.periods\?\.next_30_days\?\.remaining_funding/);
   assert.match(overview, /Before next pay/);
-  assert.match(overview, /model\.commitments/);
+  assert.match(overview, /model\.commitments === null \? 'Not known' : money\(model\.commitments\)/);
 });
 
-test('Cash position and Accounts stay compact and responsive', () => {
+test('Cash position labels the actual selected range and Accounts stay responsive', () => {
+  assert.match(overview, /Cash position/);
+  assert.match(overview, /rangeLabel\(rangeDays\)/);
   assert.match(overview, /Income/);
   assert.match(overview, /Spending/);
   assert.match(overview, /Net/);
@@ -72,12 +97,15 @@ test('Cash position and Accounts stay compact and responsive', () => {
   assert.match(css, /fynvo-overview-v1181-two-up\{grid-template-columns:1fr\}/);
 });
 
-test('What changed uses a previous local snapshot rather than a parallel finance ledger', () => {
+test('What changed keeps one comparison baseline for the current Overview session', () => {
   assert.match(overview, /fynvo\.overview\.snapshot\.v1181/);
+  assert.match(overview, /const \[previousSnapshot\] = useState\(\(\) => readPreviousSnapshot\(\)\)/);
+  assert.match(overview, /snapshotWrittenRef/);
   assert.match(overview, /previous Overview snapshot/);
   assert.match(overview, /balanceDelta/);
   assert.match(overview, /commitmentDelta/);
   assert.match(overview, /attentionDelta/);
+  assert.doesNotMatch(overview, /setPreviousSnapshot/);
   assert.doesNotMatch(overview, /apiRequest\('\/what-changed/);
 });
 
