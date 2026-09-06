@@ -13,6 +13,7 @@ const appShell = await read('src/AppV13.jsx');
 const base = await read('src/AppCorrectiveV0174.jsx');
 const entry = await read('src/main.jsx');
 const pkg = JSON.parse(await read('package.json'));
+const renderedOverview = mobileShell.slice(mobileShell.indexOf('const overviewContent ='), mobileShell.indexOf('const moreGroups ='));
 
 test('mobile shell owns five primary destinations across all mobile pages', () => {
   assert.match(mobileShell, /Primary mobile navigation/);
@@ -55,11 +56,11 @@ test('Accounts summary and rows remain compact and responsive with v1.17.9 refin
 test('v1.18.1 supersedes the four-card Snapshot with the decision-first Overview hierarchy', () => {
   assert.match(legacyMobileShell, /fynvo-mobile-snapshot-grid/);
   assert.doesNotMatch(mobileShell, /fynvo-mobile-snapshot-grid/);
-  const decisionIndex = mobileShell.indexOf('Before next pay');
-  const attentionIndex = mobileShell.indexOf('Needs attention');
-  const neededIndex = mobileShell.indexOf('Money needed soon');
-  const cashIndex = mobileShell.indexOf('Cash position');
-  const accountsIndex = mobileShell.indexOf('Accounts</h2>');
+  const decisionIndex = renderedOverview.indexOf('<h2 id="fynvo-mobile-decision">Before next pay</h2>');
+  const attentionIndex = renderedOverview.indexOf('<h2 id="fynvo-mobile-attention">Needs attention</h2>');
+  const neededIndex = renderedOverview.indexOf('<h2>Money needed soon</h2>');
+  const cashIndex = renderedOverview.indexOf('<h2>Cash position</h2>');
+  const accountsIndex = renderedOverview.indexOf('<h2>Accounts</h2>');
   assert.ok(decisionIndex >= 0 && attentionIndex > decisionIndex && neededIndex > attentionIndex && cashIndex > neededIndex && accountsIndex > cashIndex);
   assert.match(mobileShell, /topAttention: sortedAttention\.slice\(0, 3\)/);
 });
