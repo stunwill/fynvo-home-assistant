@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 
+import PaymentCentreV112 from './PaymentCentreV112.jsx';
 import { apiRequest } from './apiClient.js';
 import {
   PAYMENT_METHOD_LABELS,
@@ -156,9 +157,7 @@ function FilterSheet({ open, draft, setDraft, data, onApply, onClear, onClose })
     if (!open) return undefined;
     const prior = document.activeElement;
     const frame = requestAnimationFrame(() => ref.current?.querySelector('input,select,button')?.focus());
-    const onKey = (event) => {
-      if (event.key === 'Escape') onClose();
-    };
+    const onKey = (event) => { if (event.key === 'Escape') onClose(); };
     document.addEventListener('keydown', onKey);
     return () => { cancelAnimationFrame(frame); document.removeEventListener('keydown', onKey); prior?.focus?.(); };
   }, [open, onClose]);
@@ -181,8 +180,7 @@ function QuickMarkPaid({ row, onClose, onSaved }) {
   const [error, setError] = useState('');
   if (!row) return null;
   const submit = async (event) => {
-    event.preventDefault();
-    setSaving(true); setError('');
+    event.preventDefault(); setSaving(true); setError('');
     try {
       const isBill = row.source_type === 'bill';
       await apiRequest(isBill ? `/bills/${row.id}/mark-paid` : `/scheduled-payments/${row.id}/mark-paid`, {
@@ -237,7 +235,8 @@ function PaymentCard({ row, onMarkPaid, onOpenDetailed, onEditBill, onOpenRecurr
   </article>;
 }
 
-export default function PaymentCentreMobileV1182({ data, onNavigate, onRefreshSupporting, onEditBill, onOpenRecurring }) {
+export default function PaymentCentreMobileV1182(props) {
+  const { data, onNavigate, onQuickAdd, onRefreshSupporting, onEditBill, onOpenRecurring } = props;
   const initial = useMemo(() => defaultPaymentCentreFilters(), []);
   const [draft, setDraft] = useState(initial);
   const [filters, setFilters] = useState(initial);
@@ -249,6 +248,7 @@ export default function PaymentCentreMobileV1182({ data, onNavigate, onRefreshSu
   const [planningError, setPlanningError] = useState('');
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [markingPaid, setMarkingPaid] = useState(null);
+  const [fullWorkspace, setFullWorkspace] = useState(false);
   const [mode, setMode] = useState(() => localStorage.getItem('fynvo.paymentCentre.timelineMode.v1182') || 'grouped');
   const query = useMemo(() => buildPaymentCentreQuery(filters), [filters]);
 
@@ -269,6 +269,8 @@ export default function PaymentCentreMobileV1182({ data, onNavigate, onRefreshSu
   useEffect(() => { loadPlanning(); }, []);
   useEffect(() => { localStorage.setItem('fynvo.paymentCentre.timelineMode.v1182', mode); }, [mode]);
 
+  if (fullWorkspace) return <section className="payment-v1182-shell payment-v1182-full-workspace"><div className="payment-v1182-toolbar"><button type="button" className="payment-v1182-back" onClick={() => setFullWorkspace(false)}>‹ Back to compact queue</button></div><PaymentCentreV112 {...props}/></section>;
+
   const groups = useMemo(() => groupRows(result?.rows || [], mode), [result?.rows, mode]);
   const activeCount = [filters.search, filters.status, filters.categoryId, filters.source, filters.paymentMethod, filters.paymentHandling, filters.accountId, filters.cardId, filters.requiresAction].filter(Boolean).length;
   const quick = (next) => { setDraft((current) => ({ ...current, ...next })); setFilters((current) => ({ ...current, ...next })); };
@@ -277,7 +279,7 @@ export default function PaymentCentreMobileV1182({ data, onNavigate, onRefreshSu
 
   return <section className="payment-v1182-shell" aria-label="Payment Centre mobile workspace">
     <div className="payment-v1182-toolbar">
-      <div className="payment-v1182-create-row"><button type="button" className="primary ghost" onClick={() => document.querySelector('main.content>.header-actions .primary')?.click()}>+ Quick Add</button><button type="button" className="primary" onClick={() => onNavigate('Bills')}>+ Add Bill</button></div>
+      <div className="payment-v1182-create-row"><button type="button" className="primary ghost" onClick={onQuickAdd}>+ Quick Add</button><button type="button" className="primary" onClick={() => onNavigate('Bills')}>+ Add Bill</button></div>
       <div className="payment-v1182-mode" role="group" aria-label="Payment timeline view"><button type="button" className={mode === 'grouped' ? 'active' : ''} aria-pressed={mode === 'grouped'} onClick={() => setMode('grouped')}>Grouped</button><button type="button" className={mode === 'chronological' ? 'active' : ''} aria-pressed={mode === 'chronological'} onClick={() => setMode('chronological')}>Chronological</button></div>
       <div className="payment-v1182-filter-row" aria-label="Quick payment filters"><button type="button" className={filters.dateRange === 'next_30_days' ? 'active' : ''} onClick={() => quick({ dateRange: 'next_30_days' })}>Next 30 days</button><button type="button" className={filters.dateRange === 'overdue' ? 'active' : ''} onClick={() => quick({ dateRange: 'overdue' })}>Overdue</button><button type="button" className={filters.requiresAction ? 'active' : ''} onClick={() => quick({ requiresAction: !filters.requiresAction })}>Needs attention</button><button type="button" onClick={() => setFiltersOpen(true)}>Filters{activeCount ? ` (${activeCount})` : ''}</button></div>
     </div>
@@ -285,7 +287,7 @@ export default function PaymentCentreMobileV1182({ data, onNavigate, onRefreshSu
     {loadingPlanning && !planning ? <div className="payment-v1182-skeleton" role="status" aria-label="Loading before-pay funding"><div className="payment-v1182-skeleton-row"/></div> : planningError ? <div className="payment-v1182-error"><strong>Before-pay funding unavailable</strong><p>{planningError}</p><button type="button" onClick={loadPlanning}>Retry funding</button></div> : <PayCycleDecision planning={planning} onIncome={() => onNavigate('Income')}/>} 
 
     {loadingPayments && !result ? <PaymentSkeleton/> : paymentError ? <div className="payment-v1182-error"><strong>Payment list could not load</strong><p>{paymentError}</p><button type="button" onClick={loadPayments}>Retry payments</button></div> : result?.rows?.length ? <section className={`payment-v1182-timeline ${loadingPayments ? 'refreshing' : ''}`}>
-      {groups.map((group) => <section className="payment-v1182-group" key={group.key}><div className="payment-v1182-group-head"><h3>{group.label}</h3><span>{group.rows.length} payment{group.rows.length === 1 ? '' : 's'}</span></div>{group.rows.map((row) => <PaymentCard key={`${row.source_type}-${row.id}`} row={row} onMarkPaid={setMarkingPaid} onOpenDetailed={() => { localStorage.setItem('fynvo.paymentCentre.timelineMode', 'detailed'); window.location.reload(); }} onEditBill={onEditBill} onOpenRecurring={onOpenRecurring} onNavigate={onNavigate}/>)}</section>)}
+      {groups.map((group) => <section className="payment-v1182-group" key={group.key}><div className="payment-v1182-group-head"><h3>{group.label}</h3><span>{group.rows.length} payment{group.rows.length === 1 ? '' : 's'}</span></div>{group.rows.map((row) => <PaymentCard key={`${row.source_type}-${row.id}`} row={row} onMarkPaid={setMarkingPaid} onOpenDetailed={() => setFullWorkspace(true)} onEditBill={onEditBill} onOpenRecurring={onOpenRecurring} onNavigate={onNavigate}/>)}</section>)}
     </section> : <div className="payment-v1182-empty"><strong>{activeCount || filters.dateRange !== 'next_30_days' ? 'No payments match these filters' : 'No payments in this period'}</strong><p>{activeCount || filters.dateRange !== 'next_30_days' ? 'Try clearing filters or selecting a broader date range.' : 'There are no payment obligations in the selected period.'}</p>{(activeCount || filters.dateRange !== 'next_30_days') && <button type="button" onClick={clear}>Clear filters</button>}</div>}
 
     <QuickMarkPaid row={markingPaid} onClose={() => setMarkingPaid(null)} onSaved={refreshed}/>
