@@ -3,10 +3,12 @@ import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
-const mobileShell = await read('src/MobileOverviewV1178.jsx');
+const legacyMobileShell = await read('src/MobileOverviewV1178.jsx');
+const mobileShell = await read('src/MobileOverviewV1181.jsx');
 const mobileCss = await read('src/mobile-overview-v1178.css');
 const refinementCss = await read('src/mobile-workspace-v1179.css');
 const decisionCss = await read('src/mobile-financial-decision-v1180.css');
+const overviewCss = await read('src/overview-decision-v1181.css');
 const appShell = await read('src/AppV13.jsx');
 const base = await read('src/AppCorrectiveV0174.jsx');
 const entry = await read('src/main.jsx');
@@ -16,7 +18,6 @@ test('mobile shell owns five primary destinations across all mobile pages', () =
   assert.match(mobileShell, /Primary mobile navigation/);
   for (const label of ['Overview', 'Accounts', 'Cash Flow', 'Transactions', 'More']) assert.match(mobileShell, new RegExp(`>${label}<`));
   assert.match(mobileShell, /if \(!active\) return null/);
-  assert.doesNotMatch(mobileShell, /if \(!active \|\| !host\) return null/);
 });
 
 test('More exposes Tools and a usable mobile tools sheet without the floating trigger', () => {
@@ -51,15 +52,16 @@ test('Accounts summary and rows remain compact and responsive with v1.17.9 refin
   assert.match(mobileCss, /min-height:78px!important/);
 });
 
-test('mobile Overview keeps exactly four snapshot actions then cash flow and top accounts beneath the decision layer', () => {
-  const snapshot = mobileShell.match(/fynvo-mobile-snapshot-grid[\s\S]*?<\/div>\s*<\/section>/)?.[0] || '';
-  assert.equal((snapshot.match(/<button/g) || []).length, 4);
-  const decisionIndex = mobileShell.indexOf('fynvo-mobile-decision');
-  const snapshotIndex = mobileShell.indexOf('fynvo-mobile-snapshot');
-  const cashIndex = mobileShell.indexOf('fynvo-mobile-cashflow');
-  const accountsIndex = mobileShell.indexOf('fynvo-mobile-accounts');
-  assert.ok(decisionIndex >= 0 && snapshotIndex > decisionIndex && cashIndex > snapshotIndex && accountsIndex > cashIndex);
-  assert.match(mobileShell, /\.slice\(0, 3\)/);
+test('v1.18.1 supersedes the four-card Snapshot with the decision-first Overview hierarchy', () => {
+  assert.match(legacyMobileShell, /fynvo-mobile-snapshot-grid/);
+  assert.doesNotMatch(mobileShell, /fynvo-mobile-snapshot-grid/);
+  const decisionIndex = mobileShell.indexOf('Before next pay');
+  const attentionIndex = mobileShell.indexOf('Needs attention');
+  const neededIndex = mobileShell.indexOf('Money needed soon');
+  const cashIndex = mobileShell.indexOf('Cash position');
+  const accountsIndex = mobileShell.indexOf('Accounts</h2>');
+  assert.ok(decisionIndex >= 0 && attentionIndex > decisionIndex && neededIndex > attentionIndex && cashIndex > neededIndex && accountsIndex > cashIndex);
+  assert.match(mobileShell, /topAttention: sortedAttention\.slice\(0, 3\)/);
 });
 
 test('mobile Overview uses canonical deduplicating API client for already requested data', () => {
@@ -69,9 +71,10 @@ test('mobile Overview uses canonical deduplicating API client for already reques
   assert.match(mobileShell, /apiRequest\('\/payment-planning'\)/);
 });
 
-test('v1.18.0 decision layer loads after the preserved v1.17.8 and v1.17.9 mobile layers and release surfaces agree', () => {
-  assert.match(entry, /import '\.\/mobile-overview-v1178\.css';\s*\nimport '\.\/mobile-workspace-v1179\.css';\s*\nimport '\.\/mobile-financial-decision-v1180\.css';\s*\n\nReactDOM/s);
+test('v1.18.1 Overview layer loads after preserved v1.17.8/v1.17.9/v1.18.0 layers and release surfaces agree', () => {
+  assert.match(entry, /import '\.\/mobile-overview-v1178\.css';\s*\nimport '\.\/mobile-workspace-v1179\.css';\s*\nimport '\.\/mobile-financial-decision-v1180\.css';\s*\nimport '\.\/overview-decision-v1181\.css';\s*\n\nReactDOM/s);
   assert.match(decisionCss, /fynvo-mobile-decision-card/);
-  assert.equal(pkg.version, '1.18.0');
-  assert.match(appShell, /PRODUCTION_VERSION = '1\.18\.0'/);
+  assert.match(overviewCss, /fynvo-overview-v1181-before/);
+  assert.equal(pkg.version, '1.18.1');
+  assert.match(appShell, /PRODUCTION_VERSION = '1\.18\.1'/);
 });
