@@ -1,5 +1,19 @@
 # Fynvo Add-on Changelog
 
+## v1.18.2 - Payment Centre Mobile UX Completion
+
+- Redesigns Payment Centre for iPhone and Home Assistant ingress as a compact working queue with materially denser payment cards and clearer name/amount hierarchy.
+- Consolidates overdue, payment handling, payment method and funding metadata into concise rows, while keeping incomplete-data warnings visible and actionable.
+- Keeps **Mark paid** as the primary visible action and moves lower-frequency lifecycle actions behind a compact overflow path backed by the existing detailed Payment Centre workspace.
+- Replaces separate Grouped/Chronological buttons with a persisted segmented selector, improves readable date-group counts and keeps priority ordering within groups explicit.
+- Makes Quick Add and Add Bill proportionate mobile controls, adds compact quick filters with active-filter counts, and suppresses redundant global Payment Centre header controls.
+- Simplifies **Before next pay** around the authoritative funding conclusion, Available now, Required before pay and Next income, with explicit unavailable states and progressive calculation disclosure.
+- Adds structure-preserving skeleton loading, independent payment/funding error recovery and deliberate empty states without blocking usable sections unnecessarily.
+- Hides the redundant mobile footer on Payment Centre, moves version visibility to **More → About**, and adds bottom-navigation/iOS safe-area clearance for the final payment and modal actions.
+- Preserves desktop Payment Centre, authoritative payment-planning/pay-cycle calculations, Scheduled Payment lifecycle, Bills, Recurring Expenses and reconciliation semantics.
+- Adds v1.18.2 regression coverage for Payment Centre density, actions, grouped/chronological controls, filters, pay-cycle summary, loading/error/empty states, responsive breakpoints and release metadata.
+- Requires no database migration.
+
 ## v1.18.1 - Overview Decision Dashboard
 
 - Refines the mobile Overview into a denser decision-first dashboard using the supplied iPhone 15 Pro references.
