@@ -2,6 +2,18 @@
 
 All notable Fynvo changes are documented here. Starting with v0.3.0, every release must include a user-readable changelog entry, Home Assistant-visible release notes and GitHub release notes.
 
+## v1.18.2 - Payment Centre Mobile UX Completion
+
+- Redesigns the iPhone/Home Assistant Payment Centre as a compact financial-management queue instead of a vertically heavy card stack.
+- Introduces denser payment rows that keep payment name and full amount prominent, consolidate due/overdue, handling, payment-method and funding metadata, and summarise missing details with a compact actionable warning.
+- Keeps Mark paid as the visible primary action while moving lower-frequency lifecycle actions behind a compact overflow path and preserving access to the existing detailed Payment Centre workspace.
+- Reworks Grouped and Chronological into a clear segmented selector, improves date-group counts and priority ordering within groups, and keeps chronology authoritative.
+- Consolidates Quick Add, Add Bill and quick filters into a sticky mobile toolbar, removes the duplicate global header actions on Payment Centre and keeps active-filter counts and reset behaviour available.
+- Simplifies the before-next-pay funding summary around Available now, Required before pay and Next income, replaces ambiguous bare Unknown text with explicit before-pay availability explanations, and keeps full calculation detail behind View calculation.
+- Replaces large text-only loading states with structure-preserving skeletons, separates payment-list and funding-summary failures so one secondary failure does not unnecessarily block the other workspace, and adds deliberate empty states.
+- Hides the redundant mobile footer in Payment Centre, moves the release version into More → About, and adds explicit bottom-navigation and iOS safe-area clearance.
+- Preserves authoritative Payment Planning, Pay-Cycle Cash Planning, Scheduled Payments, Bills, Recurring Expenses and reconciliation semantics, with no database migration.
+
 ## v1.18.1 - Overview Decision Dashboard
 
 - Refines the merged v1.18.0 mobile financial-decision work into a denser, decision-first iPhone/Home Assistant Overview based on the supplied 1179 × 2556 iPhone 15 Pro references.
@@ -78,13 +90,3 @@ All notable Fynvo changes are documented here. Starting with v0.3.0, every relea
 - No database migration is required and no financial calculations, records, payment lifecycle, forecasting, Accounts or Cards data are changed.
 
 ## v1.17.5 - Frontend Startup Lifecycle Correction & Diagnostics
-
-- Uses evidence from the installed Home Assistant and Fynvo add-on logs: authentication, household security, Accounts and Cards requests were returning successfully while the iPhone webview still remained on the Fynvo loading screen.
-- Removes the global `fetch` authentication bridge and the keyed automatic startup remount/watchdog from the production shell. A successful outer authentication now mounts one workspace instance and keeps it mounted.
-- Keeps the v1.17.4 direct `authState` prop handoff through the Accounts/Cards compatibility wrapper into the base workspace, while removing the shared-global auth mutation from that wrapper.
-- Restricts the compatibility wrapper's Accounts/Cards bootstrap calls to authenticated sessions.
-- Removes the production `React.StrictMode` wrapper so the installed startup lifecycle and diagnostic sequence have one root mount.
-- Adds explicit installed-runtime startup stages (`authenticated`, `workspace-mounted`, `workspace-rendered`) and records them in the Fynvo add-on log through a lightweight diagnostic endpoint.
-- Marks the HTML app shell as non-cacheable at document level so Home Assistant's embedded webview is less likely to retain a stale shell across add-on upgrades. Hashed built assets remain managed by Vite.
-- Adds regression coverage that rejects the removed auth bridge, keyed remount path and StrictMode wrapper, verifies direct auth propagation, startup diagnostics and no-cache document metadata.
-- Preserves all financial calculations, records and payment lifecycle behaviour. No database migration is required.
