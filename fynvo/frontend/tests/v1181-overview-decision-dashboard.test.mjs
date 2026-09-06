@@ -10,6 +10,7 @@ const css = await read('src/overview-decision-v1181.css');
 const config = await read('../config.yaml');
 const backendConfig = await read('../backend/app/config.py');
 const packageJson = JSON.parse(await read('package.json'));
+const renderedOverview = overview.slice(overview.indexOf('const overviewContent ='), overview.indexOf('const moreGroups ='));
 
 test('production shell mounts the v1.18.1 Overview implementation', () => {
   assert.match(app, /MobileOverviewV1181/);
@@ -18,13 +19,13 @@ test('production shell mounts the v1.18.1 Overview implementation', () => {
 });
 
 test('Overview follows decision-first mobile hierarchy', () => {
-  const before = overview.indexOf('Before next pay');
-  const attention = overview.indexOf('Needs attention');
-  const needed = overview.indexOf('Money needed soon');
-  const cash = overview.indexOf('Cash position');
-  const accounts = overview.indexOf('Accounts</h2>');
-  const changes = overview.indexOf('What changed?');
-  const insights = overview.indexOf('More financial insights');
+  const before = renderedOverview.indexOf('<h2 id="fynvo-mobile-decision">Before next pay</h2>');
+  const attention = renderedOverview.indexOf('<h2 id="fynvo-mobile-attention">Needs attention</h2>');
+  const needed = renderedOverview.indexOf('<h2>Money needed soon</h2>');
+  const cash = renderedOverview.indexOf('<h2>Cash position</h2>');
+  const accounts = renderedOverview.indexOf('<h2>Accounts</h2>');
+  const changes = renderedOverview.indexOf('<h2>What changed?</h2>');
+  const insights = renderedOverview.indexOf('<summary>More financial insights</summary>');
   for (const value of [before, attention, needed, cash, accounts, changes, insights]) assert.ok(value >= 0);
   assert.ok(before < attention && attention < needed && needed < cash && cash < accounts && accounts < changes && changes < insights);
 });
