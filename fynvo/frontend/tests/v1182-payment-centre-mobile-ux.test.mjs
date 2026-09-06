@@ -40,8 +40,8 @@ test('payment metadata is consolidated and overdue state is expressed once in re
 test('incomplete payment information is compact and actionable', () => {
   assert.match(payment, /missingFields/);
   for (const field of ['due date', 'payment method', 'funding account']) assert.match(payment, new RegExp(field));
-  assert.match(payment, /details missing|detail missing/);
-  assert.match(payment, /Review details|Edit payment|Edit funding|Set due date/);
+  assert.match(payment, /detail\{missing\.length === 1 \? '' : 's'\} missing/);
+  assert.match(payment, /Review \{missing\.length\} missing detail/);
   assert.match(css, /payment-v1182-missing/);
 });
 
@@ -155,8 +155,8 @@ test('mobile footer is suppressed and bottom navigation safe-area clearance is e
   assert.match(css, /body\.fynvo-payment-centre-page \.app-footer\{display:none!important\}/);
   assert.match(css, /padding-bottom:calc\(96px \+ env\(safe-area-inset-bottom,0px\)\)/);
   assert.match(app, /fynvo-payment-centre-page/);
-  assert.match(mobileShell, /About/);
-  assert.match(mobileShell, /Fynvo v1\.18\.2/);
+  assert.match(mobileShell, /ABOUT/);
+  assert.match(mobileShell, /productionVersion \|\| '1\.18\.2'/);
 });
 
 test('Home Assistant ingress and modal layering protections remain explicit', () => {
