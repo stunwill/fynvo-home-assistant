@@ -78,8 +78,8 @@ test('specialised mobile workspaces suppress redundant global header actions', (
   assert.match(appShell, /fynvo-recurring-expenses-page/);
 });
 
-test('v1.18.1 stylesheet is final and production version surfaces agree', () => {
-  assert.match(entry, /import '\.\/mobile-financial-decision-v1180\.css';\s*\nimport '\.\/overview-decision-v1181\.css';\s*\n\nReactDOM/s);
-  assert.equal(pkg.version, '1.18.1');
-  assert.match(appShell, /PRODUCTION_VERSION = '1\.18\.1'/);
+test('v1.18.2 Payment Centre stylesheet follows the v1.18.1 Overview layer and production versions agree', () => {
+  assert.match(entry, /import '\.\/mobile-financial-decision-v1180\.css';\s*\nimport '\.\/overview-decision-v1181\.css';\s*\nimport '\.\/payment-centre-mobile-v1182\.css';\s*\n\nReactDOM/s);
+  assert.equal(pkg.version, '1.18.2');
+  assert.match(appShell, /PRODUCTION_VERSION = '1\.18\.2'/);
 });
