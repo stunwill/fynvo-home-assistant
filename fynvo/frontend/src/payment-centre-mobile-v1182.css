@@ -49,6 +49,7 @@
   .payment-centre-modal-backdrop{z-index:220}.payment-centre-mark-paid,.payment-centre-detail{max-height:calc(100dvh - 18px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px))}.payment-centre-mark-paid footer,.payment-centre-detail footer{padding-bottom:calc(15px + env(safe-area-inset-bottom,0px))}
 }
 @media(max-width:430px){.payment-v1182-decision-grid strong{font-size:14px}.payment-v1182-toolbar{margin-left:-2px;margin-right:-2px}}
+@media(max-width:393px){.payment-v1182-decision-head{gap:8px}.payment-v1182-card-main{gap:5px 8px}.payment-v1182-filter-row button{padding-left:10px;padding-right:10px}}
 @media(max-width:374px){.payment-v1182-decision-head{display:grid}.payment-v1182-decision-value{text-align:left}.payment-v1182-create-row{grid-template-columns:1fr 1fr}.payment-v1182-decision-grid{grid-template-columns:1fr}.payment-v1182-decision-grid>div{border-right:0;border-top:1px solid var(--line);padding:7px 0}.payment-v1182-decision-grid>div:first-child{border-top:0}.payment-v1182-card-main{padding:10px}.payment-v1182-card-actions{min-height:46px}}
 @media(max-width:329px){.payment-v1182-create-row{grid-template-columns:1fr}.payment-v1182-mode button{font-size:12px}.payment-v1182-filter-row button{padding-left:9px;padding-right:9px}}
 @media(min-width:981px){.payment-v1182-shell,.payment-v1182-toolbar,.payment-v1182-decision,.payment-v1182-skeleton,.payment-v1182-timeline,.payment-v1182-empty,.payment-v1182-error{display:none!important}}
