@@ -2,11 +2,42 @@
 
 Fynvo is a household finance and cash-planning application for understanding upcoming commitments, available cash, pay-cycle pressure, spending decisions and near-term financial risk. The roadmap prioritises practical household planning over business accounting, tax, payroll or investment-trading functionality.
 
-The current development baseline is v1.18.0. Payment Centre, recurring-payment lifecycle, 7/14/30-day commitment planning, pay-cycle cash planning, account funding requirements, available-cash comparisons, transactions, reconciliation, budgets, goals, scenarios, date-oriented financial Calendar, Cash Flow forecasting/impact analysis, CSV import, insights, Overview drill-down navigation and responsive Home Assistant ingress are already delivered and are not repeated below as new scope.
+The current development baseline is v1.18.1. Payment Centre, recurring-payment lifecycle, 7/14/30-day commitment planning, pay-cycle cash planning, account funding requirements, available-cash comparisons, transactions, reconciliation, budgets, goals, scenarios, date-oriented financial Calendar, Cash Flow forecasting/impact analysis, CSV import, insights, Overview drill-down navigation and responsive Home Assistant ingress are already delivered and are not repeated below as new scope.
+
+## v1.18.1 - Overview Decision Dashboard
+
+Status: Implemented in release branch, pending PR review and installed acceptance
+
+Objective: Refine the merged v1.18.0 financial-decision work into a concise iPhone/Home Assistant Overview that answers immediate household cash questions with materially less scrolling.
+
+### Features
+
+- [x] Consolidate the before-next-pay state so incomplete funding is explained once instead of repeating Funding incomplete, Not known and UNKNOWN.
+- [x] Replace the nested 2 × 2 mobile decision cards with compact stacked rows for Available now, Committed before pay, Next income and Projected after pay.
+- [x] Make incomplete funding actionable using the existing pay-cycle completeness and unassigned-funding data.
+- [x] Put Needs attention immediately after Before next pay and limit Overview to the three highest-priority exceptions.
+- [x] Add Money needed soon for Next 7 days, Before next pay and Next 30 days using the existing Payment Planning service.
+- [x] Add compact Cash position and Accounts summaries using existing command-centre/account data.
+- [x] Add a lightweight What changed? comparison using a previous Overview snapshot without introducing a parallel financial ledger.
+- [x] Move lower-priority forecast information behind More financial insights while retaining Cash Flow as the detailed forecast workspace.
+
+### UX / Quality
+
+- [x] Treat the supplied 1179 × 2556 iPhone 15 Pro screenshots as physical-pixel visual references while using the actual CSS viewport for responsive decisions.
+- [x] Preserve Home Assistant ingress shell ownership and the Overview / Accounts / Cash Flow / Transactions / More bottom navigation.
+- [x] Preserve iOS safe-area handling and prevent Overview content from being hidden by the fixed bottom navigation.
+- [x] Retain stacked fallbacks for narrower iPhone-class viewports instead of forcing tablet-style layouts.
+- [x] Preserve explicit text status meaning and reduced-motion behaviour.
+
+### Testing / Validation
+
+- [x] Add frontend source-contract regression coverage for hierarchy, stacked pay-cycle rows, Needs attention, Money needed soon, What changed, responsive breakpoints and release metadata.
+- [x] Preserve existing backend pay-cycle, payment-planning, forecast and payment lifecycle semantics.
+- [ ] Complete real installed iPhone 15 Pro and Home Assistant ingress visual acceptance before merge.
 
 ## v1.18.0 - Mobile Financial Decision UX
 
-Status: Implemented in release branch, pending PR review and manual installed acceptance
+Status: Merged to main
 
 Objective: Make the existing authoritative pay-cycle, payment-planning and forecast results immediately understandable and actionable on iPhone and Home Assistant ingress without changing financial calculation semantics.
 
@@ -33,7 +64,7 @@ Objective: Make the existing authoritative pay-cycle, payment-planning and forec
 
 - [x] Add frontend regression coverage for decision summaries, funded/shortfall/unknown states, compact filters, incomplete records, Cash Flow interpretation and release metadata.
 - [x] Preserve existing backend pay-cycle, payment-planning, forecast and payment lifecycle test suites unchanged because calculation semantics are unchanged.
-- [ ] Complete installed desktop, tablet, iPhone and Home Assistant ingress manual acceptance before merge.
+- [x] Merge v1.18.0 to main.
 
 ## v1.19.0 - Budget Decision Support
 
