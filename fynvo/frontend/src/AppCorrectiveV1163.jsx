@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import BaseApp from './AppCorrectiveV0174.jsx';
 import AccountsCardsWorkspaceV1163 from './AccountsCardsWorkspaceV1163.jsx';
+import PaymentCentreMobileV1183 from './PaymentCentreMobileV1183.jsx';
 import { apiRequest } from './apiClient.js';
 import './accounts-cards-v1163.css';
 
@@ -13,6 +14,8 @@ export default function AppCorrectiveV1163({ authState = null }) {
   const [accounts, setAccounts] = useState([]);
   const [cards, setCards] = useState([]);
   const [mount, setMount] = useState(null);
+  const [paymentMount, setPaymentMount] = useState(null);
+  const [paymentSupporting, setPaymentSupporting] = useState({ accounts: [], cards: [], categories: [], recurring: [] });
 
   async function refreshAccountsCards() {
     if (!authState?.authenticated) return;
@@ -25,8 +28,24 @@ export default function AppCorrectiveV1163({ authState = null }) {
     }
   }
 
+  async function refreshPaymentSupporting() {
+    if (!authState?.authenticated) return;
+    try {
+      const [accountRows, cardRows, categoryRows, recurringRows] = await Promise.all([
+        apiRequest('/accounts'),
+        apiRequest('/cards?include_inactive=true'),
+        apiRequest('/categories'),
+        apiRequest('/recurring-expenses'),
+      ]);
+      setPaymentSupporting({ accounts: accountRows || [], cards: cardRows || [], categories: categoryRows || [], recurring: recurringRows || [] });
+    } catch {
+      // Payment Centre loads its operational data independently and remains usable if supporting selectors fail.
+    }
+  }
+
   useEffect(() => { refreshAccountsCards(); }, [authState?.authenticated]);
   useEffect(() => { localStorage.setItem('fynvo.accountsView', subview); }, [subview]);
+  useEffect(() => { if (paymentMount) refreshPaymentSupporting(); }, [paymentMount, authState?.authenticated]);
 
   useEffect(() => {
     const sync = () => {
@@ -46,7 +65,9 @@ export default function AppCorrectiveV1163({ authState = null }) {
       }
       const heading = document.querySelector('main.content .header h1');
       const current = heading?.textContent?.trim();
+      const content = document.querySelector('main.content');
       const accountsActive = current === 'Accounts' || current === 'Cards' || current === 'Accounts & Cards';
+      const paymentActive = current === 'Payment Centre' && window.matchMedia('(max-width: 980px)').matches;
       document.body.classList.toggle('fynvo-accounts-cards-v1163-active', accountsActive);
       if (accountsActive) {
         setLegacyView(current === 'Cards' ? 'Cards' : 'Accounts');
@@ -59,18 +80,23 @@ export default function AppCorrectiveV1163({ authState = null }) {
         const description = heading?.closest('.header')?.querySelector('p');
         const expectedDescription = 'Manage your accounts and cards in one place.';
         if (description && description.textContent !== expectedDescription) description.textContent = expectedDescription;
-        const content = document.querySelector('main.content');
         if (content) setMount((currentMount) => currentMount === content ? currentMount : content);
       } else if (current) {
         setLegacyView(current);
         setMount(null);
       }
+      setPaymentMount((currentMount) => {
+        const nextMount = paymentActive ? content : null;
+        return currentMount === nextMount ? currentMount : nextMount;
+      });
     };
     const observer = new MutationObserver(sync);
     observer.observe(document.body, { childList: true, subtree: true, characterData: true });
+    window.addEventListener('resize', sync);
     sync();
     return () => {
       observer.disconnect();
+      window.removeEventListener('resize', sync);
       document.body.classList.remove('fynvo-accounts-cards-v1163-active');
     };
   }, []);
@@ -93,9 +119,31 @@ export default function AppCorrectiveV1163({ authState = null }) {
     }, 30);
   };
 
+  const openQuickAdd = () => {
+    const quick = [...document.querySelectorAll('button')].find((button) => button.textContent?.includes('+ Quick Add') && !button.closest('.payment-v1183-overlay'));
+    quick?.click();
+  };
+
+  const addBill = () => {
+    openQuickAdd();
+    window.setTimeout(() => {
+      const choice = [...document.querySelectorAll('button')].find((button) => button.textContent?.trim().startsWith('Bill'));
+      choice?.click();
+    }, 30);
+  };
+
+  const navigate = (label) => {
+    const button = [...document.querySelectorAll('.nav-group button')].find((item) => item.textContent?.trim() === label);
+    button?.click();
+  };
+
   const workspace = mount && (legacyView === 'Accounts' || legacyView === 'Cards')
     ? createPortal(<div className="accounts-cards-v1163-overlay"><AccountsCardsWorkspaceV1163 activeAccounts={accounts} cards={cards} initialView={subview} onViewChange={setSubview} onEditAccount={openAccountEdit} onAddAccount={addAccount} onRefresh={refreshAccountsCards}/></div>, mount)
     : null;
 
-  return <><BaseApp authState={authState}/>{workspace}</>;
+  const paymentWorkspace = paymentMount
+    ? createPortal(<div className="payment-v1183-overlay"><PaymentCentreMobileV1183 data={paymentSupporting} onNavigate={navigate} onQuickAdd={openQuickAdd} onAddBill={addBill} onRefreshSupporting={refreshPaymentSupporting}/></div>, paymentMount)
+    : null;
+
+  return <><BaseApp authState={authState}/>{workspace}{paymentWorkspace}</>;
 }
