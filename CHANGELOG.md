@@ -2,6 +2,18 @@
 
 All notable Fynvo changes are documented here. Starting with v0.3.0, every release must include a user-readable changelog entry, Home Assistant-visible release notes and GitHub release notes.
 
+## v1.18.2 - Payment Centre Mobile UX Completion
+
+- Redesigns the iPhone/Home Assistant Payment Centre as a compact financial-management queue instead of a vertically heavy card stack.
+- Introduces denser payment rows that keep payment name and full amount prominent, consolidate due/overdue, handling, payment-method and funding metadata, and summarise missing details with a compact actionable warning.
+- Keeps Mark paid as the visible primary action while moving lower-frequency lifecycle actions behind a compact overflow path and preserving access to the existing detailed Payment Centre workspace.
+- Reworks Grouped and Chronological into a clear segmented selector, improves date-group counts and priority ordering within groups, and keeps chronology authoritative.
+- Consolidates Quick Add, Add Bill and quick filters into a sticky mobile toolbar, removes duplicate global Payment Centre header actions and keeps active-filter counts and reset behaviour available.
+- Simplifies the before-next-pay funding summary around Available now, Required before pay and Next income, replaces ambiguous bare Unknown text with explicit before-pay availability explanations, and keeps full calculation detail behind View calculation.
+- Replaces large text-only loading states with structure-preserving skeletons, separates payment-list and funding-summary failures so one secondary failure does not unnecessarily block the other workspace, and adds deliberate empty states.
+- Hides the redundant mobile Payment Centre footer, moves the release version into More → About, and adds explicit bottom-navigation and iOS safe-area clearance.
+- Preserves authoritative Payment Planning, Pay-Cycle Cash Planning, Scheduled Payments, Bills, Recurring Expenses and reconciliation semantics. No database migration is required.
+
 ## v1.18.1 - Overview Decision Dashboard
 
 - Refines the merged v1.18.0 mobile financial-decision work into a denser, decision-first iPhone/Home Assistant Overview based on the supplied 1179 × 2556 iPhone 15 Pro references.

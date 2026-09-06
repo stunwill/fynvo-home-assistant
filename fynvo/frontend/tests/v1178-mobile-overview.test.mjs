@@ -72,10 +72,10 @@ test('mobile Overview uses canonical deduplicating API client for already reques
   assert.match(mobileShell, /apiRequest\('\/payment-planning'\)/);
 });
 
-test('v1.18.1 Overview layer loads after preserved v1.17.8/v1.17.9/v1.18.0 layers and release surfaces agree', () => {
-  assert.match(entry, /import '\.\/mobile-overview-v1178\.css';\s*\nimport '\.\/mobile-workspace-v1179\.css';\s*\nimport '\.\/mobile-financial-decision-v1180\.css';\s*\nimport '\.\/overview-decision-v1181\.css';\s*\n\nReactDOM/s);
+test('v1.18.1 Overview layer remains loaded before the v1.18.2 Payment Centre layer and release surfaces agree', () => {
+  assert.match(entry, /import '\.\/mobile-overview-v1178\.css';\s*\nimport '\.\/mobile-workspace-v1179\.css';\s*\nimport '\.\/mobile-financial-decision-v1180\.css';\s*\nimport '\.\/overview-decision-v1181\.css';\s*\nimport '\.\/payment-centre-mobile-v1182\.css';\s*\n\nReactDOM/s);
   assert.match(decisionCss, /fynvo-mobile-decision-card/);
   assert.match(overviewCss, /fynvo-overview-v1181-before/);
-  assert.equal(pkg.version, '1.18.1');
-  assert.match(appShell, /PRODUCTION_VERSION = '1\.18\.1'/);
+  assert.equal(pkg.version, '1.18.2');
+  assert.match(appShell, /PRODUCTION_VERSION = '1\.18\.2'/);
 });

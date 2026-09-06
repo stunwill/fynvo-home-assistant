@@ -1,0 +1,56 @@
+@media(max-width:980px){
+  body.fynvo-payment-centre-page .app-footer{display:none!important}
+  body.fynvo-payment-centre-page main.content{padding-bottom:calc(96px + env(safe-area-inset-bottom,0px))!important}
+  body.fynvo-payment-centre-page main.content>.header{margin-bottom:6px!important}
+  body.fynvo-payment-centre-page main.content>.header .header-actions{display:none!important}
+  .payment-v1182-shell{display:grid;gap:10px;min-width:0}
+  .payment-v1182-toolbar{position:sticky;top:0;z-index:24;display:grid;gap:8px;padding:6px 0 8px;background:linear-gradient(#f8fafc 75%,rgba(248,250,252,.92));backdrop-filter:blur(8px)}
+  .payment-v1182-create-row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .payment-v1182-create-row button,.payment-v1182-back{min-height:44px;white-space:nowrap}
+  .payment-v1182-back{border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--fynvo-blue);font-weight:800;padding:8px 12px;text-align:left}
+  .payment-v1182-mode{display:grid;grid-template-columns:1fr 1fr;background:#eef2f6;border:1px solid var(--line);border-radius:12px;padding:3px;gap:3px}
+  .payment-v1182-mode button{min-height:40px;border:0;background:transparent;border-radius:9px;font-weight:800;color:var(--muted)}
+  .payment-v1182-mode button.active{background:#fff;color:var(--fynvo-blue);box-shadow:0 1px 3px rgba(15,23,42,.12)}
+  .payment-v1182-filter-row{display:flex;gap:7px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}.payment-v1182-filter-row::-webkit-scrollbar{display:none}
+  .payment-v1182-filter-row button{flex:0 0 auto;min-height:40px;border:1px solid var(--line);border-radius:999px;background:#fff;padding:8px 11px;font-weight:750}
+  .payment-v1182-filter-row button.active{background:#edf4ff;border-color:#9ec5ff;color:#123a70}
+
+  .payment-v1182-decision{border:1px solid var(--line);border-radius:16px;background:#fff;padding:13px;display:grid;gap:9px}
+  .payment-v1182-decision.shortfall{background:#fff7f6;border-color:#fecdca}.payment-v1182-decision.shortfall .payment-v1182-decision-value{color:#b42318}
+  .payment-v1182-decision.unknown{background:#f9fafb}.payment-v1182-decision.funded{background:#f6fef9;border-color:#abefc6}
+  .payment-v1182-decision-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}.payment-v1182-decision-head>div{min-width:0}
+  .payment-v1182-decision-head small{display:block;color:var(--muted);font-weight:800}.payment-v1182-decision-head h2{margin:2px 0 0;font-size:16px}
+  .payment-v1182-decision-value{font-size:clamp(22px,6vw,30px);line-height:1.05;white-space:normal;text-align:right;font-variant-numeric:tabular-nums}
+  .payment-v1182-decision-copy{margin:0;color:var(--muted);font-size:12px;line-height:1.4}
+  .payment-v1182-decision-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-top:1px solid var(--line)}
+  .payment-v1182-decision-grid>div{padding:10px 8px 0;min-width:0;border-right:1px solid var(--line)}.payment-v1182-decision-grid>div:first-child{padding-left:0}.payment-v1182-decision-grid>div:last-child{border-right:0;padding-right:0}
+  .payment-v1182-decision-grid span{display:block;color:var(--muted);font-size:10px;line-height:1.2}.payment-v1182-decision-grid strong{display:block;margin-top:3px;font-size:15px;white-space:nowrap;font-variant-numeric:tabular-nums}
+  .payment-v1182-calculation{border-top:1px solid var(--line);padding-top:8px}.payment-v1182-calculation summary{cursor:pointer;color:var(--fynvo-blue);font-weight:800;min-height:40px;display:flex;align-items:center}
+  .payment-v1182-calculation-grid{display:grid;gap:6px;padding-top:4px}.payment-v1182-calculation-grid div{display:flex;justify-content:space-between;gap:12px;font-size:12px}.payment-v1182-calculation-grid span{color:var(--muted)}
+
+  .payment-v1182-skeleton{display:grid;gap:8px}.payment-v1182-skeleton-row{height:92px;border:1px solid var(--line);border-radius:14px;background:linear-gradient(90deg,#f3f5f7 25%,#fafbfc 50%,#f3f5f7 75%);background-size:200% 100%;animation:fynvoPaymentSkeleton 1.25s ease-in-out infinite}
+  @keyframes fynvoPaymentSkeleton{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+  .payment-v1182-timeline{display:grid;gap:10px}.payment-v1182-group{display:grid;gap:6px}.payment-v1182-group-head{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:4px 2px}.payment-v1182-group-head h3{margin:0;font-size:14px}.payment-v1182-group-head span{color:var(--muted);font-size:11px}
+  .payment-v1182-card{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-areas:'main main' 'actions actions';gap:0;border:1px solid var(--line);border-radius:14px;background:#fff;overflow:hidden;min-width:0}.payment-v1182-card.overdue{border-left:3px solid #b42318}.payment-v1182-card.attention{border-left:3px solid #b54708}
+  .payment-v1182-card-main{grid-area:main;border:0;background:transparent;color:inherit;text-align:left;padding:11px 12px 8px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:5px 10px;min-width:0}
+  .payment-v1182-card-name{min-width:0}.payment-v1182-card-name strong{display:block;font-size:14px;line-height:1.2;overflow-wrap:anywhere}.payment-v1182-card-name small{display:block;margin-top:2px;color:var(--muted);font-size:10px;line-height:1.25;overflow-wrap:anywhere}
+  .payment-v1182-card-amount{align-self:start;font-size:17px;white-space:nowrap;font-variant-numeric:tabular-nums}
+  .payment-v1182-card-meta{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:4px 8px;color:var(--muted);font-size:11px;line-height:1.3}.payment-v1182-card-meta .danger{color:#b42318;font-weight:800}.payment-v1182-card-meta .warning{color:#b54708;font-weight:800}
+  .payment-v1182-missing{grid-column:1/-1;display:inline-flex;align-items:center;gap:5px;width:max-content;max-width:100%;min-height:26px;border:0;border-radius:999px;background:#fffaeb;color:#93370d;padding:4px 8px;font-size:10px;font-weight:800}
+  .payment-v1182-card-actions{grid-area:actions;border-top:1px solid var(--line);display:grid;grid-template-columns:minmax(0,1fr) 48px;min-height:44px}.payment-v1182-card-actions button{border:0;border-radius:0;background:#fff;font-weight:800}.payment-v1182-card-actions .mark-paid{color:#155eef;background:#f8fbff}.payment-v1182-card-actions .overflow{font-size:20px;border-left:1px solid var(--line)}
+  .payment-v1182-card-actions.single{grid-template-columns:1fr}.payment-v1182-card-actions.single .overflow{border-left:0}
+  .payment-v1182-overflow{grid-column:1/-1;border-top:1px solid var(--line);display:grid;background:#fbfcfe}.payment-v1182-overflow button{min-height:42px;border:0;border-bottom:1px solid var(--line);background:transparent;text-align:left;padding:9px 12px}.payment-v1182-overflow button:last-child{border-bottom:0}
+
+  .payment-v1182-empty,.payment-v1182-error{border:1px solid var(--line);border-radius:14px;background:#fff;padding:16px;text-align:center}.payment-v1182-empty p,.payment-v1182-error p{margin:5px 0 0;color:var(--muted)}
+  .payment-v1182-error{border-color:#fecdca;background:#fff7f6}
+  .payment-v1182-full-workspace .payment-v112-page{margin-top:0}
+
+  .payment-centre-modal-backdrop{z-index:220}.payment-centre-mark-paid,.payment-centre-detail{max-height:calc(100dvh - 18px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px))}.payment-centre-mark-paid footer,.payment-centre-detail footer{padding-bottom:calc(15px + env(safe-area-inset-bottom,0px))}
+}
+@media(max-width:430px){.payment-v1182-decision-grid strong{font-size:14px}.payment-v1182-toolbar{margin-left:-2px;margin-right:-2px}}
+@media(max-width:393px){.payment-v1182-decision-head{gap:8px}.payment-v1182-card-main{gap:5px 8px}.payment-v1182-filter-row button{padding-left:10px;padding-right:10px}}
+@media(max-width:374px){.payment-v1182-decision-head{display:grid}.payment-v1182-decision-value{text-align:left}.payment-v1182-create-row{grid-template-columns:1fr 1fr}.payment-v1182-decision-grid{grid-template-columns:1fr}.payment-v1182-decision-grid>div{border-right:0;border-top:1px solid var(--line);padding:7px 0}.payment-v1182-decision-grid>div:first-child{border-top:0}.payment-v1182-card-main{padding:10px}.payment-v1182-card-actions{min-height:46px}}
+@media(max-width:329px){.payment-v1182-create-row{grid-template-columns:1fr}.payment-v1182-mode button{font-size:12px}.payment-v1182-filter-row button{padding-left:9px;padding-right:9px}}
+@media(min-width:981px){.payment-v1182-shell,.payment-v1182-toolbar,.payment-v1182-decision,.payment-v1182-skeleton,.payment-v1182-timeline,.payment-v1182-empty,.payment-v1182-error{display:none!important}}
+@media(prefers-reduced-motion:reduce){.payment-v1182-skeleton-row{animation:none;background:#f3f5f7}}

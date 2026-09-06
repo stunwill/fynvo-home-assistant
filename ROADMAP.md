@@ -2,11 +2,43 @@
 
 Fynvo is a household finance and cash-planning application for understanding upcoming commitments, available cash, pay-cycle pressure, spending decisions and near-term financial risk. The roadmap prioritises practical household planning over business accounting, tax, payroll or investment-trading functionality.
 
-The current development baseline is v1.18.1. Payment Centre, recurring-payment lifecycle, 7/14/30-day commitment planning, pay-cycle cash planning, account funding requirements, available-cash comparisons, transactions, reconciliation, budgets, goals, scenarios, date-oriented financial Calendar, Cash Flow forecasting/impact analysis, CSV import, insights, Overview drill-down navigation and responsive Home Assistant ingress are already delivered and are not repeated below as new scope.
+The current development baseline is v1.18.2. Payment Centre, recurring-payment lifecycle, 7/14/30-day commitment planning, pay-cycle cash planning, account funding requirements, available-cash comparisons, transactions, reconciliation, budgets, goals, scenarios, date-oriented financial Calendar, Cash Flow forecasting/impact analysis, CSV import, insights, Overview drill-down navigation and responsive Home Assistant ingress are already delivered and are not repeated below as new scope.
+
+## v1.18.2 - Payment Centre Mobile UX Completion
+
+Status: Implemented in release branch, pending PR review and installed acceptance
+
+Objective: Turn Payment Centre into a fast, clear and efficient mobile financial-management queue by reducing repeated visual weight, strengthening payment hierarchy and preserving complete lifecycle access.
+
+### Features
+
+- [x] Replace vertically heavy mobile payment cards with compact rows that prioritise payment name and full amount.
+- [x] Consolidate due/overdue, payment handling, payment method and funding metadata while keeping missing information explicit.
+- [x] Keep Mark paid visible as the primary action and retain lower-frequency lifecycle actions through an overflow path and the existing detailed workspace.
+- [x] Replace separate Grouped/Chronological controls with a segmented selector and improve date-group counts and within-group priority ordering.
+- [x] Consolidate Quick Add, Add Bill, quick date/attention filters and the full Filters sheet into a compact sticky mobile toolbar.
+- [x] Simplify Before next pay around Available now, Required before pay and Next income while retaining View calculation for additional detail.
+- [x] Replace ambiguous bare Unknown states with explicit before-pay availability explanations.
+- [x] Add structure-preserving payment/funding loading states, section-level errors and deliberate empty/filter states.
+- [x] Move the installed mobile release version from the Payment Centre footer into More → About.
+
+### UX / Quality
+
+- [x] Preserve the Home Assistant ingress shell and Overview / Accounts / Cash Flow / Transactions / More bottom navigation.
+- [x] Add bottom-navigation and iOS safe-area clearance so the final payment and modal actions remain reachable.
+- [x] Keep touch targets usable while reducing payment-card height through structural simplification rather than smaller typography.
+- [x] Preserve desktop Payment Centre using the existing detailed workspace.
+- [x] Preserve authoritative Payment Planning, Pay-Cycle Cash Planning, Bills, Scheduled Payments, Recurring Expenses and reconciliation semantics.
+
+### Testing / Validation
+
+- [ ] Complete frontend regression coverage for compact card structure, Mark paid, lifecycle overflow, filters, grouped/chronological modes, funding states, loading/error/empty states, breakpoints and release metadata.
+- [ ] Complete all CI checks.
+- [ ] Complete real installed iPhone/Home Assistant ingress visual acceptance before merge.
 
 ## v1.18.1 - Overview Decision Dashboard
 
-Status: Implemented in release branch, pending PR review and installed acceptance
+Status: Merged to main
 
 Objective: Refine the merged v1.18.0 financial-decision work into a concise iPhone/Home Assistant Overview that answers immediate household cash questions with materially less scrolling.
 
@@ -33,7 +65,7 @@ Objective: Refine the merged v1.18.0 financial-decision work into a concise iPho
 
 - [x] Add frontend source-contract regression coverage for hierarchy, stacked pay-cycle rows, Needs attention, Money needed soon, What changed, responsive breakpoints and release metadata.
 - [x] Preserve existing backend pay-cycle, payment-planning, forecast and payment lifecycle semantics.
-- [ ] Complete real installed iPhone 15 Pro and Home Assistant ingress visual acceptance before merge.
+- [x] Merge v1.18.1 to main.
 
 ## v1.18.0 - Mobile Financial Decision UX
 
