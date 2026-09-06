@@ -6,18 +6,18 @@
 
 ## Current release
 
-Current development release: **v1.17.0 Pay-Cycle Cash Planning**.
+Current development release: **v1.18.1 Overview Decision Dashboard**.
 
-v1.17.0 builds on the merged v1.16.3 Accounts & Cards baseline. It:
+v1.18.1 builds on the merged v1.18.0 Mobile Financial Decision UX baseline. It:
 
-- identifies the chronologically next expected household Income occurrence from existing active Income records;
-- calculates authoritative unresolved commitments due before that Income event;
-- shows current available liquid cash, projected cash immediately before pay and projected cash immediately after pay;
-- identifies Account-level funding pressure while deriving Card-funded commitments through the linked Account;
-- handles unknown Income, unassigned commitments, archived/liability Accounts and incomplete balance information explicitly instead of treating missing values as zero;
-- reconciles baseline Cash Flow and Calendar recurring outflows with Scheduled Payment lifecycle state, including skipped, reconciled and rescheduled occurrences;
-- adds a compact **Before next pay** summary to Overview and a detailed operational pay-cycle summary to Payment Centre;
-- aligns active frontend, backend, Home Assistant add-on and production-shell version reporting to v1.17.0.
+- makes the mobile Overview a decision-first financial home screen for iPhone and Home Assistant ingress;
+- presents one authoritative **Before next pay** state with Available now, Committed before pay, Next income and Projected after pay in compact stacked rows;
+- explains incomplete funding using authoritative pay-cycle data instead of repeating generic unknown states;
+- promotes **Needs attention** directly below the pay-cycle decision, limits Overview to the top priority exceptions and keeps detailed payment management in Payment Centre;
+- adds compact **Money needed soon** horizons for the next 7 days, before next pay and the next 30 days;
+- condenses Cash position and Accounts, adds a lightweight **What changed?** comparison and moves lower-priority forecast detail behind progressive disclosure;
+- preserves the five-item mobile navigation, Home Assistant ingress shell ownership, iOS safe-area handling and existing authoritative financial calculations;
+- aligns active frontend, backend, Home Assistant add-on and production-shell version reporting to v1.18.1.
 
 Fynvo preserves the financial architecture established in earlier releases:
 
@@ -73,9 +73,9 @@ If no future Income can be determined, Fynvo reports **Next income not known** i
 
 Cards remain payment context only. A Card-linked commitment is funded through its linked Account and Card balances are never counted independently.
 
-The Account model does not currently contain an authoritative preferred minimum-balance/buffer field, so v1.17.0 does not invent buffer values. Required funding and known shortfalls are calculated independently of any future optional preferred-buffer feature.
+The Account model does not currently contain an authoritative preferred minimum-balance/buffer field, so Fynvo does not invent buffer values. Required funding and known shortfalls are calculated independently of any future optional preferred-buffer feature.
 
-The **Overview** consumes the same authoritative Payment Planning service for its Before next pay and household commitments summaries, so it does not maintain a separate cash-requirement calculation.
+The **Overview** consumes the same authoritative Payment Planning service for its Before next pay, Needs attention and Money needed soon summaries, so it does not maintain a separate cash-requirement calculation.
 
 ## Cash Flow and Calendar
 
@@ -91,13 +91,13 @@ Expected Cash Flow may include historical run-rate estimates where supported. Th
 
 Overview summary information is intended to lead to the authoritative detail workspace. Primary mappings include:
 
-- Total Balance → Accounts;
+- Available now / Accounts → Accounts;
 - Next Income → Income;
-- Before next pay → Payment Centre;
-- Upcoming Commitments → Payment Centre;
-- Discretionary → Planned Spending;
-- Goals → Goals;
-- Cash Flow Forecast / Forecast Summary → Cash Flow.
+- Before next pay / Committed before pay → Payment Centre;
+- Needs attention → Payment Centre;
+- Money needed soon → Payment Centre;
+- What changed? → Transactions for detailed activity;
+- Financial outlook → Cash Flow.
 
 The global date range is preserved during these in-app navigation changes where the destination uses the same relative scope.
 
