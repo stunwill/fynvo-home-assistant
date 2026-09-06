@@ -1,5 +1,16 @@
 # Fynvo Add-on Changelog
 
+## v1.18.1 - Overview Decision Dashboard
+
+- Refines the mobile Overview into a denser decision-first dashboard using the supplied iPhone 15 Pro references.
+- Replaces repeated unknown/funding labels with one clear before-next-pay state and actionable missing-data explanation.
+- Uses compact stacked rows for Available now, Committed before pay, Next income and Projected after pay.
+- Moves Needs attention directly below the pay-cycle decision, shows only the top three priority exceptions and links the full workflow to Payment Centre.
+- Adds Money needed soon for Next 7 days, Before next pay and Next 30 days.
+- Compacts Cash position and Accounts, adds a lightweight What changed? comparison and moves lower-priority forecast information behind More financial insights.
+- Preserves Home Assistant ingress shell ownership, five-item mobile navigation, iOS safe-area handling and existing financial calculation semantics.
+- Requires no database migration.
+
 ## v1.18.0 - Mobile Financial Decision UX
 
 - Puts the before-next-pay financial decision first on mobile, showing available cash, next income, commitments, projected after-pay balance and either a safe-to-spend surplus, funding shortfall or incomplete-funding state.
@@ -47,7 +58,7 @@
 ## v1.17.6 - Accounts & Cards Installed Interactivity Correction
 
 - Fixes the installed Home Assistant/iPhone condition where Accounts & Cards rendered but the page and surrounding Home Assistant controls became unresponsive to taps/clicks.
-- Corrects a self-triggering document-wide `MutationObserver` in the Accounts/Cards compatibility wrapper. The wrapper now updates its heading/description only when the DOM actually differs from the expected state.
+- Corrects a self-triggering document-wide `MutationObserver` in the v1.16.3 compatibility workspace. The wrapper now updates its heading/description only when the DOM actually differs from the expected Accounts & Cards state.
 - Avoids repeatedly setting the same Accounts/Cards portal mount DOM node.
 - Keeps the v1.17.5 single-owner authentication/startup lifecycle and installed startup diagnostics intact.
 - Updates the production shell, frontend package, backend API and add-on manifest to v1.17.6 so the installed footer can be used as a build-version check.
@@ -197,35 +208,3 @@
 - Preserved existing Accounts, Cards, Categories, Scheduled Payments, mobile navigation and mobile modal behaviour without a destructive data migration.
 - Updated add-on, backend, frontend package, production shell and corrective-module version metadata to v1.10.1.
 - Real installed Home Assistant/iPhone acceptance remains a required manual verification before merge.
-
-## v1.8.0 - Recurring Expenses Responsive UI/UX Completion
-
-### Recurring Expenses
-- Completed the production responsive Recurring Expenses redesign for desktop, tablet, mobile and Home Assistant ingress-sized viewports.
-- List, Calendar and Summary now consume real Scheduled Payment occurrences from the v1.7 payment model.
-- Added Search plus Date Range, Frequency, Category, Payment Method and Payment Status filtering, with Overdue Only and Payments Requiring Attention options.
-- Added an active mobile filter count and draft/apply bottom-sheet filtering with iOS safe-area handling.
-- Added a compact mobile Summary with expandable period breakdown, Largest Upcoming Expense, real payment-status totals and quick actions.
-- Added grouped desktop rows and compact mobile rows with actual/relative due dates, payment method, Scheduled Payment status and source information.
-
-### Calendar
-- Added a functional Recurring Expenses Calendar with previous/next month navigation.
-- Calendar month selection is its temporal scope while the List retains its relative Date Range.
-- Search and non-temporal filters continue across List and Calendar.
-- Added Monday-first Calendar grid, adjacent-month dates, multiple payments per date, priority ordering, `+N more`, selected-date details, status legend and Upcoming view.
-
-### Payment handling and reconciliation
-- Preserved v1.7 Scheduled Payment lifecycle semantics rather than introducing frontend-only status.
-- Added Direct Debit Account presentation and Automatic Card Payment Card presentation with the Card-derived linked Account.
-- Added state-aware Mark as Paid, Skip Payment, Review Payment and Review Match access from Recurring Expenses.
-- Matched payments expose confirmation evidence from the existing Scheduled Payment/Transaction relationship.
-- Payment-status summary buckets are mutually exclusive so their amounts reconcile with Scheduled Total.
-
-### Data safety
-- No v1.8 database migration is required.
-- Existing Recurring Expenses, Scheduled Payments, Cards, Accounts, transaction matches and payment history are preserved.
-- The Recurring Expense → Scheduled Payment → Transaction architecture remains unchanged.
-
-### Versioning
-- Updated Home Assistant add-on, frontend and backend API release metadata to 1.8.0.
-- The production shell reports Fynvo v1.8.0.

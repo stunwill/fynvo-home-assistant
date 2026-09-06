@@ -3,31 +3,35 @@ import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
-const overview = await read('src/MobileOverviewV1178.jsx');
+const legacyOverview = await read('src/MobileOverviewV1178.jsx');
+const overview = await read('src/MobileOverviewV1181.jsx');
 const css = await read('src/mobile-workspace-v1179.css');
 const v1180Css = await read('src/mobile-financial-decision-v1180.css');
+const v1181Css = await read('src/overview-decision-v1181.css');
 const cashFlow = await read('src/CashFlowPageV1161.jsx');
 const transactions = await read('src/TransactionWorkspace.jsx');
 const appShell = await read('src/AppV13.jsx');
 const entry = await read('src/main.jsx');
 const pkg = JSON.parse(await read('package.json'));
+const renderedOverview = overview.slice(overview.indexOf('const overviewContent ='), overview.indexOf('const moreGroups ='));
 
-test('Overview preserves the established Snapshot, Cash Flow and Accounts hierarchy beneath the decision summary', () => {
-  const decisionIndex = overview.indexOf('fynvo-mobile-decision');
-  const snapshotIndex = overview.indexOf('fynvo-mobile-snapshot');
-  const cashIndex = overview.indexOf('fynvo-mobile-cashflow');
-  const accountsIndex = overview.indexOf('fynvo-mobile-accounts');
-  assert.ok(decisionIndex >= 0 && snapshotIndex > decisionIndex && cashIndex > snapshotIndex && accountsIndex > cashIndex);
-  const snapshot = overview.match(/fynvo-mobile-snapshot-grid[\s\S]*?<\/div>\s*<\/section>/)?.[0] || '';
-  assert.equal((snapshot.match(/<button/g) || []).length, 4);
+test('v1.18.1 intentionally supersedes the legacy Snapshot hierarchy with the decision-first Overview', () => {
+  assert.match(legacyOverview, /fynvo-mobile-snapshot-grid/);
+  const decisionIndex = renderedOverview.indexOf('<h2 id="fynvo-mobile-decision">Before next pay</h2>');
+  const attentionIndex = renderedOverview.indexOf('<h2 id="fynvo-mobile-attention">Needs attention</h2>');
+  const neededIndex = renderedOverview.indexOf('<h2>Money needed soon</h2>');
+  const cashIndex = renderedOverview.indexOf('<h2>Cash position</h2>');
+  const accountsIndex = renderedOverview.indexOf('<h2>Accounts</h2>');
+  assert.ok(decisionIndex >= 0 && attentionIndex > decisionIndex && neededIndex > attentionIndex && cashIndex > neededIndex && accountsIndex > cashIndex);
+  assert.doesNotMatch(overview, /fynvo-mobile-snapshot-grid/);
   assert.match(overview, /184: 'Next 6 months'/);
   assert.match(overview, /rangeLabel\(rangeDays\)/);
-  assert.match(overview, /data-icon=/);
 });
 
-test('v1.18.0 overrides prior currency ellipsis without losing numeric no-wrap protection', () => {
+test('v1.18.x retains complete currency values and responsive no-wrap protection', () => {
   assert.match(css, /fynvo-mobile-snapshot-grid strong[^}]*white-space:nowrap/);
   assert.match(v1180Css, /fynvo-mobile-snapshot-grid strong,.fynvo-mobile-cashflow-card strong\{overflow:visible!important;text-overflow:clip!important;white-space:nowrap!important/);
+  assert.match(v1181Css, /white-space:nowrap/);
   assert.match(overview, /compactMoney\(model\.inflow\)/);
   assert.match(overview, /compactMoney\(model\.outflow\)/);
   assert.match(overview, /compactMoney\(model\.net\)/);
@@ -74,8 +78,8 @@ test('specialised mobile workspaces suppress redundant global header actions', (
   assert.match(appShell, /fynvo-recurring-expenses-page/);
 });
 
-test('v1.18.0 stylesheet is final and production version surfaces agree', () => {
-  assert.match(entry, /import '\.\/mobile-financial-decision-v1180\.css';\s*\n\nReactDOM/s);
-  assert.equal(pkg.version, '1.18.0');
-  assert.match(appShell, /PRODUCTION_VERSION = '1\.18\.0'/);
+test('v1.18.1 stylesheet is final and production version surfaces agree', () => {
+  assert.match(entry, /import '\.\/mobile-financial-decision-v1180\.css';\s*\nimport '\.\/overview-decision-v1181\.css';\s*\n\nReactDOM/s);
+  assert.equal(pkg.version, '1.18.1');
+  assert.match(appShell, /PRODUCTION_VERSION = '1\.18\.1'/);
 });

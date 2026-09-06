@@ -78,7 +78,7 @@ test('mobile decision styles prevent ellipsis and retain responsive narrow-scree
   assert.match(css, /env\(safe-area-inset-bottom/);
 });
 
-test('v1.18.0 add-on and backend versions align', () => {
-  assert.match(config, /version: "1\.18\.0"/);
-  assert.match(backendConfig, /APP_VERSION = "1\.18\.0"/);
+test('current v1.18.x add-on and backend versions align', () => {
+  assert.match(config, /version: "1\.18\.1"/);
+  assert.match(backendConfig, /APP_VERSION = "1\.18\.1"/);
 });
