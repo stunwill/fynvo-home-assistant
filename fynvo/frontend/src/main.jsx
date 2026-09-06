@@ -24,5 +24,6 @@ import './startup-v1172.css';
 import './mobile-v1177.css';
 import './mobile-overview-v1178.css';
 import './mobile-workspace-v1179.css';
+import './mobile-financial-decision-v1180.css';
 
 ReactDOM.createRoot(document.getElementById('root')).render(<App />);

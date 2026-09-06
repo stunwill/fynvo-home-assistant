@@ -6,6 +6,7 @@ const read = (path) => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 const mobileShell = await read('src/MobileOverviewV1178.jsx');
 const mobileCss = await read('src/mobile-overview-v1178.css');
 const refinementCss = await read('src/mobile-workspace-v1179.css');
+const decisionCss = await read('src/mobile-financial-decision-v1180.css');
 const appShell = await read('src/AppV13.jsx');
 const base = await read('src/AppCorrectiveV0174.jsx');
 const entry = await read('src/main.jsx');
@@ -50,13 +51,14 @@ test('Accounts summary and rows remain compact and responsive with v1.17.9 refin
   assert.match(mobileCss, /min-height:78px!important/);
 });
 
-test('mobile Overview keeps exactly four snapshot actions then cash flow and top accounts', () => {
+test('mobile Overview keeps exactly four snapshot actions then cash flow and top accounts beneath the decision layer', () => {
   const snapshot = mobileShell.match(/fynvo-mobile-snapshot-grid[\s\S]*?<\/div>\s*<\/section>/)?.[0] || '';
   assert.equal((snapshot.match(/<button/g) || []).length, 4);
+  const decisionIndex = mobileShell.indexOf('fynvo-mobile-decision');
   const snapshotIndex = mobileShell.indexOf('fynvo-mobile-snapshot');
   const cashIndex = mobileShell.indexOf('fynvo-mobile-cashflow');
   const accountsIndex = mobileShell.indexOf('fynvo-mobile-accounts');
-  assert.ok(snapshotIndex >= 0 && cashIndex > snapshotIndex && accountsIndex > cashIndex);
+  assert.ok(decisionIndex >= 0 && snapshotIndex > decisionIndex && cashIndex > snapshotIndex && accountsIndex > cashIndex);
   assert.match(mobileShell, /\.slice\(0, 3\)/);
 });
 
@@ -67,8 +69,9 @@ test('mobile Overview uses canonical deduplicating API client for already reques
   assert.match(mobileShell, /apiRequest\('\/payment-planning'\)/);
 });
 
-test('v1.17.9 refinement loads after the preserved v1.17.8 mobile layer and release surfaces agree', () => {
-  assert.match(entry, /import '\.\/mobile-overview-v1178\.css';\s*\nimport '\.\/mobile-workspace-v1179\.css';\s*\n\nReactDOM/s);
-  assert.equal(pkg.version, '1.17.9');
-  assert.match(appShell, /PRODUCTION_VERSION = '1\.17\.9'/);
+test('v1.18.0 decision layer loads after the preserved v1.17.8 and v1.17.9 mobile layers and release surfaces agree', () => {
+  assert.match(entry, /import '\.\/mobile-overview-v1178\.css';\s*\nimport '\.\/mobile-workspace-v1179\.css';\s*\nimport '\.\/mobile-financial-decision-v1180\.css';\s*\n\nReactDOM/s);
+  assert.match(decisionCss, /fynvo-mobile-decision-card/);
+  assert.equal(pkg.version, '1.18.0');
+  assert.match(appShell, /PRODUCTION_VERSION = '1\.18\.0'/);
 });

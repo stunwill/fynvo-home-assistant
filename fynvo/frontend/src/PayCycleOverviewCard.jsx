@@ -19,9 +19,10 @@ const statusLabel = (status) => ({ funded: 'Funded', shortfall: 'Shortfall', low
 
 export default function PayCycleOverviewCard({ planning, loading, onOpen, onIncome }) {
   if (loading && !planning) {
-    return <section className="overview-pay-cycle panel" aria-label="Before next pay" aria-busy="true">
-      <div className="overview-pay-cycle-head"><div><small>Before next pay</small><h2>Loading cash plan…</h2></div></div>
-      <p className="muted">Checking the next Income event, commitments and available Account balances.</p>
+    return <section className="overview-pay-cycle panel overview-pay-cycle-skeleton" aria-label="Before next pay" aria-busy="true" role="status">
+      <div className="overview-pay-cycle-skeleton-line wide" aria-hidden="true"></div>
+      <div className="overview-pay-cycle-skeleton-grid" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+      <span className="sr-only">Updating the before-next-pay financial position.</span>
     </section>;
   }
 
