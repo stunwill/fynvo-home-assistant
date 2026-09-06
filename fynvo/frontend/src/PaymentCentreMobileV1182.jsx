@@ -114,6 +114,7 @@ function PayCycleDecision({ planning, onIncome }) {
   if (!payCycle) return null;
   const before = payCycle.before_next_income || {};
   const projected = finite(before.projected_cash);
+  const shortfallAmount = projected !== null && projected < 0 ? Math.abs(projected) : finite(before.shortfall);
   const hasIncome = Boolean(payCycle.next_income);
   const status = !hasIncome || payCycle.status === 'unknown'
     ? 'unknown'
@@ -121,7 +122,7 @@ function PayCycleDecision({ planning, onIncome }) {
       ? 'shortfall'
       : 'funded';
   const headline = status === 'shortfall'
-    ? `${money(Math.abs(projected || 0))} shortfall`
+    ? shortfallAmount === null ? 'Funding shortfall' : `${money(shortfallAmount)} shortfall`
     : status === 'unknown'
       ? 'Before-pay position unavailable'
       : 'Funded before next pay';
@@ -236,7 +237,7 @@ function PaymentCard({ row, onMarkPaid, onOpenDetailed, onEditBill, onOpenRecurr
 }
 
 export default function PaymentCentreMobileV1182(props) {
-  const { data, onNavigate, onQuickAdd, onRefreshSupporting, onEditBill, onOpenRecurring } = props;
+  const { data, onNavigate, onQuickAdd, onAddBill, onRefreshSupporting, onEditBill, onOpenRecurring } = props;
   const initial = useMemo(() => defaultPaymentCentreFilters(), []);
   const [draft, setDraft] = useState(initial);
   const [filters, setFilters] = useState(initial);
@@ -251,6 +252,7 @@ export default function PaymentCentreMobileV1182(props) {
   const [fullWorkspace, setFullWorkspace] = useState(false);
   const [mode, setMode] = useState(() => localStorage.getItem('fynvo.paymentCentre.timelineMode.v1182') || 'grouped');
   const query = useMemo(() => buildPaymentCentreQuery(filters), [filters]);
+  const groups = useMemo(() => groupRows(result?.rows || [], mode), [result?.rows, mode]);
 
   const loadPayments = async () => {
     setLoadingPayments(true); setPaymentError('');
@@ -269,17 +271,16 @@ export default function PaymentCentreMobileV1182(props) {
   useEffect(() => { loadPlanning(); }, []);
   useEffect(() => { localStorage.setItem('fynvo.paymentCentre.timelineMode.v1182', mode); }, [mode]);
 
-  if (fullWorkspace) return <section className="payment-v1182-shell payment-v1182-full-workspace"><div className="payment-v1182-toolbar"><button type="button" className="payment-v1182-back" onClick={() => setFullWorkspace(false)}>‹ Back to compact queue</button></div><PaymentCentreV112 {...props}/></section>;
-
-  const groups = useMemo(() => groupRows(result?.rows || [], mode), [result?.rows, mode]);
   const activeCount = [filters.search, filters.status, filters.categoryId, filters.source, filters.paymentMethod, filters.paymentHandling, filters.accountId, filters.cardId, filters.requiresAction].filter(Boolean).length;
   const quick = (next) => { setDraft((current) => ({ ...current, ...next })); setFilters((current) => ({ ...current, ...next })); };
   const clear = () => { const next = defaultPaymentCentreFilters(); setDraft(next); setFilters(next); };
   const refreshed = async () => { setMarkingPaid(null); await Promise.allSettled([loadPayments(), loadPlanning(), onRefreshSupporting?.()]); };
 
+  if (fullWorkspace) return <section className="payment-v1182-shell payment-v1182-full-workspace"><div className="payment-v1182-toolbar"><button type="button" className="payment-v1182-back" onClick={() => setFullWorkspace(false)}>‹ Back to compact queue</button></div><PaymentCentreV112 {...props}/></section>;
+
   return <section className="payment-v1182-shell" aria-label="Payment Centre mobile workspace">
     <div className="payment-v1182-toolbar">
-      <div className="payment-v1182-create-row"><button type="button" className="primary ghost" onClick={onQuickAdd}>+ Quick Add</button><button type="button" className="primary" onClick={() => onNavigate('Bills')}>+ Add Bill</button></div>
+      <div className="payment-v1182-create-row"><button type="button" className="primary ghost" onClick={onQuickAdd}>+ Quick Add</button><button type="button" className="primary" onClick={onAddBill}>+ Add Bill</button></div>
       <div className="payment-v1182-mode" role="group" aria-label="Payment timeline view"><button type="button" className={mode === 'grouped' ? 'active' : ''} aria-pressed={mode === 'grouped'} onClick={() => setMode('grouped')}>Grouped</button><button type="button" className={mode === 'chronological' ? 'active' : ''} aria-pressed={mode === 'chronological'} onClick={() => setMode('chronological')}>Chronological</button></div>
       <div className="payment-v1182-filter-row" aria-label="Quick payment filters"><button type="button" className={filters.dateRange === 'next_30_days' ? 'active' : ''} onClick={() => quick({ dateRange: 'next_30_days' })}>Next 30 days</button><button type="button" className={filters.dateRange === 'overdue' ? 'active' : ''} onClick={() => quick({ dateRange: 'overdue' })}>Overdue</button><button type="button" className={filters.requiresAction ? 'active' : ''} onClick={() => quick({ requiresAction: !filters.requiresAction })}>Needs attention</button><button type="button" onClick={() => setFiltersOpen(true)}>Filters{activeCount ? ` (${activeCount})` : ''}</button></div>
     </div>
