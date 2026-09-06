@@ -126,9 +126,9 @@ test('iPhone and Home Assistant ingress responsive protections remain explicit',
   assert.match(css, /body\.fynvo-mobile-overview-active \.dashboard-page\{display:none!important\}/);
 });
 
-test('v1.18.1 release versions align', () => {
-  assert.match(config, /version: "1\.18\.1"/);
-  assert.equal(packageJson.version, '1.18.1');
-  assert.match(backendConfig, /APP_VERSION = "1\.18\.1"/);
-  assert.match(app, /PRODUCTION_VERSION = '1\.18\.1'/);
+test('v1.18.2 release versions align while preserving the v1.18.1 Overview implementation', () => {
+  assert.match(config, /version: "1\.18\.2"/);
+  assert.equal(packageJson.version, '1.18.2');
+  assert.match(backendConfig, /APP_VERSION = "1\.18\.2"/);
+  assert.match(app, /PRODUCTION_VERSION = '1\.18\.2'/);
 });
