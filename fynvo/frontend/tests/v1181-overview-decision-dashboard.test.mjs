@@ -12,10 +12,12 @@ const backendConfig = await read('../backend/app/config.py');
 const packageJson = JSON.parse(await read('package.json'));
 const renderedOverview = overview.slice(overview.indexOf('const overviewContent ='), overview.indexOf('const moreGroups ='));
 
-test('production shell mounts the v1.18.1 Overview implementation', () => {
-  assert.match(app, /MobileOverviewV1181/);
+test('production shell supersedes the v1.18.1 Overview with v1.19.0 while retaining historical coverage', () => {
+  assert.match(app, /MobileOverviewV1190/);
+  assert.doesNotMatch(app, /<MobileOverviewV1181/);
   assert.doesNotMatch(app, /<MobileOverviewV1178/);
   assert.match(main, /overview-decision-v1181\.css/);
+  assert.match(main, /mobile-overview-v1190\.css/);
 });
 
 test('Overview follows decision-first mobile hierarchy', () => {
@@ -127,8 +129,8 @@ test('iPhone and Home Assistant ingress responsive protections remain explicit',
 });
 
 test('current release versions align while preserving the v1.18.1 Overview implementation', () => {
-  assert.match(config, /version: "1\.18\.3"/);
-  assert.equal(packageJson.version, '1.18.3');
-  assert.match(backendConfig, /APP_VERSION = "1\.18\.3"/);
-  assert.match(app, /PRODUCTION_VERSION = '1\.18\.3'/);
+  assert.match(config, /version: "1\.19\.0"/);
+  assert.equal(packageJson.version, '1.19.0');
+  assert.match(backendConfig, /APP_VERSION = "1\.19\.0"/);
+  assert.match(app, /PRODUCTION_VERSION = '1\.19\.0'/);
 });
