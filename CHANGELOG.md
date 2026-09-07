@@ -2,6 +2,17 @@
 
 All notable Fynvo changes are documented here. Starting with v0.3.0, every release must include a user-readable changelog entry, Home Assistant-visible release notes and GitHub release notes.
 
+## v1.19.0 - Household Cash Plan & Weekly Money Guidance
+
+- Redesigns the mobile Overview around a decision-first household cash plan led by Safe to spend, followed by before-next-pay commitments, the next pressure point and immediate payment actions.
+- Separates current available cash, money reserved for known commitments and expected future income so projected income is never presented as money already available.
+- Adds a compact three-week cash-plan view with explicit Comfortable, Tight, Shortfall and Incomplete states and progressive access to deeper planning detail.
+- Adds deterministic What to pay next guidance using existing overdue, attention, due-before-pay and due-soon payment states without inventing a financial-advice score.
+- Adds explainable Money reserved and Accounts at a glance summaries to clarify why account balances differ from safe-to-spend cash.
+- Preserves Payment Centre as the operational payment-management workspace and reuses authoritative Payment Planning, pay-cycle, account, income and forecast data rather than creating a parallel budgeting engine.
+- Adds iPhone/Home Assistant ingress responsive protections, safe-area handling, minimum touch-target support and reduced-motion behaviour for the new Overview hierarchy.
+- Aligns Home Assistant, backend, frontend and production-shell release metadata to v1.19.0. Installed iPhone/Home Assistant visual acceptance remains a manual gate before merge.
+
 ## v1.18.3 - Payment Centre Actionability & Planning UX
 
 - Adds quick Payment Centre counts and monetary summaries for Overdue, Before next pay and Next 30 days using the existing authoritative payment and pay-cycle data.
