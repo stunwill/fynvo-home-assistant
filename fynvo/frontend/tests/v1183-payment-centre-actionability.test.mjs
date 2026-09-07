@@ -61,7 +61,7 @@ test('payment cards reduce action weight and distinguish automatic state', () =>
 
 test('grouped mode is collapsible and planning oriented without duplicate buckets', () => {
   for (const label of ['Overdue', 'Due before next pay', 'Next 7 days', 'Later this month']) assert.match(payment, new RegExp(label));
-  assert.match(payment, /aria-expanded=!/);
+  assert.match(payment, /aria-expanded=\{!collapsed\[group\.key\]\}/);
   assert.match(payment, /group\.total/);
   assert.match(payment, /timelineMode\.v1183/);
 });
