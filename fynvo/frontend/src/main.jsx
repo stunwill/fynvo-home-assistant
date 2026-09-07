@@ -28,5 +28,6 @@ import './mobile-financial-decision-v1180.css';
 import './overview-decision-v1181.css';
 import './payment-centre-mobile-v1182.css';
 import './payment-centre-mobile-v1183.css';
+import './mobile-overview-v1190.css';
 
 ReactDOM.createRoot(document.getElementById('root')).render(<App />);

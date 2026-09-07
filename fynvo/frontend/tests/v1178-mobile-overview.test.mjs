@@ -73,11 +73,11 @@ test('mobile Overview uses canonical deduplicating API client for already reques
   assert.match(mobileShell, /apiRequest\('\/payment-planning'\)/);
 });
 
-test('Overview layers remain ordered before the current v1.18.3 Payment Centre layer and release surfaces agree', () => {
-  assert.match(entry, /import '\.\/mobile-overview-v1178\.css';\s*\nimport '\.\/mobile-workspace-v1179\.css';\s*\nimport '\.\/mobile-financial-decision-v1180\.css';\s*\nimport '\.\/overview-decision-v1181\.css';\s*\nimport '\.\/payment-centre-mobile-v1182\.css';\s*\nimport '\.\/payment-centre-mobile-v1183\.css';\s*\n\nReactDOM/s);
+test('historical Overview layers remain ordered before the current v1.19.0 mobile layer and release surfaces agree', () => {
+  assert.match(entry, /import '\.\/mobile-overview-v1178\.css';\s*\nimport '\.\/mobile-workspace-v1179\.css';\s*\nimport '\.\/mobile-financial-decision-v1180\.css';\s*\nimport '\.\/overview-decision-v1181\.css';\s*\nimport '\.\/payment-centre-mobile-v1182\.css';\s*\nimport '\.\/payment-centre-mobile-v1183\.css';\s*\nimport '\.\/mobile-overview-v1190\.css';\s*\n\nReactDOM/s);
   assert.match(decisionCss, /fynvo-mobile-decision-card/);
   assert.match(overviewCss, /fynvo-overview-v1181-before/);
   assert.match(payment1183Css, /payment-v1183-shell/);
-  assert.equal(pkg.version, '1.18.3');
-  assert.match(appShell, /PRODUCTION_VERSION = '1\.18\.3'/);
+  assert.equal(pkg.version, '1.19.0');
+  assert.match(appShell, /PRODUCTION_VERSION = '1\.19\.0'/);
 });

@@ -99,9 +99,9 @@ test('wrapper avoids the v1.17.6 self-triggering observer regression', () => {
   assert.doesNotMatch(wrapper, /if \(paymentActive\) refreshPaymentSupporting\(\)/);
 });
 
-test('release metadata is aligned to v1.18.3', () => {
-  assert.match(config, /version: "1\.18\.3"/);
-  assert.equal(packageJson.version, '1.18.3');
-  assert.match(backendConfig, /APP_VERSION = "1\.18\.3"/);
-  assert.match(shell, /PRODUCTION_VERSION = '1\.18\.3'/);
+test('current release metadata is aligned while v1.18.3 behaviour remains under regression coverage', () => {
+  assert.match(config, /version: "1\.19\.0"/);
+  assert.equal(packageJson.version, '1.19.0');
+  assert.match(backendConfig, /APP_VERSION = "1\.19\.0"/);
+  assert.match(shell, /PRODUCTION_VERSION = '1\.19\.0'/);
 });
