@@ -43,8 +43,8 @@ test('Accounts and Cards wrapper shares the canonical API client', () => {
   assert.doesNotMatch(wrapper, /const api =/);
 });
 
-test('current styles retain v1.17.7 through v1.18.2 protections before the v1.18.3 Payment Centre layer', () => {
-  assert.match(entry, /import '\.\/mobile-v1177\.css';\s*\nimport '\.\/mobile-overview-v1178\.css';\s*\nimport '\.\/mobile-workspace-v1179\.css';\s*\nimport '\.\/mobile-financial-decision-v1180\.css';\s*\nimport '\.\/overview-decision-v1181\.css';\s*\nimport '\.\/payment-centre-mobile-v1182\.css';\s*\nimport '\.\/payment-centre-mobile-v1183\.css';\s*\n\nReactDOM/s);
+test('current styles retain historical mobile protections before the v1.19.0 Overview layer', () => {
+  assert.match(entry, /import '\.\/mobile-v1177\.css';\s*\nimport '\.\/mobile-overview-v1178\.css';\s*\nimport '\.\/mobile-workspace-v1179\.css';\s*\nimport '\.\/mobile-financial-decision-v1180\.css';\s*\nimport '\.\/overview-decision-v1181\.css';\s*\nimport '\.\/payment-centre-mobile-v1182\.css';\s*\nimport '\.\/payment-centre-mobile-v1183\.css';\s*\nimport '\.\/mobile-overview-v1190\.css';\s*\n\nReactDOM/s);
   assert.match(mobile, /@media\(max-width:720px\)/);
   assert.match(mobile, /grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
   assert.match(mobile, /env\(safe-area-inset-bottom/);
@@ -61,6 +61,6 @@ test('current styles retain v1.17.7 through v1.18.2 protections before the v1.18
 });
 
 test('current version surfaces align in the production shell', () => {
-  assert.match(shell, /PRODUCTION_VERSION = '1\.18\.3'/);
-  assert.equal(pkg.version, '1.18.3');
+  assert.match(shell, /PRODUCTION_VERSION = '1\.19\.0'/);
+  assert.equal(pkg.version, '1.19.0');
 });
