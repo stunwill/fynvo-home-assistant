@@ -2,6 +2,17 @@
 
 All notable Fynvo changes are documented here. Starting with v0.3.0, every release must include a user-readable changelog entry, Home Assistant-visible release notes and GitHub release notes.
 
+## v1.18.3 - Payment Centre Actionability & Planning UX
+
+- Adds quick Payment Centre counts and monetary summaries for Overdue, Before next pay and Next 30 days using the existing authoritative payment and pay-cycle data.
+- Replaces the generic unavailable before-pay presentation with an actionable cash-position setup state, direct Fix setup or Review Income actions and progressively disclosed calculation detail.
+- Makes missing due date, payment method, funding account and category information explicit and interactive.
+- Refines mobile payment-card hierarchy, reduces repeated full-width action weight and clearly distinguishes expected automatic payments from confirmed paid or reconciled state.
+- Adds collapsible planning groups for Overdue, Due before next pay, Next 7 days and Later this month with counts and reliable totals.
+- Adds deliberate bulk selection with confirmed Mark paid and Skip operations that reuse the existing single-payment lifecycle endpoints, version checks and matched-transaction protections.
+- Preserves the v1.18.2 mobile Payment Centre foundation, desktop Payment Centre, Scheduled Payments, Bills, Recurring Expenses, reconciliation and pay-cycle financial semantics.
+- Adds responsive, safe-area, reduced-motion and sticky mobile modal-action protections. No database migration is required.
+
 ## v1.18.2 - Payment Centre Mobile UX Completion
 
 - Redesigns the iPhone/Home Assistant Payment Centre as a compact financial-management queue instead of a vertically heavy card stack.
