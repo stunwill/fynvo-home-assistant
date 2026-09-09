@@ -120,10 +120,15 @@ export default function MobileOverviewV1190({ authenticated = false, productionV
   const isOverview = activePage === 'Overview' || activePage.startsWith('Good ');
   const [host, setHost] = useState(null);
   const [planning, setPlanning] = useState(null);
+  const [safeToSpend, setSafeToSpend] = useState(null);
   const [accounts, setAccounts] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [moreOpen, setMoreOpen] = useState(false);
+  const [bufferOpen, setBufferOpen] = useState(false);
+  const [bufferValue, setBufferValue] = useState('');
+  const [bufferSaving, setBufferSaving] = useState(false);
+  const [bufferError, setBufferError] = useState('');
 
   useEffect(() => {
     if (!active || !isOverview) {
@@ -158,6 +163,7 @@ export default function MobileOverviewV1190({ authenticated = false, productionV
         if (cancelled) return;
         setPlanning(nextPlanning || null);
         setAccounts(Array.isArray(nextAccounts) ? nextAccounts : []);
+        setSafeToSpend(nextPlanning?.safe_to_spend || null);
       })
       .catch(() => {
         if (!cancelled) setError('Household cash plan could not be refreshed.');
@@ -168,16 +174,29 @@ export default function MobileOverviewV1190({ authenticated = false, productionV
 
   useEffect(() => { if (!active) setMoreOpen(false); }, [active]);
 
+  const saveBuffer = async (event) => {
+    event.preventDefault();
+    setBufferSaving(true); setBufferError('');
+    try {
+      await apiRequest('/payment-planning/cash-buffer', { method: 'PUT', body: JSON.stringify({ amount: bufferValue }) });
+      const refreshed = await apiRequest('/payment-planning/safe-to-spend');
+      setSafeToSpend(refreshed || null); setBufferOpen(false);
+    } catch (requestError) { setBufferError(requestError?.message || 'Cash buffer could not be saved.'); }
+    finally { setBufferSaving(false); }
+  };
+
   const model = useMemo(() => {
     const payCycle = planning?.pay_cycle || {};
     const before = payCycle.before_next_income || {};
     const after = payCycle.after_next_income || {};
-    const available = finite(before.current_available_cash);
-    const reserved = finite(before.commitments_total);
-    const safe = finite(before.projected_cash);
+    const authoritative = safeToSpend || planning?.safe_to_spend || {};
+    const available = finite(authoritative.available_cash ?? before.current_available_cash);
+    const reserved = finite(authoritative.committed_outgoings ?? before.commitments_total);
+    const buffer = finite(authoritative.protected_buffer);
+    const safe = finite(authoritative.safe_to_spend ?? before.projected_cash);
     const expectedIncome = finite(payCycle.next_income?.amount);
     const afterPay = finite(after.projected_cash);
-    const complete = Boolean(payCycle.completeness?.complete && payCycle.next_income);
+    const complete = Boolean(!authoritative.incomplete && authoritative.safe_to_spend !== null && authoritative.safe_to_spend !== undefined);
     const overdueRows = (planning?.attention || []).filter((row) => row.status === 'overdue');
     const overdueTotal = overdueRows.reduce((sum, row) => sum + amountOf(row), 0);
     const nextIncomeDate = payCycle.next_income?.date || null;
@@ -222,7 +241,7 @@ export default function MobileOverviewV1190({ authenticated = false, productionV
     }
 
     return {
-      available, reserved, safe, expectedIncome, afterPay, complete,
+      available, reserved, buffer, safe, expectedIncome, afterPay, complete,
       overdueTotal, overdueCount: overdueRows.length,
       dueBeforePay: reserved,
       nextIncomeDate,
@@ -233,7 +252,7 @@ export default function MobileOverviewV1190({ authenticated = false, productionV
       shortfallCount,
       incompleteMessage: payCycle.completeness?.message || 'Income or funding information is incomplete.',
     };
-  }, [planning, accounts]);
+  }, [planning, accounts, safeToSpend]);
 
   if (!active) return null;
   const open = (label) => { setMoreOpen(false); activateNavigation(label); };
@@ -244,15 +263,17 @@ export default function MobileOverviewV1190({ authenticated = false, productionV
     <article className={`v1190-card v1190-safe ${model.complete ? 'complete' : 'incomplete'}`}>
       <button type="button" className="v1190-card-link" onClick={() => open('Cash Plan')} aria-label="Open full Cash Plan">
         <span className="v1190-icon success" aria-hidden="true">$</span>
-        <span><small>Safe to spend</small><strong>{model.complete ? money(model.safe) : 'Unavailable'}</strong><em>{model.complete ? 'After known commitments' : model.incompleteMessage}</em></span>
+        <span><small>{model.safe !== null && model.safe < 0 ? 'Projected shortfall' : 'Safe to spend'}</small><strong>{model.complete ? money(model.safe) : 'Unavailable'}</strong><em>{model.complete ? `Until ${model.nextIncomeDate ? shortDate(model.nextIncomeDate) : 'next pay'}` : model.incompleteMessage}</em></span>
         <b aria-hidden="true">›</b>
       </button>
       <div className="v1190-safe-breakdown" aria-label="Cash plan breakdown">
         <div><span>Available now</span><strong>{money(model.available)}</strong></div>
         <div><span>Reserved</span><strong className="negative">{money(model.reserved)}</strong></div>
+        <div><span>Protected buffer</span><strong className="negative">{money(model.buffer)}</strong></div>
         <div><span>Expected income</span><strong className="positive">{model.expectedIncome === null ? '—' : `+${money(model.expectedIncome)}`}</strong></div>
       </div>
       <button type="button" className="v1190-plan-link" onClick={() => open('Cash Plan')}><span>Active plan: <strong>{model.activePlanLabel}</strong></span><b aria-hidden="true">›</b></button>
+      <div className="v1190-safe-actions"><button type="button" className="v1190-text-link" onClick={() => { setBufferValue(model.buffer == null ? '0.00' : model.buffer.toFixed(2)); setBufferError(''); setBufferOpen(true); }}>Set cash buffer</button><details><summary>View reserved payments</summary><div className="v1190-reserved-list">{(safeToSpend?.reserved_payments || []).length ? safeToSpend.reserved_payments.map((row, index) => <div key={`${row.id || row.name}-${index}`}><span><strong>{row.name || 'Payment'}</strong><small>{row.due_date || row.expected_date || 'No date'}</small></span><strong>{money(row.amount || row.expected_amount)}</strong></div>) : <p>No known payments are reserved in this horizon.</p>}</div></details></div>
     </article>
 
     <article className="v1190-card v1190-before">
@@ -296,6 +317,7 @@ export default function MobileOverviewV1190({ authenticated = false, productionV
       <button type="button" className={activePage === 'Accounts & Cards' ? 'active' : ''} onClick={() => open('Accounts')}><span aria-hidden="true">▭</span><small>Accounts</small></button>
       <button type="button" aria-expanded={moreOpen} onClick={() => setMoreOpen((value) => !value)}><span aria-hidden="true">•••</span><small>More</small></button>
     </nav>
-    {moreOpen && <div className="fynvo-mobile-more-backdrop" onMouseDown={(event) => event.target === event.currentTarget && setMoreOpen(false)}><section className="fynvo-mobile-more-sheet" aria-label="More navigation"><div className="fynvo-mobile-sheet-head"><strong>More</strong><button type="button" onClick={() => setMoreOpen(false)} aria-label="Close More">×</button></div><nav><button type="button" onClick={() => open('Cash Flow')}>Cash Flow</button><button type="button" onClick={() => open('Bills')}>Bills</button><button type="button" onClick={() => open('Recurring Expenses')}>Recurring Expenses</button><button type="button" onClick={() => open('Calendar')}>Calendar</button><button type="button" onClick={() => open('Transactions')}>Transactions</button><span className="fynvo-mobile-version">Fynvo v{productionVersion || '1.19.0'}</span></nav></section></div>}
+    {moreOpen && <div className="fynvo-mobile-more-backdrop" onMouseDown={(event) => event.target === event.currentTarget && setMoreOpen(false)}><section className="fynvo-mobile-more-sheet" aria-label="More navigation"><div className="fynvo-mobile-sheet-head"><strong>More</strong><button type="button" onClick={() => setMoreOpen(false)} aria-label="Close More">×</button></div><nav><button type="button" onClick={() => open('Cash Flow')}>Cash Flow</button><button type="button" onClick={() => open('Bills')}>Bills</button><button type="button" onClick={() => open('Recurring Expenses')}>Recurring Expenses</button><button type="button" onClick={() => open('Calendar')}>Calendar</button><button type="button" onClick={() => open('Transactions')}>Transactions</button><span className="fynvo-mobile-version">Fynvo v{productionVersion || '1.21.0'}</span></nav></section></div>}
+    {bufferOpen && createPortal(<div className="v1190-buffer-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && setBufferOpen(false)}><form className="v1190-buffer-dialog" role="dialog" aria-modal="true" aria-labelledby="v1190-buffer-title" onSubmit={saveBuffer}><h2 id="v1190-buffer-title">Cash buffer</h2><p>Protect this amount from Safe-to-Spend until your next pay.</p><label htmlFor="v1190-buffer-input">Protected amount</label><input id="v1190-buffer-input" inputMode="decimal" pattern="[0-9]*[.,]?[0-9]*" value={bufferValue} onChange={(event) => setBufferValue(event.target.value)} required />{bufferError && <div role="alert" className="v1190-warning">{bufferError}</div>}<div className="v1190-buffer-actions"><button type="button" onClick={() => setBufferOpen(false)}>Cancel</button><button type="submit" disabled={bufferSaving}>{bufferSaving ? 'Saving…' : 'Save buffer'}</button></div></form></div>, document.body)}
   </>;
 }

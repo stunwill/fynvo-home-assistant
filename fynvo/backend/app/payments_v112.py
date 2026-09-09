@@ -25,6 +25,10 @@ TERMINAL_BILL_STATUSES = {"paid", "cancelled"}
 ACTIONABLE_STATUSES = {"overdue", "due_today", "auto_payment_unconfirmed", "match_review_available"}
 
 
+class CashBufferUpdate(BaseModel):
+    amount: str = Field(default="0", min_length=1, max_length=30)
+
+
 def _columns(connection, table: str) -> set[str]:
     return {str(row["name"]) for row in connection.execute(text(f"PRAGMA table_info({table})")).mappings()}
 
@@ -565,6 +569,26 @@ def pay_cycle_planning(current_user: User = USER, db: DbSession = DB):
     from .payment_planning import build_pay_cycle_planning
 
     return build_pay_cycle_planning(db, current_user)
+
+
+@router.get("/payment-planning/safe-to-spend")
+def safe_to_spend(current_user: User = USER, db: DbSession = DB):
+    from .payment_planning import build_safe_to_spend
+
+    return build_safe_to_spend(db, current_user)
+
+
+@router.put("/payment-planning/cash-buffer")
+def update_cash_buffer(payload: CashBufferUpdate, current_user: User = USER, db: DbSession = DB):
+    try:
+        amount = parse_money(payload.amount)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail="Cash Buffer must be a valid amount") from exc
+    if amount < 0:
+        raise HTTPException(status_code=400, detail="Cash Buffer cannot be negative")
+    db.execute(text("INSERT INTO app_config(key,value,updated_at) VALUES(:key,:value,:now) ON CONFLICT(key) DO UPDATE SET value=:value,updated_at=:now"), {"key": f"safe_to_spend.buffer.{current_user.id}", "value": cents_to_decimal(amount), "now": utcnow()})
+    db.commit()
+    return {"amount": cents_to_decimal(amount)}
 
 
 @router.get("/payment-centre")

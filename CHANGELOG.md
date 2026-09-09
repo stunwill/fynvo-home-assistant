@@ -2,6 +2,16 @@
 
 All notable Fynvo changes are documented here. Starting with v0.3.0, every release must include a user-readable changelog entry, Home Assistant-visible release notes and GitHub release notes.
 
+## v1.21.0 - Safe-to-Spend, Cash Buffer & Payment Readiness
+
+- Adds one authoritative backend Safe-to-Spend calculation shared by Overview and Payment Centre.
+- Reserves known unpaid commitments through the next pay-cycle boundary, preserves negative shortfalls, excludes paid/skipped/cancelled occurrences and never treats credit limits as cash.
+- Adds a persisted per-household Cash Buffer setting endpoint, with the existing account minimum-balance model preserved separately.
+- Exposes the calculation breakdown, planning horizon, payment-readiness state, coverage events, warnings and reserved payment occurrences for explainable UI work.
+- Integrates the authoritative Safe-to-Spend result into the mobile Overview and Payment Centre summaries.
+- Preserves existing payment, pay-cycle, reconciliation and Home Assistant ingress contracts. No database schema migration is required.
+- Aligns release metadata to v1.21.0.
+
 ## v1.20.0 - Payment Centre UX Completion & Workflow Reliability
 
 - Completes the mobile Payment Centre as a decision-first operational queue, with distinct overdue, due today, before-next-pay, upcoming and payment-history sections.

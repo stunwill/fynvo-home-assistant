@@ -31,6 +31,7 @@ PLANNING_PERIODS = (
 )
 PAY_CYCLE_INCOME_HORIZON_DAYS = 120
 PAY_CYCLE_SEQUENCE_LIMIT = 4
+SAFE_TO_SPEND_BUFFER_KEY = "safe_to_spend.buffer"
 
 
 def _as_date(value: Any) -> date | None:
@@ -46,6 +47,62 @@ def _amount_cents(row: dict[str, Any]) -> int:
     if value in (None, ""):
         value = row.get("amount")
     return abs(parse_money(value or "0"))
+
+
+def _safe_buffer_cents(db: DbSession, user: User) -> int:
+    value = db.execute(text("SELECT value FROM app_config WHERE key=:key"), {"key": f"{SAFE_TO_SPEND_BUFFER_KEY}.{user.id}"}).scalar()
+    return max(parse_money(value or "0"), 0)
+
+
+def _safe_commitment_rows(rows: list[dict[str, Any]], current: date, end: date | None) -> list[dict[str, Any]]:
+    result = []
+    for row in rows:
+        if row.get("status") not in FUNDING_STATUSES:
+            continue
+        when = _as_date(row.get("expected_date") or row.get("due_date"))
+        if row.get("status") == "overdue" or (when is not None and (end is None or current <= when < end)):
+            result.append(row)
+    return result
+
+
+def build_safe_to_spend(db: DbSession, user: User, today: date | None = None) -> dict[str, Any]:
+    """Build one explainable Safe-to-Spend result for all presentation surfaces."""
+    current = today or today_local()
+    payments_v114.ensure_scheduled_payments(db, user, horizon_days=PAY_CYCLE_INCOME_HORIZON_DAYS, today=current)
+    rows = canonical_payment_rows(db, user)
+    pay_cycle = build_pay_cycle_planning(db, user, current, rows)
+    next_income = pay_cycle.get("next_income")
+    end = _as_date(next_income.get("date")) if next_income else None
+    commitments = _safe_commitment_rows(rows, current, end)
+    balances = _account_balances(db, user)
+    available = sum(balances.values())
+    balance_known = bool(balances)
+    committed = sum(_amount_cents(row) for row in commitments)
+    buffer_cents = _safe_buffer_cents(db, user)
+    safe_cents = available - committed - buffer_cents if balance_known and end else None
+    coverage = []
+    running = available - buffer_cents
+    first_insufficient_date = None
+    for when, _, row in sorted(((_as_date(row.get("expected_date") or row.get("due_date")) or current, -_amount_cents(row), row) for row in commitments), key=lambda item: item[0]):
+        running -= _amount_cents(row)
+        if first_insufficient_date is None and running < 0:
+            first_insufficient_date = when.isoformat()
+        coverage.append({"date": when.isoformat(), "name": row.get("name"), "amount": cents_to_decimal(_amount_cents(row)), "projected_balance": cents_to_decimal(running)})
+    incomplete = not balance_known or end is None
+    covered_through = None if first_insufficient_date else (end.isoformat() if end else None)
+    return {
+        "as_of": current.isoformat(), "planning_start": current.isoformat(), "planning_end": end.isoformat() if end else None,
+        "next_income": next_income, "available_cash": cents_to_decimal(available) if balance_known else None,
+        "eligible_confirmed_income": "0.00", "committed_outgoings": cents_to_decimal(committed),
+        "protected_buffer": cents_to_decimal(buffer_cents), "safe_to_spend": cents_to_decimal(safe_cents) if safe_cents is not None else None,
+        "projected_shortfall": cents_to_decimal(abs(safe_cents)) if safe_cents is not None and safe_cents < 0 else "0.00",
+        "payment_readiness": "needs_information" if incomplete else "covered" if safe_cents >= 0 else "at_risk",
+        "incomplete": incomplete,
+        "warnings": (["No active liquid account balance is available."] if not balance_known else []) + (["No next pay-cycle boundary is available."] if end is None else []),
+        "reserved_payments": commitments, "coverage": coverage,
+        "payment_coverage": {"covered_through": covered_through, "first_insufficient_date": first_insufficient_date},
+        "rules": {"credit_limits_excluded": True, "paid_skipped_cancelled_excluded": True, "automatic_payments_reserved_until_resolved": True},
+    }
 
 
 def _bill_suppression_keys(bills: list[dict[str, Any]]) -> set[tuple[int, str]]:
@@ -646,4 +703,5 @@ def build_payment_planning(db: DbSession, user: User, today: date | None = None)
         "next_payment": next_payment,
         "timeline": _timeline(rows, current, 30),
         "pay_cycle": build_pay_cycle_planning(db, user, current, rows),
+        "safe_to_spend": build_safe_to_spend(db, user, current),
     }

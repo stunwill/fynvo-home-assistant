@@ -1,5 +1,13 @@
 # Fynvo Add-on Changelog
 
+## v1.21.0 - Safe-to-Spend, Cash Buffer & Payment Readiness
+
+- Adds an explainable Safe-to-Spend result based on active liquid account cash, authoritative unpaid commitments and the next pay-cycle boundary.
+- Includes a persisted protected Cash Buffer, payment-readiness state, coverage timeline, reserved payments and missing-data warnings.
+- Keeps paid, skipped, cancelled, reconciled and duplicate-suppressed occurrences consistent with existing Fynvo financial semantics.
+- Integrates Safe-to-Spend into the mobile Overview and Payment Centre without introducing a second forecasting engine.
+- Aligns the add-on release metadata to v1.21.0. No database schema migration is required.
+
 ## v1.20.0 - Payment Centre UX Completion & Workflow Reliability
 
 - Completes the mobile Payment Centre operational hierarchy with reliable overdue, due-today, before-next-pay, upcoming and history grouping.
