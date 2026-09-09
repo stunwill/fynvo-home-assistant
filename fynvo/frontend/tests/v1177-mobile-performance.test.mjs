@@ -61,6 +61,6 @@ test('current styles retain historical mobile protections before the v1.19.0 Ove
 });
 
 test('current version surfaces align in the production shell', () => {
-  assert.match(shell, /PRODUCTION_VERSION = '1\.20\.0'/);
-  assert.equal(pkg.version, '1.20.0');
+  assert.match(shell, /PRODUCTION_VERSION = '1\.21\.0'/);
+  assert.equal(pkg.version, '1.21.0');
 });

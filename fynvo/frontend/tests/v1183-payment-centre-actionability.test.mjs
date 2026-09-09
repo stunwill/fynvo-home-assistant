@@ -11,6 +11,8 @@ const shell = await read('src/AppV13.jsx');
 const config = await read('../config.yaml');
 const backendConfig = await read('../backend/app/config.py');
 const packageJson = JSON.parse(await read('package.json'));
+const overview = await read('src/MobileOverviewV1190.jsx');
+const overviewCss = await read('src/mobile-overview-v1190.css');
 
 test('v1.18.3 mobile Payment Centre is mounted without replacing desktop Payment Centre', () => {
   assert.match(wrapper, /PaymentCentreMobileV1183/);
@@ -114,8 +116,21 @@ test('wrapper avoids the v1.17.6 self-triggering observer regression', () => {
 });
 
 test('current release metadata is aligned while v1.18.3 behaviour remains under regression coverage', () => {
-  assert.match(config, /version: "1\.20\.0"/);
-  assert.equal(packageJson.version, '1.20.0');
-  assert.match(backendConfig, /APP_VERSION = "1\.20\.0"/);
-  assert.match(shell, /PRODUCTION_VERSION = '1\.20\.0'/);
+  assert.match(config, /version: "1\.21\.0"/);
+  assert.equal(packageJson.version, '1.21.0');
+  assert.match(backendConfig, /APP_VERSION = "1\.21\.0"/);
+  assert.match(shell, /PRODUCTION_VERSION = '1\.21\.0'/);
+});
+
+test('v1.21.0 exposes one authoritative Safe-to-Spend result with buffer and reserved-payment inspection', () => {
+  assert.match(payment, /safe_to_spend/);
+  assert.match(payment, /protected_buffer/);
+  assert.doesNotMatch(payment, /apiRequest\('\/payment-planning\/safe-to-spend'\)/);
+  assert.match(overview, /apiRequest\('\/payment-planning'\)/);
+  assert.match(overview, /Set cash buffer/);
+  assert.match(overview, /View reserved payments/);
+  assert.match(overview, /\/payment-planning\/cash-buffer/);
+  assert.match(overview, /Projected shortfall/);
+  assert.match(overviewCss, /v1190-buffer-backdrop/);
+  assert.match(overviewCss, /safe-area-inset/);
 });
