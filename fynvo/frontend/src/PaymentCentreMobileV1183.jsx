@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import PaymentCentreV112 from './PaymentCentreV112.jsx';
 import { apiRequest } from './apiClient.js';
@@ -32,6 +32,30 @@ const dateLabel = (value) => value
 
 const rowAmount = (row) => Math.abs(Number(row.status === 'paid' && row.actual_amount != null ? row.actual_amount : row.expected_amount ?? row.amount ?? 0) || 0);
 const rowKey = (row) => `${row.source_type}-${row.id}`;
+
+const startOfToday = () => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return today;
+};
+
+const daysFromToday = (value) => {
+  if (!value) return null;
+  const due = new Date(`${String(value).slice(0, 10)}T00:00:00`);
+  if (Number.isNaN(due.getTime())) return null;
+  return Math.round((due - startOfToday()) / 86400000);
+};
+
+const timingLabel = (row) => {
+  if (TERMINAL.has(row.status)) return row.status === 'paid' ? 'Paid' : row.status === 'skipped' ? 'Skipped' : 'Cancelled';
+  const delta = daysFromToday(row.expected_date || row.due_date);
+  if (delta === null) return 'Due date missing';
+  if (delta < 0) return `${Math.abs(delta)} day${Math.abs(delta) === 1 ? '' : 's'} overdue`;
+  if (delta === 0) return 'Due today';
+  if (delta === 1) return 'Due tomorrow';
+  if (delta <= 7) return `Due in ${delta} days`;
+  return `Due ${dateLabel(row.expected_date || row.due_date)}`;
+};
 
 const missingFields = (row) => {
   const missing = [];
@@ -85,6 +109,7 @@ function groupedRows(rows = [], mode = 'grouped', nextIncomeDate = null) {
   const nextIncome = nextIncomeDate ? new Date(`${String(nextIncomeDate).slice(0, 10)}T00:00:00`) : null;
   const buckets = [
     { key: 'overdue', label: 'Overdue', rows: [] },
+    { key: 'today', label: 'Due today', rows: [] },
     { key: 'before-pay', label: 'Due before next pay', rows: [] },
     { key: 'next-seven', label: 'Next 7 days', rows: [] },
     { key: 'later', label: 'Later this month', rows: [] },
@@ -97,8 +122,10 @@ function groupedRows(rows = [], mode = 'grouped', nextIncomeDate = null) {
     if (TERMINAL.has(row.status)) return byKey.get('history').rows.push(row);
     const raw = row.expected_date || row.due_date;
     if (!raw) return byKey.get('missing').rows.push(row);
-    if (row.status === 'overdue' || row.status === 'auto_payment_unconfirmed') return byKey.get('overdue').rows.push(row);
     const due = new Date(`${String(raw).slice(0, 10)}T00:00:00`);
+    const delta = Math.round((due - today) / 86400000);
+    if (row.status === 'overdue' || (row.status === 'auto_payment_unconfirmed' && delta < 0) || delta < 0) return byKey.get('overdue').rows.push(row);
+    if (delta === 0) return byKey.get('today').rows.push(row);
     if (nextIncome && due >= today && due < nextIncome) return byKey.get('before-pay').rows.push(row);
     if (due >= today && due <= seven) return byKey.get('next-seven').rows.push(row);
     return byKey.get('later').rows.push(row);
@@ -167,6 +194,7 @@ function MarkPaidDialog({ row, onClose, onSaved }) {
 
 function PaymentCard({ row, selecting, selected, onToggle, onMarkPaid, onOpenDetailed, onShowMissing, onNavigate }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const cardRef = useRef(null);
   const primary = paymentPrimaryAction(row);
   const actions = paymentAvailableActions(row).filter((action) => !['view', 'mark_paid'].includes(action));
   const missing = missingFields(row);
@@ -175,7 +203,22 @@ function PaymentCard({ row, selecting, selected, onToggle, onMarkPaid, onOpenDet
   const automatic = row.payment_handling === 'automatic';
   const method = row.payment_method_label || PAYMENT_METHOD_LABELS[row.payment_method];
   const funding = row.card_name || row.account_name || row.linked_account_name;
-  const statusText = overdue > 0 ? `${overdue} day${overdue === 1 ? '' : 's'} overdue` : row.status === 'auto_payment_unconfirmed' ? 'Automatic payment unconfirmed' : automatic && !TERMINAL.has(row.status) ? 'Expected automatically' : due ? `Due ${dateLabel(due)}` : 'Due date missing';
+  useEffect(() => {
+    if (!menuOpen) return undefined;
+    const closeOnOutside = (event) => {
+      if (!cardRef.current?.contains(event.target)) setMenuOpen(false);
+    };
+    const closeOnEscape = (event) => {
+      if (event.key === 'Escape') setMenuOpen(false);
+    };
+    document.addEventListener('pointerdown', closeOnOutside);
+    document.addEventListener('keydown', closeOnEscape);
+    return () => {
+      document.removeEventListener('pointerdown', closeOnOutside);
+      document.removeEventListener('keydown', closeOnEscape);
+    };
+  }, [menuOpen]);
+  const statusText = row.status === 'auto_payment_unconfirmed' ? 'Automatic payment unconfirmed' : automatic && !TERMINAL.has(row.status) ? 'Expected automatically' : timingLabel(row);
   const issueLabel = missing.length === 1 ? `Missing ${missing[0].toLowerCase()}` : missing.length > 1 ? `${missing.length} details missing` : '';
   const runAction = (action) => {
     setMenuOpen(false);
@@ -184,12 +227,12 @@ function PaymentCard({ row, selecting, selected, onToggle, onMarkPaid, onOpenDet
     if (action === 'edit') return onNavigate('Bills');
     return onOpenDetailed();
   };
-  return <article className={`payment-v1183-card ${row.status === 'overdue' ? 'overdue' : paymentAttentionReason(row) || missing.length ? 'attention' : ''}`}>
+  return <article ref={cardRef} className={`payment-v1183-card ${row.status === 'overdue' || Number(row.days_overdue || 0) > 0 ? 'overdue' : paymentAttentionReason(row) || missing.length ? 'attention' : ''}`}>
     {selecting && <label className="payment-v1183-select-box"><input type="checkbox" checked={selected} onChange={() => onToggle(row)}/><span className="sr-only">Select {row.name}</span></label>}
     <button type="button" className="payment-v1183-card-main" onClick={selecting ? () => onToggle(row) : onOpenDetailed}><span className="payment-v1183-card-name"><strong>{row.name}</strong><small>{row.category || 'Uncategorised'} · {paymentSourceLabel(row)}</small></span><strong className="payment-v1183-card-amount">{money(rowAmount(row))}</strong><span className="payment-v1183-card-meta"><span className={overdue > 0 ? 'danger' : automatic ? 'automatic' : ''}>{statusText}</span><span>· {automatic ? 'Automatic' : 'Manual'}</span>{method && row.payment_method !== 'not_set' && <span>· {method}</span>}{funding && <span>· {funding}</span>}</span></button>
     {issueLabel && <button type="button" className="payment-v1183-missing" onClick={() => onShowMissing(row)}>⚠ {issueLabel}</button>}
     {!selecting && <div className={`payment-v1183-card-actions ${primary !== 'mark_paid' ? 'single' : ''}`}>{primary === 'mark_paid' && <button type="button" className="mark-paid" onClick={() => onMarkPaid(row)}>Mark paid</button>}{automatic && primary !== 'mark_paid' && !TERMINAL.has(row.status) && <span className="automatic-status">Expected automatically</span>}<button type="button" className="overflow" aria-expanded={menuOpen} aria-label={`More actions for ${row.name}`} onClick={() => setMenuOpen((open) => !open)}>⋯</button></div>}
-    {menuOpen && <div className="payment-v1183-overflow"><button type="button" onClick={onOpenDetailed}>View payment details</button>{missing.length > 0 && <button type="button" onClick={() => { setMenuOpen(false); onShowMissing(row); }}>Review missing information</button>}{actions.map((action) => <button type="button" key={action} onClick={() => runAction(action)}>{({ review: 'Review', edit: 'Edit Bill', cancel: 'Cancel Bill', change_date: 'Change payment date', skip: 'Skip payment', restore: 'Restore payment', open_recurring: 'Open Recurring Expense' })[action] || action.replaceAll('_', ' ')}</button>)}</div>}
+    {menuOpen && <div className="payment-v1183-overflow" role="menu"><button type="button" role="menuitem" onClick={() => { setMenuOpen(false); onOpenDetailed(); }}>View payment details</button>{missing.length > 0 && <button type="button" role="menuitem" onClick={() => { setMenuOpen(false); onShowMissing(row); }}>Review missing information</button>}{actions.map((action) => <button type="button" role="menuitem" key={action} onClick={() => runAction(action)}>{({ review: 'Review', edit: 'Edit Bill', cancel: 'Cancel Bill', change_date: 'Change payment date', skip: 'Skip payment', restore: 'Restore payment', open_recurring: 'Open Recurring Expense' })[action] || action.replaceAll('_', ' ')}</button>)}</div>}
   </article>;
 }
 
@@ -208,6 +251,7 @@ export default function PaymentCentreMobileV1183({ data = {}, onNavigate = () =>
   const [selected, setSelected] = useState([]);
   const [collapsed, setCollapsed] = useState({});
   const [bulkBusy, setBulkBusy] = useState(false);
+  const [actionError, setActionError] = useState('');
   const [mode, setMode] = useState(() => localStorage.getItem('fynvo.paymentCentre.timelineMode.v1183') || 'grouped');
   const query = useMemo(() => buildPaymentCentreQuery(filters), [filters]);
   const groups = useMemo(() => groupedRows(result?.rows || [], mode, planning?.pay_cycle?.next_income?.date), [result?.rows, mode, planning?.pay_cycle?.next_income?.date]);
@@ -248,6 +292,8 @@ export default function PaymentCentreMobileV1183({ data = {}, onNavigate = () =>
         });
       }
       setSelected([]); setSelecting(false); await refreshed();
+    } catch (requestError) {
+      setActionError(requestError?.message || 'Some selected payments could not be marked as paid. No unsuccessful payment was presented as complete.');
     } finally { setBulkBusy(false); }
   };
 
@@ -262,6 +308,8 @@ export default function PaymentCentreMobileV1183({ data = {}, onNavigate = () =>
         await apiRequest(`/scheduled-payments/${row.id}/skip`, { method: 'POST', body: JSON.stringify({ reason: 'User requested skip', note: 'Bulk skipped from Payment Centre', version: row.version }) });
       }
       setSelected([]); setSelecting(false); await refreshed();
+    } catch (requestError) {
+      setActionError(requestError?.message || 'Some selected payments could not be skipped.');
     } finally { setBulkBusy(false); }
   };
 
@@ -272,7 +320,8 @@ export default function PaymentCentreMobileV1183({ data = {}, onNavigate = () =>
 
     <section className="payment-v1183-summary" aria-label="Payment Centre summary"><div><span>Overdue</span><strong>{summary.overdue ? money(summary.overdue.total) : '—'}</strong></div><div><span>Before next pay</span><strong>{money(planning?.pay_cycle?.before_next_income?.commitments_total)}</strong></div><div><span>Next 30 days</span><strong>{summary.next30 ? money(summary.next30.total) : '—'}</strong></div></section>
     {!loading && planning && <PayCycleDecision planning={planning} onIncome={() => onNavigate('Income')} onFixSetup={() => setFullWorkspace(true)}/>} 
-    <div className="payment-v1183-selection-bar"><button type="button" onClick={() => { setSelecting((value) => !value); setSelected([]); }}>{selecting ? 'Cancel selection' : 'Select'}</button>{selecting && <><button type="button" onClick={selectAll}>Select all</button><span>{selected.length} selected</span><button type="button" disabled={bulkBusy || !selectedRows.some((row) => paymentAvailableActions(row).includes('mark_paid'))} onClick={bulkMarkPaid}>Mark paid</button><button type="button" disabled={bulkBusy || !selectedRows.some((row) => row.source_type === 'scheduled_payment' && SKIPPABLE.has(row.status) && !row.matched_transaction_id)} onClick={bulkSkip}>Skip</button></>}</div>
+    <div className="payment-v1183-selection-bar"><button type="button" onClick={() => { setActionError(''); setSelecting((value) => !value); setSelected([]); }}>{selecting ? 'Cancel selection' : 'Select'}</button>{selecting && <><button type="button" onClick={selectAll}>Select all</button><span>{selected.length} selected</span><button type="button" disabled={bulkBusy || !selectedRows.some((row) => paymentAvailableActions(row).includes('mark_paid'))} onClick={bulkMarkPaid}>Mark paid</button><button type="button" disabled={bulkBusy || !selectedRows.some((row) => row.source_type === 'scheduled_payment' && SKIPPABLE.has(row.status) && !row.matched_transaction_id)} onClick={bulkSkip}>Skip</button></>}</div>
+    {actionError && <div className="payment-v1183-action-error" role="alert"><strong>Payment action could not be completed</strong><p>{actionError}</p><button type="button" onClick={() => setActionError('')}>Dismiss</button></div>}
 
     {loading && !result ? <div className="payment-v1183-skeleton" role="status" aria-label="Loading payments">{[0, 1, 2].map((item) => <div className="payment-v1183-skeleton-row" key={item}/>)}</div> : error ? <div className="payment-v1183-error"><strong>Payment Centre could not load</strong><p>{error}</p><button type="button" onClick={load}>Retry</button></div> : result?.rows?.length ? <section className="payment-v1183-timeline">{groups.map((group) => <section className="payment-v1183-group" key={group.key}><button type="button" className="payment-v1183-group-head" aria-expanded={!collapsed[group.key]} onClick={() => setCollapsed((current) => ({ ...current, [group.key]: !current[group.key] }))}><span><strong>{group.label}</strong><small>{group.rows.length} payment{group.rows.length === 1 ? '' : 's'} · {money(group.total)}</small></span><span aria-hidden="true">{collapsed[group.key] ? '+' : '−'}</span></button>{!collapsed[group.key] && group.rows.map((row) => <PaymentCard key={rowKey(row)} row={row} selecting={selecting} selected={selected.includes(rowKey(row))} onToggle={toggle} onMarkPaid={setMarkingPaid} onOpenDetailed={() => setFullWorkspace(true)} onShowMissing={setMissingRow} onNavigate={onNavigate}/>)}</section>)}</section> : <div className="payment-v1183-empty"><strong>No payments in this view</strong><p>Choose a different quick filter or open Filters & details.</p></div>}
 

@@ -93,6 +93,20 @@ test('mobile layout protects safe areas, touch targets, narrow iPhones and reduc
   assert.match(css, /\.modal \.modal-actions\{position:sticky/);
 });
 
+test('v1.20.0 completes payment workflow reliability protections', () => {
+  assert.match(payment, /useRef/);
+  assert.match(payment, /closeOnOutside/);
+  assert.match(payment, /event\.key === 'Escape'/);
+  assert.match(payment, /role="menu"/);
+  assert.match(payment, /role="menuitem"/);
+  assert.match(payment, /Payment action could not be completed/);
+  assert.match(payment, /Some selected payments could not be marked as paid/);
+  assert.match(payment, /Due today/);
+  assert.match(payment, /Due tomorrow/);
+  assert.match(payment, /Due in \$\{delta\} days/);
+  assert.match(payment, /row\.status === 'auto_payment_unconfirmed' && delta < 0/);
+});
+
 test('wrapper avoids the v1.17.6 self-triggering observer regression', () => {
   assert.match(wrapper, /currentMount === nextMount \? currentMount : nextMount/);
   assert.match(wrapper, /useEffect\(\(\) => \{ if \(paymentMount\) refreshPaymentSupporting\(\); \}, \[paymentMount, authState\?\.authenticated\]\)/);
@@ -100,8 +114,8 @@ test('wrapper avoids the v1.17.6 self-triggering observer regression', () => {
 });
 
 test('current release metadata is aligned while v1.18.3 behaviour remains under regression coverage', () => {
-  assert.match(config, /version: "1\.19\.0"/);
-  assert.equal(packageJson.version, '1.19.0');
-  assert.match(backendConfig, /APP_VERSION = "1\.19\.0"/);
-  assert.match(shell, /PRODUCTION_VERSION = '1\.19\.0'/);
+  assert.match(config, /version: "1\.20\.0"/);
+  assert.equal(packageJson.version, '1.20.0');
+  assert.match(backendConfig, /APP_VERSION = "1\.20\.0"/);
+  assert.match(shell, /PRODUCTION_VERSION = '1\.20\.0'/);
 });
