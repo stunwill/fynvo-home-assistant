@@ -178,8 +178,8 @@ test('responsive breakpoints cover narrow iPhone, standard iPhone, tablet edge a
 });
 
 test('current release metadata remains aligned while v1.18.2 behaviour stays under regression coverage', () => {
-  assert.match(config, /version: "1\.19\.0"/);
-  assert.equal(packageJson.version, '1.19.0');
-  assert.match(backendConfig, /APP_VERSION = "1\.19\.0"/);
-  assert.match(shell, /PRODUCTION_VERSION = '1\.19\.0'/);
+  assert.match(config, /version: "1\.20\.0"/);
+  assert.equal(packageJson.version, '1.20.0');
+  assert.match(backendConfig, /APP_VERSION = "1\.20\.0"/);
+  assert.match(shell, /PRODUCTION_VERSION = '1\.20\.0'/);
 });

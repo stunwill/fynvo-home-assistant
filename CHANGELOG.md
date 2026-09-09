@@ -2,6 +2,16 @@
 
 All notable Fynvo changes are documented here. Starting with v0.3.0, every release must include a user-readable changelog entry, Home Assistant-visible release notes and GitHub release notes.
 
+## v1.20.0 - Payment Centre UX Completion & Workflow Reliability
+
+- Completes the mobile Payment Centre as a decision-first operational queue, with distinct overdue, due today, before-next-pay, upcoming and payment-history sections.
+- Corrects automatic-payment grouping so an unconfirmed automatic payment is only treated as overdue when its expected date has actually passed.
+- Makes relative timing explicit while retaining the actual due date, including due today, tomorrow, due in N days and overdue wording.
+- Closes overflow menus on outside tap and Escape, closes menus before opening details or corrective dialogs, and exposes menu semantics for assistive technology.
+- Adds contextual mutation-failure recovery for bulk Mark paid and Skip actions without presenting unsuccessful payments as complete.
+- Preserves the authoritative Payment Centre, Scheduled Payment, Bill, reconciliation and pay-cycle contracts. No database migration or new financial calculation engine is introduced.
+- Aligns the Home Assistant add-on, backend, frontend and production-shell versions to v1.20.0.
+
 ## v1.19.0 - Household Cash Plan & Weekly Money Guidance
 
 - Redesigns the mobile Overview around a decision-first household cash plan led by Safe to spend, followed by before-next-pay commitments, the next pressure point and immediate payment actions.

@@ -1,5 +1,14 @@
 # Fynvo Add-on Changelog
 
+## v1.20.0 - Payment Centre UX Completion & Workflow Reliability
+
+- Completes the mobile Payment Centre operational hierarchy with reliable overdue, due-today, before-next-pay, upcoming and history grouping.
+- Corrects automatic-payment urgency treatment and adds readable relative timing without removing actual payment dates.
+- Makes overflow menus dismissible by outside tap and Escape, with menu semantics and safe modal hand-off.
+- Adds contextual recovery for failed bulk payment actions while preserving authoritative lifecycle endpoints and version protections.
+- Preserves existing financial calculations, persistence models, API contracts and Home Assistant ingress behaviour. No database migration is required.
+- Aligns the add-on release metadata to v1.20.0.
+
 ## v1.19.0 - Household Cash Plan & Weekly Money Guidance
 
 - Redesigns the iPhone/Home Assistant Overview around Safe to spend as the primary household cash conclusion, with available cash, reserved commitments and expected income clearly separated.
