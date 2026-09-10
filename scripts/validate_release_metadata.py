@@ -7,6 +7,7 @@ import ast
 import json
 import os
 import re
+import struct
 from pathlib import Path
 
 import yaml
@@ -58,10 +59,19 @@ def main() -> None:
         addon_changelog_path,
         roadmap_path,
         main_path,
+        ROOT / "fynvo/icon.png",
     )
     missing = [str(path.relative_to(ROOT)) for path in required_paths if not path.is_file()]
     if missing:
         fail(f"Missing required release metadata files: {', '.join(missing)}")
+
+    icon_path = ROOT / "fynvo/icon.png"
+    icon_header = icon_path.read_bytes()[:24]
+    if icon_header[:8] != b"\x89PNG\r\n\x1a\n" or len(icon_header) < 24:
+        fail("fynvo/icon.png must be a valid PNG image")
+    icon_width, icon_height = struct.unpack(">II", icon_header[16:24])
+    if icon_width != icon_height or icon_width < 128:
+        fail("fynvo/icon.png must be square and at least 128x128 pixels")
 
     manifest = yaml.safe_load(manifest_path.read_text(encoding="utf-8"))
     frontend = json.loads(frontend_path.read_text(encoding="utf-8"))
