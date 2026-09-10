@@ -63,7 +63,7 @@ test('current production shell is active while legacy compatibility markers rema
   const corrective = await read('src/v0174-corrective.jsx');
   const pkg = JSON.parse(await read('package.json'));
   assert.match(app, /APP_VERSION = '1\.17\.0'/);
-  assert.match(shell, /PRODUCTION_VERSION = '1\.21\.2'/);
+  assert.match(shell, /PRODUCTION_VERSION = '1.22.0'/);
   assert.match(corrective, /APP_VERSION_V0174 = '1\.16\.3'/);
-  assert.equal(pkg.version, '1.21.2');
+  assert.equal(pkg.version, '1.22.0');
 });

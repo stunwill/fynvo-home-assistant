@@ -1,0 +1,142 @@
+name: Publish Fynvo release image
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: read
+
+env:
+  IMAGE_NAME: ghcr.io/stunwill/fynvo
+  IMAGE_NAMESPACE: ghcr.io/stunwill
+
+jobs:
+  validate:
+    name: Validate release metadata
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install metadata validator dependency
+        run: python -m pip install pyyaml
+      - name: Validate version and image contract
+        env:
+          FYNVO_RELEASE_TAG: ${{ github.ref_name }}
+        run: python scripts/validate_release_metadata.py
+
+  build:
+    name: Build ${{ matrix.arch }} image
+    needs: validate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: aarch64
+            platform: linux/arm64
+            build_from: ghcr.io/home-assistant/aarch64-base-python:3.12-alpine3.20
+          - arch: amd64
+            platform: linux/amd64
+            build_from: ghcr.io/home-assistant/amd64-base-python:3.12-alpine3.20
+          - arch: armhf
+            platform: linux/arm/v6
+            build_from: ghcr.io/home-assistant/armhf-base-python:3.12-alpine3.20
+          - arch: armv7
+            platform: linux/arm/v7
+            build_from: ghcr.io/home-assistant/armv7-base-python:3.12-alpine3.20
+          - arch: i386
+            platform: linux/386
+            build_from: ghcr.io/home-assistant/i386-base-python:3.12-alpine3.20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Resolve build metadata
+        id: metadata
+        run: |
+          echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          echo "created=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+      - name: Build and publish architecture image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./fynvo
+          file: ./fynvo/Dockerfile
+          platforms: ${{ matrix.platform }}
+          push: true
+          tags: ${{ env.IMAGE_NAMESPACE }}/${{ matrix.arch }}-fynvo:${{ github.ref_name }}
+          build-args: |
+            BUILD_FROM=${{ matrix.build_from }}
+            BUILD_VERSION=${{ steps.metadata.outputs.version }}
+            BUILD_ARCH=${{ matrix.arch }}
+            BUILD_REVISION=${{ github.sha }}
+            BUILD_CREATED=${{ steps.metadata.outputs.created }}
+          cache-from: type=gha,scope=fynvo-${{ matrix.arch }}
+          cache-to: type=gha,mode=max,scope=fynvo-${{ matrix.arch }}
+
+  manifest:
+    name: Publish multi-architecture manifest
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Publish immutable version manifest
+        run: |
+          docker buildx imagetools create \
+            --tag "${IMAGE_NAME}:${GITHUB_REF_NAME}" \
+            "${IMAGE_NAMESPACE}/aarch64-fynvo:${GITHUB_REF_NAME}" \
+            "${IMAGE_NAMESPACE}/amd64-fynvo:${GITHUB_REF_NAME}" \
+            "${IMAGE_NAMESPACE}/armhf-fynvo:${GITHUB_REF_NAME}" \
+            "${IMAGE_NAMESPACE}/armv7-fynvo:${GITHUB_REF_NAME}" \
+            "${IMAGE_NAMESPACE}/i386-fynvo:${GITHUB_REF_NAME}"
+      - name: Verify published manifest
+        run: |
+          docker buildx imagetools inspect "${IMAGE_NAME}:${GITHUB_REF_NAME}" --raw > manifest.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          payload = json.loads(Path("manifest.json").read_text())
+          expected = {
+              ("linux", "amd64", None),
+              ("linux", "arm64", None),
+              ("linux", "386", None),
+              ("linux", "arm", "v6"),
+              ("linux", "arm", "v7"),
+          }
+          actual = {
+              (item.get("platform", {}).get("os"), item.get("platform", {}).get("architecture"), item.get("platform", {}).get("variant"))
+              for item in payload.get("manifests", [])
+          }
+          missing = expected - actual
+          if missing:
+              raise SystemExit(f"Published manifest is missing platforms: {sorted(missing)}")
+          print(f"Verified release manifest platforms: {sorted(actual)}")
+          PY

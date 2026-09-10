@@ -156,7 +156,7 @@ test('mobile footer is suppressed and bottom navigation safe-area clearance is e
   assert.match(css, /padding-bottom:calc\(96px \+ env\(safe-area-inset-bottom,0px\)\)/);
   assert.match(app, /fynvo-payment-centre-page/);
   assert.match(mobileShell, /ABOUT/);
-  assert.match(mobileShell, /productionVersion \|\| '1\.18\.2'/);
+  assert.match(mobileShell, /productionVersion \|\| '1.22.0'/);
 });
 
 test('Home Assistant ingress and modal layering protections remain explicit', () => {
@@ -177,9 +177,9 @@ test('responsive breakpoints cover narrow iPhone, standard iPhone, tablet edge a
   assert.match(css, /@media\(min-width:981px\)/);
 });
 
-test('current release metadata remains aligned while v1.18.2 behaviour stays under regression coverage', () => {
-  assert.match(config, /version: "1\.21\.2"/);
-  assert.equal(packageJson.version, '1.21.2');
-  assert.match(backendConfig, /APP_VERSION = "1\.21\.2"/);
-  assert.match(shell, /PRODUCTION_VERSION = '1\.21\.2'/);
+test('current release metadata remains aligned while v1.22.0 behaviour stays under regression coverage', () => {
+  assert.match(config, /version: "1.22.0"/);
+  assert.equal(packageJson.version, '1.22.0');
+  assert.match(backendConfig, /APP_VERSION = "1.22.0"/);
+  assert.match(shell, /PRODUCTION_VERSION = '1.22.0'/);
 });

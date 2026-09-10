@@ -2,6 +2,14 @@
 
 All notable Fynvo changes are documented here. Starting with v0.3.0, every release must include a user-readable changelog entry, Home Assistant-visible release notes and GitHub release notes.
 
+## v1.22.0 - Home Assistant Add-on Distribution & Update Experience
+
+- Publishes release-tagged, prebuilt multi-architecture Fynvo images through GHCR so normal Home Assistant updates pull prepared application assets instead of rebuilding them on the host.
+- Keeps the generic Supervisor image reference aligned with the add-on, frontend and backend versions and verifies the published manifest before release readiness.
+- Adds OCI provenance metadata for version, architecture, revision and build time, plus clearer release diagnostics and local-build documentation.
+- Preserves ingress, port 8097, `/data` persistence and the existing financial application behaviour.
+- Does not fabricate installation percentages; Home Assistant Supervisor remains responsible for update progress and may show 0% during image download or extraction.
+
 ## v1.21.2 - Payments Requiring Attention Card Redesign
 
 - Replaces the Overview attention rows with compact, information-dense cards based on the approved payment-review direction.

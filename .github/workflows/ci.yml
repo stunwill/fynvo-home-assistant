@@ -98,4 +98,4 @@ jobs:
           PY
       - name: Build Docker image
         working-directory: fynvo
-        run: docker build --build-arg BUILD_FROM=ghcr.io/home-assistant/amd64-base-python:3.12-alpine3.20 -t fynvo-ci .
+        run: docker build --build-arg BUILD_FROM=ghcr.io/home-assistant/amd64-base-python:3.12-alpine3.20 --build-arg BUILD_VERSION=$(python -c "import yaml; print(yaml.safe_load(open('config.yaml'))['version'])") --build-arg BUILD_ARCH=amd64 -t fynvo-ci .

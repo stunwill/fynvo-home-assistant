@@ -1,5 +1,12 @@
 # Fynvo Add-on Changelog
 
+## v1.22.0 - Home Assistant Add-on Distribution & Update Experience
+
+- Uses versioned prebuilt GHCR images for supported Home Assistant architectures, reducing build work during add-on installation and updates.
+- Verifies the immutable multi-architecture release manifest, including the Raspberry Pi 5 `aarch64` target, before publication is considered complete.
+- Preserves `/data`, ingress, port 8097 and existing application behaviour across container replacement.
+- Documents that Supervisor owns installation progress and Fynvo does not simulate percentage updates.
+
 ## v1.21.2 - Payments Requiring Attention Card Redesign
 
 - Adds compact Overview payment-attention cards with dynamic review counts, reason badges, amounts, dates and payment context.
