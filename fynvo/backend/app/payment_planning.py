@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import logging
 from collections import defaultdict
 from datetime import date, timedelta
 from typing import Any
 
 from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session as DbSession
 
 from . import payments_v112, payments_v114, v1
@@ -32,6 +34,7 @@ PLANNING_PERIODS = (
 PAY_CYCLE_INCOME_HORIZON_DAYS = 120
 PAY_CYCLE_SEQUENCE_LIMIT = 4
 SAFE_TO_SPEND_BUFFER_KEY = "safe_to_spend.buffer"
+logger = logging.getLogger(__name__)
 
 
 def _as_date(value: Any) -> date | None:
@@ -681,6 +684,13 @@ def build_payment_planning(db: DbSession, user: User, today: date | None = None)
         if (_as_date(row.get("expected_date") or row.get("due_date")) or date.min) >= current
     ]
     next_payment = (future or dated_outstanding or [None])[0]
+    pay_cycle = None
+    pay_cycle_error = None
+    try:
+        pay_cycle = build_pay_cycle_planning(db, user, current, rows)
+    except (SQLAlchemyError, ValueError, KeyError, TypeError, AttributeError):
+        logger.exception("Payment planning pay-cycle section failed for user_id=%s", user.id)
+        pay_cycle_error = {"code": "pay_cycle_unavailable", "message": "Pay-cycle planning is temporarily unavailable."}
     return {
         "as_of": current.isoformat(),
         "rules": {
@@ -702,6 +712,6 @@ def build_payment_planning(db: DbSession, user: User, today: date | None = None)
         "attention": attention,
         "next_payment": next_payment,
         "timeline": _timeline(rows, current, 30),
-        "pay_cycle": build_pay_cycle_planning(db, user, current, rows),
-        "safe_to_spend": build_safe_to_spend(db, user, current),
+        "pay_cycle": pay_cycle,
+        "pay_cycle_error": pay_cycle_error,
     }

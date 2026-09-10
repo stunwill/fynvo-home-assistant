@@ -34,7 +34,7 @@ test('household security lookup cannot block the main Fynvo workspace', () => {
 
 
 test('current production shell exposes installed startup diagnostics', () => {
-  assert.match(shell, /PRODUCTION_VERSION = '1\.21\.0'/);
+  assert.match(shell, /PRODUCTION_VERSION = '1.21.1'/);
   assert.match(shell, /publishStartup\('workspace-mounted'\)/);
   assert.match(shell, /publishStartup\('workspace-rendered', heading\)/);
 });

@@ -6,6 +6,7 @@ import PayCycleOverviewCard from './PayCycleOverviewCard.jsx';
 import SpendingIntelligence from './SpendingIntelligence.jsx';
 import TransactionWorkspace from './TransactionWorkspace.jsx';
 import CashFlowPageV1161 from './CashFlowPageV1161.jsx';
+import CashPlanPageV121 from './CashPlanPageV121.jsx';
 import logo from './assets/fynvo-logo.svg';
 import mark from './assets/fynvo-mark.svg';
 import { CategoriesPageV0174, RecurringExpensesPageV0174 } from './CorrectiveV0174Pages.jsx';
@@ -14,13 +15,14 @@ import { CashFlowChartV0174, CategorySelect } from './v0174-corrective.jsx';
 import { CardsPageV17, PaymentReconciliationV17, PaymentsAttentionV17, RecurringPaymentFieldsV17, recurringV17Values } from './PaymentManagementV17.jsx';
 import { apiRequest } from './apiClient.js';
 import './styles.css';
+import './cash-plan-v121.css';
 
 const api = (path, options = {}) => fetch(`api${path}`, { credentials: 'same-origin', headers: { 'Content-Type': 'application/json', ...(options.headers || {}) }, ...options });
 const today = new Date().toISOString().slice(0, 10);
 const APP_VERSION = '1.17.0';
 const ATTENTION_STATUSES = new Set(['overdue', 'due', 'due_today', 'auto_payment_unconfirmed', 'unknown']);
 const navGroups = [
-  { label: 'Core', items: ['Overview', 'Cash Flow', 'Calendar', 'Accounts'] },
+  { label: 'Core', items: ['Overview', 'Cash Flow', 'Cash Plan', 'Calendar', 'Accounts'] },
   { label: 'Money', items: ['Payment Centre', 'Transactions', 'Income', 'Bills', 'Recurring Expenses', 'Planned Spending'] },
   { label: 'Planning', items: ['Budgeting', 'Goals'] },
   { label: 'Intelligence', items: ['Insights', 'Spending Intelligence'] },
@@ -118,7 +120,7 @@ export default function AppCorrectiveV0174({ authState = null }) {
   async function refreshDashboard(days = rangeDays) { const requestId = ++commandRequestRef.current; setDashboardLoading(true); try { const command = await j(`/dashboard/command-centre?range_days=${days}`); if (requestId !== commandRequestRef.current) return; setData((current) => ({ ...current, command, forecastCache: { ...current.forecastCache, [days]: command?.forecast || current.forecastCache?.[days] } })); } finally { if (requestId === commandRequestRef.current) setDashboardLoading(false); } }
   async function loadSupportingData() {
     const scheduledRequest = active === 'Overview' ? j('/scheduled-payments') : Promise.resolve(null);
-    const paymentPlanningRequest = active === 'Overview' ? j('/payment-planning') : Promise.resolve(null);
+    const paymentPlanningRequest = ['Overview', 'Cash Plan'].includes(active) ? j('/payment-planning') : Promise.resolve(null);
     const [accounts, cards, transactions, income, recurring, scheduledPayments, bills, planned, categories, referenceData, budgets, goals, imports, review, suggestions, insights, financialHealth, budgetAnalysis, forecast, paymentPlanning] = await Promise.all([
       j('/accounts'), j('/cards?include_inactive=true'), j('/transactions'), j('/income'), j('/recurring-expenses'), scheduledRequest, j('/bills'), j('/planned-spending'), j('/categories'), j('/reference-data'), j('/budgets'), j('/goals'), j('/imports/history'), j('/reconciliation/review-queue'), j('/intelligence/suggestions'), j(`/insights?horizon_days=${rangeDays}&refresh=false`), j(`/insights/financial-health?horizon_days=${rangeDays}`), j('/budgets/analysis'), j(`/forecast?mode=expected&horizon=${rangeDays}d`), paymentPlanningRequest,
     ]);
@@ -260,6 +262,7 @@ export default function AppCorrectiveV0174({ authState = null }) {
       {active === 'Overview' && <><Overview data={data} setActive={navigate} rangeDays={rangeDays} setQuick={setQuick} quickDefaults={quickDefaults}/><PaymentsAttentionV17 rows={data.paymentAttention.filter((row) => row.source_type !== 'bill')} money={money} dateLabel={dateLabel} onRefresh={loadAll}/></>}
       {active === 'Payment Centre' && (isMobile ? <PaymentCentreMobileV1182 data={data} onNavigate={navigate} onQuickAdd={() => setQuickMenuOpen(true)} onAddBill={() => setQuick(quickDefaults('bills'))} onRefreshSupporting={loadAll} onEditBill={(row) => setEdit({ type: 'bills', label: 'Bill', row, values: normaliseRecord('bills', row) })} onOpenRecurring={(row) => { const recurring = data.recurring.find((item) => Number(item.id) === Number(row.recurring_expense_id)); if (recurring) setEdit({ type: 'recurring', label: 'Recurring Expense', row: recurring, values: normaliseRecord('recurring', recurring) }); else navigate('Recurring Expenses'); }}/> : <PaymentCentreV1161 data={data} onNavigate={navigate} onRefreshSupporting={loadAll} onEditBill={(row) => setEdit({ type: 'bills', label: 'Bill', row, values: normaliseRecord('bills', row) })}/>) } 
       {active === 'Cash Flow' && <CashFlowPageV1161 rangeDays={rangeDays} onView={openForecastDetail} initialForecast={cacheForRange} onForecastLoaded={rememberForecast}/>} 
+      {active === 'Cash Plan' && <CashPlanPageV121/>}
       {active === 'Calendar' && <CalendarPage command={data.command}/>} 
       {active === 'CSV Import' && <CsvImport state={importState} setState={setImportState} accounts={data.accounts} previewImport={previewImport} commitImport={commitImport}/>} 
       {active === 'Import History' && <ImportHistory rows={data.imports}/>} 
