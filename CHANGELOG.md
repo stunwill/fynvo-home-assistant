@@ -2,12 +2,13 @@
 
 All notable Fynvo changes are documented here. Starting with v0.3.0, every release must include a user-readable changelog entry, Home Assistant-visible release notes and GitHub release notes.
 
-## v1.21.2 - Payments Requiring Attention Card Redesign
+## v1.21.1 - Cash Plan, Payment Centre & Overview Data Recovery
 
-- Replaces the Overview attention rows with compact, information-dense cards based on the approved payment-review direction.
-- Makes attention reasons, payment identity, amount, due date, relative timing and payment/account context immediately scannable.
-- Preserves Mark as paid, Change payment date, Review and Skip payment workflows with accessible overflow actions and safer modal hand-off.
-- Adds direct See all and View all routes into the Payment Centre attention filter, plus mobile-safe responsive treatment for iPhone-sized viewports.
+- Isolates optional pay-cycle and Safe-to-Spend failures so available payment obligations and account data remain usable.
+- Restores a working Cash Plan destination from navigation, direct in-app navigation and Home Assistant ingress.
+- Keeps partial planning responses distinct from genuine request failures and adds retryable, structured Cash Plan states.
+- Prevents planning metrics from blocking the Payment Centre payment list when advanced planning data is unavailable.
+- Aligns release metadata to v1.21.1.
 
 ## v1.21.0 - Safe-to-Spend, Cash Buffer & Payment Readiness
 

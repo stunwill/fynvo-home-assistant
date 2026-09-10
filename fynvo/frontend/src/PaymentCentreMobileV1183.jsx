@@ -261,11 +261,19 @@ export default function PaymentCentreMobileV1183({ data = {}, onNavigate = () =>
   const load = async () => {
     setLoading(true); setError('');
     try {
-      const [payments, plan, next30, overdue, attention] = await Promise.all([
-        apiRequest(query), apiRequest('/payment-planning'), apiRequest('/payment-centre?date_range=next_30_days'), apiRequest('/payment-centre?date_range=overdue'), apiRequest('/payment-centre?date_range=next_30_days&requires_action=true'),
+      const results = await Promise.allSettled([
+        apiRequest(query), apiRequest('/payment-planning'), apiRequest('/payment-centre?date_range=next_30_days'), apiRequest('/payment-centre?date_range=overdue'), apiRequest('/payment-centre?date_range=next_30_days&requires_action=true'), apiRequest('/payment-planning/safe-to-spend'),
       ]);
+      const [paymentsResult, planResult, next30Result, overdueResult, attentionResult, safeResult] = results;
+      if (paymentsResult.status === 'rejected') throw paymentsResult.reason;
+      const payments = paymentsResult.value;
+      const plan = planResult.status === 'fulfilled' ? planResult.value : null;
+      const next30 = next30Result.status === 'fulfilled' ? next30Result.value : null;
+      const overdue = overdueResult.status === 'fulfilled' ? overdueResult.value : null;
+      const attention = attentionResult.status === 'fulfilled' ? attentionResult.value : null;
+      const safe = safeResult.status === 'fulfilled' ? safeResult.value : null;
       const metric = (payload) => ({ count: payload?.rows?.length || 0, total: (payload?.rows || []).reduce((sum, row) => sum + rowAmount(row), 0) });
-      setResult(payments); setPlanning(plan); setSafePlan(plan?.safe_to_spend || null); setSummary({ next30: metric(next30), overdue: metric(overdue), attention: metric(attention) });
+      setResult(payments); setPlanning(plan); setSafePlan(safe || null); setSummary({ next30: metric(next30), overdue: metric(overdue), attention: metric(attention) });
     } catch (requestError) { setError(requestError?.message || 'Payment Centre could not load.'); }
     finally { setLoading(false); }
   };

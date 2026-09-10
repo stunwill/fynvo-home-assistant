@@ -158,15 +158,13 @@ export default function MobileOverviewV1190({ authenticated = false, productionV
     let cancelled = false;
     setLoading(true);
     setError('');
-    Promise.all([apiRequest('/payment-planning'), apiRequest('/accounts')])
-      .then(([nextPlanning, nextAccounts]) => {
+    Promise.allSettled([apiRequest('/payment-planning'), apiRequest('/accounts'), apiRequest('/payment-planning/safe-to-spend')])
+      .then(([planningResult, accountsResult, safeResult]) => {
         if (cancelled) return;
-        setPlanning(nextPlanning || null);
-        setAccounts(Array.isArray(nextAccounts) ? nextAccounts : []);
-        setSafeToSpend(nextPlanning?.safe_to_spend || null);
-      })
-      .catch(() => {
-        if (!cancelled) setError('Household cash plan could not be refreshed.');
+        if (planningResult.status === 'fulfilled') setPlanning(planningResult.value || null);
+        if (accountsResult.status === 'fulfilled') setAccounts(Array.isArray(accountsResult.value) ? accountsResult.value : []);
+        if (safeResult.status === 'fulfilled') setSafeToSpend(safeResult.value || null);
+        if (planningResult.status === 'rejected' && accountsResult.status === 'rejected' && safeResult.status === 'rejected') setError('Household cash plan could not be refreshed.');
       })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
@@ -317,7 +315,7 @@ export default function MobileOverviewV1190({ authenticated = false, productionV
       <button type="button" className={activePage === 'Accounts & Cards' ? 'active' : ''} onClick={() => open('Accounts')}><span aria-hidden="true">▭</span><small>Accounts</small></button>
       <button type="button" aria-expanded={moreOpen} onClick={() => setMoreOpen((value) => !value)}><span aria-hidden="true">•••</span><small>More</small></button>
     </nav>
-    {moreOpen && <div className="fynvo-mobile-more-backdrop" onMouseDown={(event) => event.target === event.currentTarget && setMoreOpen(false)}><section className="fynvo-mobile-more-sheet" aria-label="More navigation"><div className="fynvo-mobile-sheet-head"><strong>More</strong><button type="button" onClick={() => setMoreOpen(false)} aria-label="Close More">×</button></div><nav><button type="button" onClick={() => open('Cash Flow')}>Cash Flow</button><button type="button" onClick={() => open('Bills')}>Bills</button><button type="button" onClick={() => open('Recurring Expenses')}>Recurring Expenses</button><button type="button" onClick={() => open('Calendar')}>Calendar</button><button type="button" onClick={() => open('Transactions')}>Transactions</button><span className="fynvo-mobile-version">Fynvo v{productionVersion || '1.21.2'}</span></nav></section></div>}
+    {moreOpen && <div className="fynvo-mobile-more-backdrop" onMouseDown={(event) => event.target === event.currentTarget && setMoreOpen(false)}><section className="fynvo-mobile-more-sheet" aria-label="More navigation"><div className="fynvo-mobile-sheet-head"><strong>More</strong><button type="button" onClick={() => setMoreOpen(false)} aria-label="Close More">×</button></div><nav><button type="button" onClick={() => open('Cash Flow')}>Cash Flow</button><button type="button" onClick={() => open('Bills')}>Bills</button><button type="button" onClick={() => open('Recurring Expenses')}>Recurring Expenses</button><button type="button" onClick={() => open('Calendar')}>Calendar</button><button type="button" onClick={() => open('Transactions')}>Transactions</button><span className="fynvo-mobile-version">Fynvo v{productionVersion || '1.21.1'}</span></nav></section></div>}
     {bufferOpen && createPortal(<div className="v1190-buffer-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && setBufferOpen(false)}><form className="v1190-buffer-dialog" role="dialog" aria-modal="true" aria-labelledby="v1190-buffer-title" onSubmit={saveBuffer}><h2 id="v1190-buffer-title">Cash buffer</h2><p>Protect this amount from Safe-to-Spend until your next pay.</p><label htmlFor="v1190-buffer-input">Protected amount</label><input id="v1190-buffer-input" inputMode="decimal" pattern="[0-9]*[.,]?[0-9]*" value={bufferValue} onChange={(event) => setBufferValue(event.target.value)} required />{bufferError && <div role="alert" className="v1190-warning">{bufferError}</div>}<div className="v1190-buffer-actions"><button type="button" onClick={() => setBufferOpen(false)}>Cancel</button><button type="submit" disabled={bufferSaving}>{bufferSaving ? 'Saving…' : 'Save buffer'}</button></div></form></div>, document.body)}
   </>;
 }

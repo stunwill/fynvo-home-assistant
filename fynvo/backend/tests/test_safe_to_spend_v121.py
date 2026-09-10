@@ -59,3 +59,25 @@ def test_safe_to_spend_keeps_negative_shortfall_and_rejects_negative_buffer(clie
     assert data["safe_to_spend"] == "-200.00"
     assert data["payment_readiness"] == "at_risk"
     assert client.put("/api/payment-planning/cash-buffer", json={"amount": "-1.00"}).status_code == 400
+
+
+def test_payment_planning_remains_available_without_pay_cycle_or_safe_to_spend(client):
+    setup(client)
+    everyday = account(client)
+    bill(client, everyday["id"])
+    response = client.get("/api/payment-planning")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["periods"]["next_30_days"]["remaining_funding"] == "200.00"
+    assert data["pay_cycle"]["next_income"] is None
+    assert data["pay_cycle"]["completeness"]["complete"] is False
+    assert data["pay_cycle_error"] is None
+
+
+def test_payment_centre_core_list_does_not_depend_on_pay_cycle_configuration(client):
+    setup(client)
+    everyday = account(client)
+    bill(client, everyday["id"], "250.00")
+    response = client.get("/api/payment-centre?date_range=next_30_days")
+    assert response.status_code == 200
+    assert response.json()["rows"][0]["name"] == "Electricity"
