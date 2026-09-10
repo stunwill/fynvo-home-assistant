@@ -80,6 +80,6 @@ test('specialised mobile workspaces suppress redundant global header actions', (
 
 test('historical Payment Centre styles remain ordered before the current v1.19.0 mobile Overview layer and production versions agree', () => {
   assert.match(entry, /import '\.\/mobile-financial-decision-v1180\.css';\s*\nimport '\.\/overview-decision-v1181\.css';\s*\nimport '\.\/payment-centre-mobile-v1182\.css';\s*\nimport '\.\/payment-centre-mobile-v1183\.css';\s*\nimport '\.\/mobile-overview-v1190\.css';\s*\n\nReactDOM/s);
-  assert.equal(pkg.version, '1.22.0');
-  assert.match(appShell, /PRODUCTION_VERSION = '1.22.0'/);
+  assert.equal(pkg.version, '1.22.1');
+  assert.match(appShell, /PRODUCTION_VERSION = '1.22.1'/);
 });
