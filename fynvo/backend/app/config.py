@@ -6,7 +6,7 @@ from typing import Any
 
 from pydantic import BaseModel
 
-APP_VERSION = "1.22.0"
+APP_VERSION = "1.22.1"
 
 
 class Settings(BaseModel):

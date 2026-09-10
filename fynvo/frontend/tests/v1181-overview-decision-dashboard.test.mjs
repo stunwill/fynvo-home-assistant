@@ -129,8 +129,8 @@ test('iPhone and Home Assistant ingress responsive protections remain explicit',
 });
 
 test('current release versions align while preserving the v1.18.1 Overview implementation', () => {
-  assert.match(config, /version: "1.22.0"/);
-  assert.equal(packageJson.version, '1.22.0');
-  assert.match(backendConfig, /APP_VERSION = "1.22.0"/);
-  assert.match(app, /PRODUCTION_VERSION = '1.22.0'/);
+  assert.match(config, /version: "1.22.1"/);
+  assert.equal(packageJson.version, '1.22.1');
+  assert.match(backendConfig, /APP_VERSION = "1.22.1"/);
+  assert.match(app, /PRODUCTION_VERSION = '1.22.1'/);
 });
