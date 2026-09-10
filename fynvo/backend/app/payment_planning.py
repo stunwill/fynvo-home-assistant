@@ -688,7 +688,7 @@ def build_payment_planning(db: DbSession, user: User, today: date | None = None)
     pay_cycle_error = None
     try:
         pay_cycle = build_pay_cycle_planning(db, user, current, rows)
-    except (SQLAlchemyError, ValueError, KeyError, TypeError, AttributeError) as exc:
+    except (SQLAlchemyError, ValueError, KeyError, TypeError, AttributeError):
         logger.exception("Payment planning pay-cycle section failed for user_id=%s", user.id)
         pay_cycle_error = {"code": "pay_cycle_unavailable", "message": "Pay-cycle planning is temporarily unavailable."}
     return {
