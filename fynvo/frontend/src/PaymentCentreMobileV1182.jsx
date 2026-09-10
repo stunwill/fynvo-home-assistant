@@ -238,7 +238,7 @@ function PaymentCard({ row, onMarkPaid, onOpenDetailed, onEditBill, onOpenRecurr
 
 export default function PaymentCentreMobileV1182(props) {
   const { data, onNavigate, onQuickAdd, onAddBill, onRefreshSupporting, onEditBill, onOpenRecurring } = props;
-  const initial = useMemo(() => defaultPaymentCentreFilters(), []);
+  const initial = useMemo(() => { const next = defaultPaymentCentreFilters(); if (localStorage.getItem('fynvo.paymentCentreRequiresAction') === 'true') { next.requiresAction = true; localStorage.removeItem('fynvo.paymentCentreRequiresAction'); } return next; }, []);
   const [draft, setDraft] = useState(initial);
   const [filters, setFilters] = useState(initial);
   const [result, setResult] = useState(null);
