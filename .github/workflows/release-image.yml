@@ -53,9 +53,6 @@ jobs:
           - arch: armv7
             platform: linux/arm/v7
             build_from: ghcr.io/home-assistant/armv7-base-python:3.12-alpine3.20
-          - arch: i386
-            platform: linux/386
-            build_from: ghcr.io/home-assistant/i386-base-python:3.12-alpine3.20
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -114,8 +111,7 @@ jobs:
             "${IMAGE_NAMESPACE}/aarch64-fynvo:${GITHUB_REF_NAME}" \
             "${IMAGE_NAMESPACE}/amd64-fynvo:${GITHUB_REF_NAME}" \
             "${IMAGE_NAMESPACE}/armhf-fynvo:${GITHUB_REF_NAME}" \
-            "${IMAGE_NAMESPACE}/armv7-fynvo:${GITHUB_REF_NAME}" \
-            "${IMAGE_NAMESPACE}/i386-fynvo:${GITHUB_REF_NAME}"
+            "${IMAGE_NAMESPACE}/armv7-fynvo:${GITHUB_REF_NAME}"
       - name: Verify published manifest
         run: |
           docker buildx imagetools inspect "${IMAGE_NAME}:${GITHUB_REF_NAME}" --raw > manifest.json
@@ -127,7 +123,6 @@ jobs:
           expected = {
               ("linux", "amd64", None),
               ("linux", "arm64", None),
-              ("linux", "386", None),
               ("linux", "arm", "v6"),
               ("linux", "arm", "v7"),
           }
