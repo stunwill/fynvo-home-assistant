@@ -6,20 +6,23 @@
 
 ## Current release
 
-Current development release: **v1.18.2 Payment Centre Mobile UX Completion**.
+Current development release: **v1.22.0 Home Assistant Add-on Distribution & Update Experience**.
 
-v1.18.2 builds on the merged v1.18.1 Overview Decision Dashboard baseline. It:
+v1.22.0 builds on the merged v1.21.2 Payments Requiring Attention baseline. It:
 
-- redesigns Payment Centre on iPhone/Home Assistant ingress as a compact financial-management queue rather than a vertically heavy desktop-style card stack;
-- keeps payment name and full amount prominent while consolidating due/overdue state, payment handling, payment method and funding metadata;
-- makes incomplete payment information compact and actionable and keeps **Mark paid** visible while lower-frequency lifecycle actions remain available through an overflow path and the existing detailed Payment Centre workspace;
-- replaces separate Grouped/Chronological controls with a segmented selector and improves date-group counts and within-group priority ordering;
-- consolidates Quick Add, Add Bill and quick filters into a compact sticky mobile toolbar with active-filter counts and reset behaviour;
-- simplifies the authoritative **Before next pay** funding summary around Available now, Required before pay and Next income, with explicit unavailable states and progressive disclosure of the full calculation;
-- uses skeleton loading plus independent payment-list and funding-summary error states, deliberate empty states, and iOS/Home Assistant safe-area clearance;
-- removes the redundant Payment Centre mobile footer and exposes the installed release version through **More → About**;
-- preserves the existing Payment Planning, Pay-Cycle Cash Planning, Scheduled Payments, Bills, Recurring Expenses and reconciliation calculations and lifecycle semantics;
-- aligns active frontend, backend, Home Assistant add-on and production-shell version reporting to v1.18.2.
+- publishes versioned prebuilt multi-architecture images through GHCR for normal Home Assistant add-on installation and updates;
+- keeps the add-on's generic image reference, application versions and release tag aligned;
+- verifies all configured architecture entries, including `aarch64` for Raspberry Pi 5, before creating the release manifest;
+- adds OCI image provenance and startup version metadata for easier diagnostics;
+- preserves the existing ingress, port 8097, `/data` persistence and financial application behaviour;
+- documents local builds, update timing measurement, package visibility and rollback considerations;
+- does not fabricate install progress percentages controlled by Home Assistant Supervisor.
+
+Production Home Assistant releases use the prebuilt multi-architecture image
+`ghcr.io/stunwill/fynvo:vX.Y.Z`. See
+[docs/ADDON_DISTRIBUTION.md](docs/ADDON_DISTRIBUTION.md) for the release,
+architecture, persistence and rollback details. Home Assistant Supervisor
+controls install progress; Fynvo does not fabricate percentage updates.
 
 Fynvo preserves the financial architecture established in earlier releases:
 

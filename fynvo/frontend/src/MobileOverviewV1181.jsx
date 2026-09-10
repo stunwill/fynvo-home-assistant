@@ -315,7 +315,7 @@ export default function MobileOverviewV1181({ authenticated = false, productionV
         <nav>
           {moreGroups.map(([group, labels]) => <section className="fynvo-mobile-more-group" key={group}><strong>{group}</strong><div>{labels.map((label) => <button type="button" key={label} onClick={() => open(label)}>{label}</button>)}</div></section>)}
           <section className="fynvo-mobile-more-group"><strong>TOOLS</strong><div><button type="button" onClick={() => { setMoreOpen(false); window.dispatchEvent(new CustomEvent('fynvo:open-tools')); }}>Tools</button></div></section>
-          <section className="fynvo-mobile-more-group fynvo-mobile-about"><strong>ABOUT</strong><div><span className="fynvo-mobile-version">Fynvo v{productionVersion || '1.18.2'}</span></div></section>
+          <section className="fynvo-mobile-more-group fynvo-mobile-about"><strong>ABOUT</strong><div><span className="fynvo-mobile-version">Fynvo v{productionVersion || '1.22.0'}</span></div></section>
         </nav>
       </section>
     </div>}

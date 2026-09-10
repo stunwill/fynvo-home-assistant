@@ -118,10 +118,10 @@ test('wrapper avoids the v1.17.6 self-triggering observer regression', () => {
 });
 
 test('current release metadata is aligned while v1.18.3 behaviour remains under regression coverage', () => {
-  assert.match(config, /version: "1.21.2"/);
-  assert.equal(packageJson.version, '1.21.2');
-  assert.match(backendConfig, /APP_VERSION = "1.21.2"/);
-  assert.match(shell, /PRODUCTION_VERSION = '1.21.2'/);
+  assert.match(config, /version: "1.22.0"/);
+  assert.equal(packageJson.version, '1.22.0');
+  assert.match(backendConfig, /APP_VERSION = "1.22.0"/);
+  assert.match(shell, /PRODUCTION_VERSION = '1.22.0'/);
 });
 
 test('v1.21.1 exposes one authoritative Safe-to-Spend result with buffer and reserved-payment inspection', () => {

@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import ast
 import json
+import os
 import re
 from pathlib import Path
 
@@ -79,6 +80,26 @@ def main() -> None:
     backend = backend_version()
     if backend != expected:
         fail(f"Backend APP_VERSION {backend} does not match Home Assistant version {expected}")
+
+    expected_image = "ghcr.io/stunwill/fynvo"
+    if manifest.get("image") != expected_image:
+        fail(f"Home Assistant image must be {expected_image}")
+
+    release_tag = os.environ.get("FYNVO_RELEASE_TAG")
+    if release_tag:
+        if not re.fullmatch(r"v\d+\.\d+\.\d+", release_tag):
+            fail(f"Release tag '{release_tag}' is not vX.Y.Z format")
+        if release_tag[1:] != expected:
+            fail(f"Release tag {release_tag} does not match application version {expected}")
+
+    dockerfile = (ROOT / "fynvo/Dockerfile").read_text(encoding="utf-8")
+    for contract in (
+        'ARG BUILD_VERSION=',
+        'org.opencontainers.image.version="${BUILD_VERSION}"',
+        'io.hass.version="${BUILD_VERSION}"',
+    ):
+        if contract not in dockerfile:
+            fail(f"fynvo/Dockerfile is missing release contract: {contract}")
 
     main_source = main_path.read_text(encoding="utf-8")
     if 'from .config import APP_VERSION' not in main_source:
