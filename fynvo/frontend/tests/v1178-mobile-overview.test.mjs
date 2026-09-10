@@ -78,6 +78,6 @@ test('historical Overview layers remain ordered before the current v1.19.0 mobil
   assert.match(decisionCss, /fynvo-mobile-decision-card/);
   assert.match(overviewCss, /fynvo-overview-v1181-before/);
   assert.match(payment1183Css, /payment-v1183-shell/);
-  assert.equal(pkg.version, '1.22.0');
-  assert.match(appShell, /PRODUCTION_VERSION = '1.22.0'/);
+  assert.equal(pkg.version, '1.22.1');
+  assert.match(appShell, /PRODUCTION_VERSION = '1.22.1'/);
 });
