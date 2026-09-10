@@ -2,6 +2,14 @@
 
 All notable Fynvo changes are documented here. Starting with v0.3.0, every release must include a user-readable changelog entry, Home Assistant-visible release notes and GitHub release notes.
 
+## v1.22.1 - Release Image Compatibility Correction
+
+- Removes the `uvicorn[standard]` production extra so 32-bit ARM release builds no longer pull the Rust-backed `watchfiles` dependency that cannot be built for the Home Assistant musl targets used by `armhf` and `armv7`.
+- Removes the unsupported `i386` target from Fynvo release metadata and image publication after `pydantic-core` could not be built for `i686-unknown-linux-musl`.
+- Keeps `aarch64`, `amd64`, `armhf` and `armv7` as supported Home Assistant release architectures and verifies the published manifest contains each supported platform.
+- Preserves Fynvo application behaviour, `/data`, ingress and port 8097. No database migration is required.
+- Corrects the v1.22.0 release-image failure that prevented Home Assistant from installing the advertised update.
+
 ## v1.22.0 - Home Assistant Add-on Distribution & Update Experience
 
 - Publishes release-tagged, prebuilt multi-architecture Fynvo images through GHCR so normal Home Assistant updates pull prepared application assets instead of rebuilding them on the host.
@@ -141,7 +149,7 @@ All notable Fynvo changes are documented here. Starting with v0.3.0, every relea
 - Adds a short in-memory read cache for repeated navigation within the same Home Assistant webview and clears that cache immediately after any mutation so financial changes are never hidden behind stale cached state.
 - Adds a final iPhone/Home Assistant ingress responsive layer with tighter page spacing, smaller headings, more efficient two-column KPI cards, compact header controls, contained Account/Card rows, touch-friendly controls, safer modal actions and bottom safe-area spacing.
 - Keeps the v1.17.6 Accounts & Cards interactivity fix and the v1.17.5 single-owner startup lifecycle unchanged.
-- No database migration is required and no financial calculations, records, payment lifecycle, forecasting rules or reconciliation semantics are changed.
+- No database migration is required and no financial calculations, records and payment lifecycle behaviour are changed.
 
 ## v1.17.6 - Accounts & Cards Installed Interactivity Correction
 
