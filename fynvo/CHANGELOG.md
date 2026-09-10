@@ -1,5 +1,12 @@
 # Fynvo Add-on Changelog
 
+## v1.21.1 - Cash Plan, Payment Centre & Overview Data Recovery
+
+- Restores Cash Plan navigation and resilient loading for Overview and Payment Centre.
+- Keeps known payment obligations usable when pay-cycle or Safe-to-Spend data is incomplete.
+- Adds structured retry and partial-data states without changing the financial-event model.
+- Aligns the add-on release metadata to v1.21.1.
+
 ## v1.21.0 - Safe-to-Spend, Cash Buffer & Payment Readiness
 
 - Adds an explainable Safe-to-Spend result based on active liquid account cash, authoritative unpaid commitments and the next pay-cycle boundary.

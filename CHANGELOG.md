@@ -2,6 +2,14 @@
 
 All notable Fynvo changes are documented here. Starting with v0.3.0, every release must include a user-readable changelog entry, Home Assistant-visible release notes and GitHub release notes.
 
+## v1.21.1 - Cash Plan, Payment Centre & Overview Data Recovery
+
+- Isolates optional pay-cycle and Safe-to-Spend failures so available payment obligations and account data remain usable.
+- Restores a working Cash Plan destination from navigation, direct in-app navigation and Home Assistant ingress.
+- Keeps partial planning responses distinct from genuine request failures and adds retryable, structured Cash Plan states.
+- Prevents planning metrics from blocking the Payment Centre payment list when advanced planning data is unavailable.
+- Aligns release metadata to v1.21.1.
+
 ## v1.21.0 - Safe-to-Spend, Cash Buffer & Payment Readiness
 
 - Adds one authoritative backend Safe-to-Spend calculation shared by Overview and Payment Centre.
