@@ -15,6 +15,7 @@ import './v142.css';
 import './v143.css';
 import './recurring-v151.css';
 import './payment-v17.css';
+import './payments-attention-v122.css';
 import './v191.css';
 import './v111.css';
 import './corrective-v1161.css';

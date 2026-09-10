@@ -1,5 +1,11 @@
 # Fynvo Add-on Changelog
 
+## v1.21.2 - Payments Requiring Attention Card Redesign
+
+- Adds compact Overview payment-attention cards with dynamic review counts, reason badges, amounts, dates and payment context.
+- Keeps existing payment lifecycle actions available while improving mobile density, keyboard access and action-menu behaviour.
+- Adds direct navigation from See all and View all into the Payment Centre attention filter. No database migration is required.
+
 ## v1.21.0 - Safe-to-Spend, Cash Buffer & Payment Readiness
 
 - Adds an explainable Safe-to-Spend result based on active liquid account cash, authoritative unpaid commitments and the next pay-cycle boundary.
