@@ -1,5 +1,12 @@
 # Fynvo Add-on Changelog
 
+## v1.22.1 - Release Image Compatibility Correction
+
+- Removes the `uvicorn[standard]` production extra so `armhf` and `armv7` release images no longer require the Rust-backed `watchfiles` build that fails on Home Assistant musl targets.
+- Removes `i386` from the advertised and published Fynvo architectures because the current Python 3.12 Alpine dependency stack cannot build `pydantic-core` for `i686-unknown-linux-musl`.
+- Keeps `aarch64`, `amd64`, `armhf` and `armv7` in the release pipeline and verifies those four platforms in the final GHCR manifest.
+- Preserves `/data`, ingress, port 8097 and application behaviour. No database migration is required.
+
 ## v1.22.0 - Home Assistant Add-on Distribution & Update Experience
 
 - Uses versioned prebuilt GHCR images for supported Home Assistant architectures, reducing build work during add-on installation and updates.
