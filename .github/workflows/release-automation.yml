@@ -46,11 +46,20 @@ jobs:
         run: |
           set -euo pipefail
 
-          CONFIG_VERSION="$(sed -n 's/^version:[[:space:]]*["'"']\([^"'"']*\)["'"'].*/\1/p' fynvo/config.yaml | head -n1)"
+          CONFIG_VERSION="$(python - <<'PY'
+          import re
+          from pathlib import Path
+
+          text = Path("fynvo/config.yaml").read_text(encoding="utf-8")
+          match = re.search(r'^version:\s*["\']?([^"\'\s]+)["\']?\s*$', text, re.MULTILINE)
+          print(match.group(1) if match else "")
+          PY
+          )"
           if [[ -z "$CONFIG_VERSION" ]]; then
             echo "Could not read version from fynvo/config.yaml" >&2
             exit 1
           fi
+          echo "Resolved config version: $CONFIG_VERSION"
 
           if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
             VERSION="$REQUESTED_VERSION"
