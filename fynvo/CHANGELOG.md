@@ -1,5 +1,14 @@
 # Fynvo Add-on Changelog
 
+## v1.24.0 - Core UX Redesign
+
+- Recommends a focused Overview around Safe to Spend, Needs attention, Coming up and Your plan.
+- Consolidates payment work into Upcoming, Attention, Timeline and Manage, including Bills and recurring schedules.
+- Recombines Plan into Overview, Forecast and Calendar views with projected balance, pressure points and financial events.
+- Recombines Accounts into Accounts, Activity and Cards, with Account Detail, transaction reconciliation, search/filtering and supported insights.
+- Establishes shared mobile cards, event rows, statuses, segmented navigation, action sheets and safe-area treatment across the redesigned destinations.
+- Preserves existing financial calculations, payment lifecycle, reconciliation, historical data, API contracts, Home Assistant ingress and `/data` persistence. No database migration is required.
+
 ## v1.23.0 - Mobile Decision UX, Cash Plan Reliability & Information Hierarchy
 
 - Makes Cash Plan resilient when optional pay-cycle or planning inputs are unavailable, preserving known planning data and returning structured availability diagnostics.
