@@ -1,7 +1,7 @@
 from datetime import timedelta
 
-from app.finance import today_local
 from app import payment_planning
+from app.finance import today_local
 
 
 def setup(client):
