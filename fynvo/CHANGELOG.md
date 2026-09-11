@@ -1,5 +1,12 @@
 # Fynvo Add-on Changelog
 
+## v1.22.2 - Home Assistant GHCR Tag Resolution Correction
+
+- Publishes the Home Assistant-consumed image tag without the Git release `v` prefix, so Supervisor can resolve `ghcr.io/stunwill/fynvo:1.22.2` exactly as derived from the add-on version.
+- Retains the `v1.22.2` alias for human/GitHub release consistency while making the non-prefixed semantic-version tag authoritative for Home Assistant installs and updates.
+- Adds a final anonymous registry-resolution check after logout so the release workflow fails if the exact public image reference Home Assistant will pull cannot be resolved.
+- Keeps `aarch64`, `amd64`, `armhf` and `armv7`, preserves `/data`, ingress and port 8097, and requires no database migration.
+
 ## v1.22.1 - Release Image Compatibility Correction
 
 - Removes the `uvicorn[standard]` production extra so `armhf` and `armv7` release images no longer require the Rust-backed `watchfiles` build that fails on Home Assistant musl targets.
