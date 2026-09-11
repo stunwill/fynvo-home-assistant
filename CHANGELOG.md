@@ -2,6 +2,14 @@
 
 All notable Fynvo changes are documented here. Starting with v0.3.0, every release must include a user-readable changelog entry, Home Assistant-visible release notes and GitHub release notes.
 
+## v1.23.0 - Mobile Decision UX, Cash Plan Reliability & Information Hierarchy
+
+- Makes Cash Plan resilient when optional pay-cycle or planning inputs are unavailable, preserving known planning data and returning structured availability diagnostics.
+- Refocuses the mobile Overview around Safe to Spend, a concise Money requiring action list and a compact cash outlook while keeping deeper financial workspaces available.
+- Organises mobile More navigation into Planning, Payments and Money & accounts groups and improves narrow-screen safe-area spacing without changing financial semantics.
+- Preserves the v1.22.2 Home Assistant distribution contract, including prebuilt GHCR images, anonymous image resolution, ingress, port 8097 and `/data` persistence.
+- Requires no database migration.
+
 ## v1.22.2 - Home Assistant GHCR Tag Resolution Correction
 
 - Corrects the release-tag/image-tag mismatch that caused Home Assistant Supervisor to request `ghcr.io/stunwill/fynvo:1.22.1` while the workflow had only published `ghcr.io/stunwill/fynvo:v1.22.1`.

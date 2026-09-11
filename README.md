@@ -6,7 +6,7 @@
 
 ## Current release
 
-Current development release: **v1.22.0 Home Assistant Add-on Distribution & Update Experience**.
+Current development release: **v1.23.0 Mobile Decision UX, Cash Plan Reliability & Information Hierarchy**.
 
 v1.22.0 builds on the merged v1.21.2 Payments Requiring Attention baseline. It:
 

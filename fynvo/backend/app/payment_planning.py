@@ -73,8 +73,16 @@ def build_safe_to_spend(db: DbSession, user: User, today: date | None = None) ->
     current = today or today_local()
     payments_v114.ensure_scheduled_payments(db, user, horizon_days=PAY_CYCLE_INCOME_HORIZON_DAYS, today=current)
     rows = canonical_payment_rows(db, user)
-    pay_cycle = build_pay_cycle_planning(db, user, current, rows)
-    next_income = pay_cycle.get("next_income")
+    pay_cycle = None
+    pay_cycle_error = None
+    try:
+        pay_cycle = build_pay_cycle_planning(db, user, current, rows)
+    except (SQLAlchemyError, ValueError, KeyError, TypeError, AttributeError):
+        # Safe-to-Spend is an optional planning view. Keep known balances and
+        # obligations usable when an incomplete pay-cycle input cannot be read.
+        logger.exception("Safe-to-Spend pay-cycle section failed for user_id=%s", user.id)
+        pay_cycle_error = {"code": "pay_cycle_unavailable", "message": "Pay-cycle planning is temporarily unavailable."}
+    next_income = pay_cycle.get("next_income") if pay_cycle else None
     end = _as_date(next_income.get("date")) if next_income else None
     commitments = _safe_commitment_rows(rows, current, end)
     balances = _account_balances(db, user)
@@ -91,7 +99,7 @@ def build_safe_to_spend(db: DbSession, user: User, today: date | None = None) ->
         if first_insufficient_date is None and running < 0:
             first_insufficient_date = when.isoformat()
         coverage.append({"date": when.isoformat(), "name": row.get("name"), "amount": cents_to_decimal(_amount_cents(row)), "projected_balance": cents_to_decimal(running)})
-    incomplete = not balance_known or end is None
+    incomplete = not balance_known or end is None or pay_cycle_error is not None
     covered_through = None if first_insufficient_date else (end.isoformat() if end else None)
     return {
         "as_of": current.isoformat(), "planning_start": current.isoformat(), "planning_end": end.isoformat() if end else None,
@@ -101,7 +109,9 @@ def build_safe_to_spend(db: DbSession, user: User, today: date | None = None) ->
         "projected_shortfall": cents_to_decimal(abs(safe_cents)) if safe_cents is not None and safe_cents < 0 else "0.00",
         "payment_readiness": "needs_information" if incomplete else "covered" if safe_cents >= 0 else "at_risk",
         "incomplete": incomplete,
-        "warnings": (["No active liquid account balance is available."] if not balance_known else []) + (["No next pay-cycle boundary is available."] if end is None else []),
+        "planning_status": "unavailable" if pay_cycle_error else "complete" if not incomplete else "incomplete",
+        "planning_error": pay_cycle_error,
+        "warnings": (["No active liquid account balance is available."] if not balance_known else []) + (["No next pay-cycle boundary is available."] if end is None else []) + ([pay_cycle_error["message"]] if pay_cycle_error else []),
         "reserved_payments": commitments, "coverage": coverage,
         "payment_coverage": {"covered_through": covered_through, "first_insufficient_date": first_insufficient_date},
         "rules": {"credit_limits_excluded": True, "paid_skipped_cancelled_excluded": True, "automatic_payments_reserved_until_resolved": True},

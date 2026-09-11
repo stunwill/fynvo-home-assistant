@@ -1,6 +1,7 @@
 from datetime import timedelta
 
 from app.finance import today_local
+from app import payment_planning
 
 
 def setup(client):
@@ -81,3 +82,22 @@ def test_payment_centre_core_list_does_not_depend_on_pay_cycle_configuration(cli
     response = client.get("/api/payment-centre?date_range=next_30_days")
     assert response.status_code == 200
     assert response.json()["rows"][0]["name"] == "Electricity"
+
+
+def test_safe_to_spend_isolates_unavailable_pay_cycle_from_known_cash(client, monkeypatch):
+    setup(client)
+    everyday = account(client, "750.00")
+    bill(client, everyday["id"], "125.00")
+
+    def unavailable(*_args, **_kwargs):
+        raise ValueError("incomplete pay-cycle input")
+
+    monkeypatch.setattr(payment_planning, "build_pay_cycle_planning", unavailable)
+    response = client.get("/api/payment-planning/safe-to-spend")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["planning_status"] == "unavailable"
+    assert data["planning_error"]["code"] == "pay_cycle_unavailable"
+    assert data["available_cash"] == "750.00"
+    assert data["reserved_payments"][0]["name"] == "Electricity"

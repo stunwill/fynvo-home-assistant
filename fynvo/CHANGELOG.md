@@ -1,5 +1,13 @@
 # Fynvo Add-on Changelog
 
+## v1.23.0 - Mobile Decision UX, Cash Plan Reliability & Information Hierarchy
+
+- Makes Cash Plan resilient when optional pay-cycle or planning inputs are unavailable, preserving known planning data and returning structured availability diagnostics.
+- Refocuses the mobile Overview around Safe to Spend, a concise Money requiring action list and a compact cash outlook while keeping deeper financial workspaces available.
+- Organises mobile More navigation into Planning, Payments and Money & accounts groups and improves narrow-screen safe-area spacing without changing financial semantics.
+- Preserves the v1.22.2 Home Assistant distribution contract, including prebuilt GHCR images, anonymous image resolution, ingress, port 8097 and `/data` persistence.
+- Requires no database migration.
+
 ## v1.22.2 - Home Assistant GHCR Tag Resolution Correction
 
 - Publishes the Home Assistant-consumed image tag without the Git release `v` prefix, so Supervisor can resolve `ghcr.io/stunwill/fynvo:1.22.2` exactly as derived from the add-on version.
