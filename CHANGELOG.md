@@ -2,6 +2,16 @@
 
 All notable Fynvo changes are documented here. Starting with v0.3.0, every release must include a user-readable changelog entry, Home Assistant-visible release notes and GitHub release notes.
 
+## v1.24.0 - Core UX Redesign
+
+- Reorganises the mobile product around Overview, Payments, Plan, Accounts and More.
+- Refocuses Overview on Safe to Spend, Needs attention, Coming up and Your plan.
+- Consolidates Payments into Upcoming, Attention, Timeline and Manage, preserving Bills and recurring schedule workflows.
+- Consolidates Plan into Overview, Forecast and Calendar, preserving authoritative planning and forecast calculations.
+- Consolidates Accounts into Accounts, Activity and Cards, preserving transaction history, reconciliation, account details and card management.
+- Extends shared mobile navigation, financial-event rows, summary surfaces, statuses, forms and action-sheet behavior across the redesign.
+- Preserves Home Assistant ingress, direct routes, existing APIs, financial data and historical lifecycle semantics. No database migration is required.
+
 ## v1.23.0 - Mobile Decision UX, Cash Plan Reliability & Information Hierarchy
 
 - Makes Cash Plan resilient when optional pay-cycle or planning inputs are unavailable, preserving known planning data and returning structured availability diagnostics.

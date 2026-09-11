@@ -109,13 +109,13 @@ function TransactionDetail({ row, categories, candidates, money, dateLabel, onCl
   </section></div>;
 }
 
-export default function TransactionWorkspace({ accounts = [], categories = [], money, dateLabel, refreshKey }) {
+export default function TransactionWorkspace({ accounts = [], categories = [], money, dateLabel, refreshKey, accountId = null }) {
   const [rows, setRows] = useState([]);
   const [candidates, setCandidates] = useState([]);
   const [loadState, setLoadState] = useState('loading');
   const [candidateState, setCandidateState] = useState('loading');
   const [error, setError] = useState('');
-  const [filters, setFilters] = useState(DEFAULT_FILTERS);
+  const [filters, setFilters] = useState({ ...DEFAULT_FILTERS, account: accountId == null ? 'all' : String(accountId) });
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState({ key: 'date', direction: 'desc' });
   const [selectedId, setSelectedId] = useState(null);
@@ -135,6 +135,7 @@ export default function TransactionWorkspace({ accounts = [], categories = [], m
     catch { setCandidates([]); setCandidateState('error'); }
   };
   useEffect(() => { Promise.allSettled([load(), loadCandidates()]); }, [revision, refreshKey]);
+  useEffect(() => { setFilters((current) => ({ ...current, account: accountId == null ? 'all' : String(accountId) })); }, [accountId]);
 
   const categoryById = useMemo(() => new Map(categories.map((row) => [Number(row.id), row])), [categories]);
   const filtered = useMemo(() => {

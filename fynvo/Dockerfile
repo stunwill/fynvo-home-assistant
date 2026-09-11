@@ -1,5 +1,5 @@
 ARG BUILD_FROM=ghcr.io/home-assistant/aarch64-base-python:3.12-alpine3.20
-ARG BUILD_VERSION=1.22.0
+ARG BUILD_VERSION=1.24.0
 ARG BUILD_ARCH=aarch64
 ARG BUILD_REVISION=unknown
 ARG BUILD_CREATED=unknown

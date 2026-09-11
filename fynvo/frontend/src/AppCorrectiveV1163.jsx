@@ -2,9 +2,13 @@ import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import BaseApp from './AppCorrectiveV0174.jsx';
 import AccountsCardsWorkspaceV1163 from './AccountsCardsWorkspaceV1163.jsx';
+import AccountsWorkspaceV1240 from './AccountsWorkspaceV1240.jsx';
 import PaymentCentreMobileV1183 from './PaymentCentreMobileV1183.jsx';
+import PaymentWorkspaceV1240 from './PaymentWorkspaceV1240.jsx';
+import PlanWorkspaceV1240 from './PlanWorkspaceV1240.jsx';
 import { apiRequest } from './apiClient.js';
 import './accounts-cards-v1163.css';
+import './accounts-workspace-v1240.css';
 
 export const APP_VERSION_V1163 = '1.16.3';
 
@@ -15,6 +19,7 @@ export default function AppCorrectiveV1163({ authState = null }) {
   const [cards, setCards] = useState([]);
   const [mount, setMount] = useState(null);
   const [paymentMount, setPaymentMount] = useState(null);
+  const [planMount, setPlanMount] = useState(null);
   const [paymentSupporting, setPaymentSupporting] = useState({ accounts: [], cards: [], categories: [], recurring: [] });
 
   async function refreshAccountsCards() {
@@ -68,7 +73,9 @@ export default function AppCorrectiveV1163({ authState = null }) {
       const content = document.querySelector('main.content');
       const accountsActive = current === 'Accounts' || current === 'Cards' || current === 'Accounts & Cards';
       const paymentActive = current === 'Payment Centre' && window.matchMedia('(max-width: 980px)').matches;
+      const planActive = current === 'Cash Plan' && window.matchMedia('(max-width: 980px)').matches;
       document.body.classList.toggle('fynvo-accounts-cards-v1163-active', accountsActive);
+      document.body.classList.toggle('fynvo-plan-v1240-active', planActive);
       if (accountsActive) {
         setLegacyView(current === 'Cards' ? 'Cards' : 'Accounts');
         if (current === 'Cards') {
@@ -89,6 +96,10 @@ export default function AppCorrectiveV1163({ authState = null }) {
         const nextMount = paymentActive ? content : null;
         return currentMount === nextMount ? currentMount : nextMount;
       });
+      setPlanMount((currentMount) => {
+        const nextMount = planActive ? content : null;
+        return currentMount === nextMount ? currentMount : nextMount;
+      });
     };
     const observer = new MutationObserver(sync);
     observer.observe(document.body, { childList: true, subtree: true, characterData: true });
@@ -98,6 +109,7 @@ export default function AppCorrectiveV1163({ authState = null }) {
       observer.disconnect();
       window.removeEventListener('resize', sync);
       document.body.classList.remove('fynvo-accounts-cards-v1163-active');
+      document.body.classList.remove('fynvo-plan-v1240-active');
     };
   }, []);
 
@@ -132,18 +144,33 @@ export default function AppCorrectiveV1163({ authState = null }) {
     }, 30);
   };
 
+  const addTransaction = () => {
+    openQuickAdd();
+    window.setTimeout(() => {
+      const choice = [...document.querySelectorAll('button')].find((button) => button.textContent?.trim().startsWith('Transaction'));
+      choice?.click();
+    }, 30);
+  };
+
   const navigate = (label) => {
     const button = [...document.querySelectorAll('.nav-group button')].find((item) => item.textContent?.trim() === label);
     button?.click();
   };
 
+  const mobileAccounts = window.matchMedia('(max-width: 980px)').matches;
   const workspace = mount && (legacyView === 'Accounts' || legacyView === 'Cards')
-    ? createPortal(<div className="accounts-cards-v1163-overlay"><AccountsCardsWorkspaceV1163 activeAccounts={accounts} cards={cards} initialView={subview} onViewChange={setSubview} onEditAccount={openAccountEdit} onAddAccount={addAccount} onRefresh={refreshAccountsCards}/></div>, mount)
+    ? createPortal(mobileAccounts
+      ? <div className="accounts-v1240-overlay"><AccountsWorkspaceV1240 onNavigate={navigate} onAddAccount={addAccount} onAddTransaction={addTransaction}/></div>
+      : <div className="accounts-cards-v1163-overlay"><AccountsCardsWorkspaceV1163 activeAccounts={accounts} cards={cards} initialView={subview} onViewChange={setSubview} onEditAccount={openAccountEdit} onAddAccount={addAccount} onRefresh={refreshAccountsCards}/></div>, mount)
     : null;
 
   const paymentWorkspace = paymentMount
-    ? createPortal(<div className="payment-v1183-overlay"><PaymentCentreMobileV1183 data={paymentSupporting} onNavigate={navigate} onQuickAdd={openQuickAdd} onAddBill={addBill} onRefreshSupporting={refreshPaymentSupporting}/></div>, paymentMount)
+    ? createPortal(<div className="payment-v1183-overlay"><PaymentWorkspaceV1240 onNavigate={navigate} onQuickAdd={openQuickAdd} onAddBill={addBill} onRefreshSupporting={refreshPaymentSupporting}/></div>, paymentMount)
     : null;
 
-  return <><BaseApp authState={authState}/>{workspace}{paymentWorkspace}</>;
+  const planWorkspace = planMount
+    ? createPortal(<div className="plan-v1240-overlay"><PlanWorkspaceV1240 onNavigate={navigate}/></div>, planMount)
+    : null;
+
+  return <><BaseApp authState={authState}/>{workspace}{paymentWorkspace}{planWorkspace}</>;
 }

@@ -6,7 +6,7 @@
 
 ## Current release
 
-Current development release: **v1.23.0 Mobile Decision UX, Cash Plan Reliability & Information Hierarchy**.
+Current development release: **v1.24.0 Core UX Redesign**.
 
 v1.22.0 builds on the merged v1.21.2 Payments Requiring Attention baseline. It:
 

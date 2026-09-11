@@ -2,7 +2,28 @@
 
 Fynvo is a household finance and cash-planning application for understanding upcoming commitments, available cash, pay-cycle pressure, spending decisions and near-term financial risk. The roadmap prioritises practical household planning over business accounting, tax, payroll or investment-trading functionality.
 
-The current development baseline is v1.23.0. Payment Centre, recurring-payment lifecycle, 7/14/30-day commitment planning, pay-cycle cash planning, account funding requirements, available-cash comparisons, transactions, reconciliation, budgets, goals, scenarios, date-oriented financial Calendar, Cash Flow forecasting/impact analysis, CSV import, insights, Overview drill-down navigation, responsive Home Assistant ingress and prebuilt add-on image distribution are already delivered and are not repeated below as new scope.
+The current development baseline is v1.24.0. Payment Centre, recurring-payment lifecycle, 7/14/30-day commitment planning, pay-cycle cash planning, account funding requirements, available-cash comparisons, transactions, reconciliation, budgets, goals, scenarios, date-oriented financial Calendar, Cash Flow forecasting/impact analysis, CSV import, insights, Overview drill-down navigation, responsive Home Assistant ingress and prebuilt add-on image distribution are already delivered and are not repeated below as new scope.
+
+## v1.24.0 - Core UX Redesign
+
+Status: Complete on the release branch, pending final Pull Request review
+
+Objective: Recompose Fynvo's core financial destinations into a consistent, focused mobile experience without changing financial semantics.
+
+### Features
+
+- [x] Establish shared navigation, cards, event rows, statuses, forms, action sheets, spacing and safe-area treatment.
+- [x] Recompose Overview around Safe to Spend, Needs attention, Coming up and Your plan.
+- [x] Recompose Payments around Upcoming, Attention, Timeline and Manage.
+- [x] Recompose Plan around Overview, Forecast and Calendar.
+- [x] Recompose Accounts around Accounts, Activity and Cards.
+- [x] Preserve existing payment lifecycle, transaction, reconciliation, account and historical data behaviour.
+
+### Validation
+
+- [x] Frontend regression tests and production build pass.
+- [x] Backend tests, Python compilation and Ruff pass.
+- [x] Home Assistant release metadata is aligned to v1.24.0.
 
 ## v1.23.0 - Mobile Decision UX, Cash Plan Reliability & Information Hierarchy
 

@@ -1,0 +1,66 @@
+@media (max-width: 980px) {
+  body.fynvo-overview-v1240-active .fynvo-mobile-overview-host { display: none !important; }
+  body.fynvo-overview-v1240-active main.content > .header,
+  body.fynvo-overview-v1240-active main.content > .dashboard-page,
+  body.fynvo-overview-v1240-active main.content > .payments-attention-v122,
+  body.fynvo-overview-v1240-active main.content > .app-footer { display: none !important; }
+  .fynvo-overview-v1240-host { position: relative; z-index: 4; }
+  .fynvo-overview-v1240 { display: grid; gap: 12px; min-width: 0; padding: 0 0 calc(88px + env(safe-area-inset-bottom, 0px)); }
+  .fynvo-overview-v1240-heading { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; padding: 4px 2px 8px; }
+  .fynvo-overview-v1240-heading strong { color: #062f2a; font-size: 21px; letter-spacing: -.03em; }
+  .fynvo-overview-v1240-heading h1 { margin: 4px 0 0; color: var(--fynvo-ui-text); font-size: 31px; line-height: 1.05; }
+  .fynvo-overview-v1240-heading p { grid-column: 1 / -1; margin: 0; color: var(--fynvo-ui-muted); font-size: 13px; }
+  .fynvo-overview-v1240-heading div { display: flex; gap: 7px; }
+  .fynvo-overview-v1240-heading button { width: 36px; height: 36px; border: 0; border-radius: 50%; background: transparent; color: var(--fynvo-ui-text); font-size: 20px; }
+  .fynvo-overview-v1240-safe { padding: 16px; background: linear-gradient(145deg, #f1fbf5, #fbfffc); border-color: #ccebd7; }
+  .fynvo-overview-v1240-safe.unavailable { background: var(--fynvo-ui-warning-soft); border-color: #f4d58f; }
+  .fynvo-overview-v1240-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+  .fynvo-overview-v1240 h2 { margin: 0; color: var(--fynvo-ui-text); font-size: 16px; line-height: 1.2; }
+  .fynvo-overview-v1240 h2 span { color: var(--fynvo-ui-muted); font-size: 13px; }
+  .fynvo-overview-v1240-safe > p { margin: 4px 0 12px; color: var(--fynvo-ui-muted); font-size: 12px; line-height: 1.35; }
+  .fynvo-overview-v1240-safe .fynvo-overview-v1240-card-head > div > strong { display: block; margin-top: 7px; color: var(--fynvo-ui-text); font-size: clamp(31px, 9vw, 42px); line-height: 1; font-variant-numeric: tabular-nums; }
+  .fynvo-overview-v1240-progress { height: 10px; overflow: hidden; border-radius: 999px; background: #dceee4; }
+  .fynvo-overview-v1240-progress span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #0b9855, #62c98b); }
+  .fynvo-overview-v1240-breakdown { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 14px; }
+  .fynvo-overview-v1240-breakdown > div { min-width: 0; padding: 0 9px; border-right: 1px solid #d8ebe0; }
+  .fynvo-overview-v1240-breakdown > div:first-child { padding-left: 0; }
+  .fynvo-overview-v1240-breakdown > div:last-child { padding-right: 0; border-right: 0; }
+  .fynvo-overview-v1240-breakdown strong, .fynvo-overview-v1240-breakdown span { display: block; }
+  .fynvo-overview-v1240-breakdown strong { color: var(--fynvo-ui-text); font-size: 14px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .fynvo-overview-v1240-breakdown span { margin-top: 3px; color: var(--fynvo-ui-muted); font-size: 10px; line-height: 1.2; }
+  .fynvo-overview-v1240-section { padding: 14px; }
+  .fynvo-overview-v1240-attention { background: linear-gradient(145deg, #fff6f5, #fff); border-color: #f5d2cf; }
+  .fynvo-overview-v1240-events { margin-top: 10px; }
+  .fynvo-overview-v1240-events .danger { color: var(--fynvo-ui-danger); }
+  .fynvo-overview-v1240-plan { background: linear-gradient(145deg, #fffaf0, #fff); border-color: #f2dfb5; }
+  .fynvo-overview-v1240-plan-value { display: block; margin: 17px 0 5px; color: var(--fynvo-ui-text); font-size: 31px; line-height: 1; font-variant-numeric: tabular-nums; }
+  .fynvo-overview-v1240-plan > p { margin: 0; color: var(--fynvo-ui-muted); font-size: 12px; line-height: 1.35; }
+  .fynvo-overview-v1240-plan-detail { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 16px; padding-top: 12px; border-top: 1px solid #f0e2c5; }
+  .fynvo-overview-v1240-plan-detail span { min-width: 0; padding-right: 8px; border-right: 1px solid #f0e2c5; }
+  .fynvo-overview-v1240-plan-detail span:last-child { border-right: 0; }
+  .fynvo-overview-v1240-plan-detail strong, .fynvo-overview-v1240-plan-detail small { display: block; }
+  .fynvo-overview-v1240-plan-detail strong { color: var(--fynvo-ui-text); font-size: 14px; font-variant-numeric: tabular-nums; }
+  .fynvo-overview-v1240-plan-detail small { margin-top: 3px; color: var(--fynvo-ui-muted); font-size: 10px; }
+  .fynvo-overview-v1240-error { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 12px; border: 1px solid #f4b8b2; border-radius: var(--fynvo-ui-radius-sm); background: var(--fynvo-ui-danger-soft); color: var(--fynvo-ui-danger); font-size: 12px; }
+  .fynvo-overview-v1240-error button { min-height: 36px; border: 1px solid #e99890; border-radius: 8px; background: #fff; color: var(--fynvo-ui-danger); font-weight: 800; }
+  .fynvo-overview-v1240-bottom-nav { padding-bottom: env(safe-area-inset-bottom, 0px); }
+  .fynvo-overview-v1240-bottom-nav button.active { color: var(--fynvo-ui-brand); background: var(--fynvo-ui-brand-soft); }
+}
+@media (max-width: 374px) {
+  .fynvo-overview-v1240 { gap: 10px; }
+  .fynvo-overview-v1240-section, .fynvo-overview-v1240-safe { padding: 12px; }
+  .fynvo-overview-v1240-breakdown { grid-template-columns: 1fr; gap: 8px; }
+  .fynvo-overview-v1240-breakdown > div, .fynvo-overview-v1240-breakdown > div:first-child, .fynvo-overview-v1240-breakdown > div:last-child { padding: 0 0 8px; border-right: 0; border-bottom: 1px solid #d8ebe0; }
+  .fynvo-overview-v1240-breakdown > div:last-child { padding-bottom: 0; border-bottom: 0; }
+}
+@media (max-width: 430px) {
+  .fynvo-overview-v1240 { max-width: 100%; }
+}
+@media (max-width: 329px) {
+  .fynvo-overview-v1240-heading h1 { font-size: 27px; }
+  .fynvo-overview-v1240-safe .fynvo-overview-v1240-card-head > div > strong { font-size: 28px; }
+  .fynvo-ui-event-row { grid-template-columns: 30px minmax(0, 1fr) auto 8px; gap: 7px; }
+  .fynvo-ui-event-icon { width: 30px; height: 30px; }
+  .fynvo-ui-event-amount { font-size: 12px; }
+}
+@media (min-width: 981px) { .fynvo-overview-v1240-host { display: none !important; } }
