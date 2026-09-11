@@ -1,0 +1,59 @@
+:root {
+  --fynvo-ui-space-1: 4px;
+  --fynvo-ui-space-2: 8px;
+  --fynvo-ui-space-3: 12px;
+  --fynvo-ui-space-4: 16px;
+  --fynvo-ui-space-5: 20px;
+  --fynvo-ui-radius-sm: 10px;
+  --fynvo-ui-radius-md: 16px;
+  --fynvo-ui-radius-lg: 20px;
+  --fynvo-ui-surface: #ffffff;
+  --fynvo-ui-surface-soft: #f7faf8;
+  --fynvo-ui-text: #061b36;
+  --fynvo-ui-muted: #64748b;
+  --fynvo-ui-line: #dfe8e3;
+  --fynvo-ui-brand: #087a46;
+  --fynvo-ui-brand-soft: #e8f6ee;
+  --fynvo-ui-danger: #c9362b;
+  --fynvo-ui-danger-soft: #fff1f0;
+  --fynvo-ui-warning: #a15c00;
+  --fynvo-ui-warning-soft: #fff8e8;
+  --fynvo-ui-info: #155eef;
+  --fynvo-ui-info-soft: #edf5ff;
+  --fynvo-ui-shadow: 0 8px 24px rgba(31, 54, 89, 0.07);
+}
+
+.fynvo-ui-card {
+  min-width: 0;
+  border: 1px solid var(--fynvo-ui-line);
+  border-radius: var(--fynvo-ui-radius-md);
+  background: var(--fynvo-ui-surface);
+  box-shadow: var(--fynvo-ui-shadow);
+}
+
+.fynvo-ui-section-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--fynvo-ui-space-3);
+}
+
+.fynvo-ui-section-head h2 { margin: 0; color: var(--fynvo-ui-text); font-size: 17px; line-height: 1.2; }
+.fynvo-ui-section-head p { margin: 4px 0 0; color: var(--fynvo-ui-muted); font-size: 12px; line-height: 1.35; }
+.fynvo-ui-link { min-height: 36px; border: 0; padding: 5px 0; background: transparent; color: var(--fynvo-ui-brand); font-weight: 800; white-space: nowrap; }
+.fynvo-ui-event-row { min-width: 0; display: grid; grid-template-columns: 34px minmax(0, 1fr) auto 12px; gap: 10px; align-items: center; min-height: 62px; border: 0; border-top: 1px solid #edf2ef; padding: 8px 0; background: transparent; color: inherit; text-align: left; }
+.fynvo-ui-event-icon { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 50%; background: var(--fynvo-ui-info-soft); color: var(--fynvo-ui-info); font-weight: 900; }
+.fynvo-ui-event-copy { min-width: 0; }
+.fynvo-ui-event-copy strong, .fynvo-ui-event-copy small { display: block; overflow-wrap: anywhere; }
+.fynvo-ui-event-copy strong { color: var(--fynvo-ui-text); font-size: 13px; line-height: 1.25; }
+.fynvo-ui-event-copy small { margin-top: 3px; color: var(--fynvo-ui-muted); font-size: 11px; line-height: 1.25; }
+.fynvo-ui-event-amount { color: var(--fynvo-ui-text); font-size: 13px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.fynvo-ui-event-chevron { color: var(--fynvo-ui-muted); font-size: 22px; line-height: 1; }
+.fynvo-ui-status { display: inline-flex; align-items: center; gap: 5px; border-radius: 999px; padding: 6px 9px; background: var(--fynvo-ui-brand-soft); color: var(--fynvo-ui-brand); font-size: 11px; font-weight: 800; white-space: nowrap; }
+.fynvo-ui-status::before { content: '✓'; width: 16px; height: 16px; display: grid; place-items: center; border-radius: 50%; background: #b7ebca; }
+.fynvo-ui-empty, .fynvo-ui-state { color: var(--fynvo-ui-muted); font-size: 12px; line-height: 1.45; }
+.fynvo-ui-state { margin: 0; padding: 12px; border-radius: var(--fynvo-ui-radius-sm); background: var(--fynvo-ui-surface-soft); }
+.fynvo-ui-loading { min-height: 64px; border-radius: var(--fynvo-ui-radius-sm); background: linear-gradient(90deg, #f1f5f3 25%, #fafcfb 50%, #f1f5f3 75%); background-size: 200% 100%; animation: fynvoUiShimmer 1.2s linear infinite; }
+@keyframes fynvoUiShimmer { to { background-position: -200% 0; } }
+
+@media (prefers-reduced-motion: reduce) { .fynvo-ui-loading { animation: none; } }
