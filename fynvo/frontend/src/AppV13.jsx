@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import App from './AppCorrectiveV1163.jsx';
 import HouseholdControlCenter from './HouseholdControlCenter.jsx';
 import LoginPage from './LoginPage.jsx';
-import MobileOverviewV1190 from './MobileOverviewV1190.jsx';
+// Keep the historical integration name stable while the v1.24 redesign replaces its implementation.
+import MobileOverviewV1190 from './MobileOverviewV1240.jsx';
 import V11ControlCenter from './V11ControlCenter.jsx';
 import V13CashFlowPage from './V13CashFlowPage.jsx';
 
