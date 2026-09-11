@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import BaseApp from './AppCorrectiveV0174.jsx';
 import AccountsCardsWorkspaceV1163 from './AccountsCardsWorkspaceV1163.jsx';
 import PaymentCentreMobileV1183 from './PaymentCentreMobileV1183.jsx';
+import PaymentWorkspaceV1240 from './PaymentWorkspaceV1240.jsx';
 import { apiRequest } from './apiClient.js';
 import './accounts-cards-v1163.css';
 
@@ -142,7 +143,7 @@ export default function AppCorrectiveV1163({ authState = null }) {
     : null;
 
   const paymentWorkspace = paymentMount
-    ? createPortal(<div className="payment-v1183-overlay"><PaymentCentreMobileV1183 data={paymentSupporting} onNavigate={navigate} onQuickAdd={openQuickAdd} onAddBill={addBill} onRefreshSupporting={refreshPaymentSupporting}/></div>, paymentMount)
+    ? createPortal(<div className="payment-v1183-overlay"><PaymentWorkspaceV1240 onNavigate={navigate} onQuickAdd={openQuickAdd} onAddBill={addBill} onRefreshSupporting={refreshPaymentSupporting}/></div>, paymentMount)
     : null;
 
   return <><BaseApp authState={authState}/>{workspace}{paymentWorkspace}</>;
