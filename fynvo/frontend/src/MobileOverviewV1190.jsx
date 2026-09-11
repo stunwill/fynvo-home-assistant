@@ -248,7 +248,7 @@ export default function MobileOverviewV1190({ authenticated = false, productionV
       actionable, weekly, pressure,
       activeAccountCount: activeAccounts.length,
       shortfallCount,
-      incompleteMessage: payCycle.completeness?.message || 'Income or funding information is incomplete.',
+      incompleteMessage: authoritative.warnings?.[0] || payCycle.completeness?.message || 'Planning setup is incomplete.',
     };
   }, [planning, accounts, safeToSpend]);
 
@@ -288,12 +288,12 @@ export default function MobileOverviewV1190({ authenticated = false, productionV
     </article>
 
     <article className="v1190-card v1190-pay-next">
-      <div className="v1190-card-head"><div><h2>What to pay next</h2><p>Top payments to clear or due soon</p></div></div>
+      <div className="v1190-card-head"><div><h2>Money requiring action</h2><p>Highest-priority payments to clear or review</p></div></div>
       {model.actionable.length ? <div className="v1190-pay-list">{model.actionable.map((row, index) => {
         const automatic = row.payment_handling === 'automatic';
         return <div key={`${row.source_type || 'payment'}-${row.id || index}`}><span className="rank">{index + 1}</span><button type="button" className="payment" onClick={() => open('Payment Centre')}><strong>{row.name || 'Payment'}</strong><small>{money(amountOf(row))} · {dateLabel(dueOf(row))}</small></button>{automatic ? <span className="automatic">Automatic</span> : <button type="button" className="pay" onClick={() => open('Payment Centre')}>Pay</button>}</div>;
       })}</div> : <p className="v1190-empty">No payments require action right now.</p>}
-      <button type="button" className="v1190-text-link" onClick={() => open('Payment Centre')}>View all payments ›</button>
+      <button type="button" className="v1190-text-link" onClick={() => open('Payment Centre')}>View all requiring action ›</button>
     </article>
 
     <article className="v1190-card v1190-weekly">
@@ -315,7 +315,7 @@ export default function MobileOverviewV1190({ authenticated = false, productionV
       <button type="button" className={activePage === 'Accounts & Cards' ? 'active' : ''} onClick={() => open('Accounts')}><span aria-hidden="true">▭</span><small>Accounts</small></button>
       <button type="button" aria-expanded={moreOpen} onClick={() => setMoreOpen((value) => !value)}><span aria-hidden="true">•••</span><small>More</small></button>
     </nav>
-    {moreOpen && <div className="fynvo-mobile-more-backdrop" onMouseDown={(event) => event.target === event.currentTarget && setMoreOpen(false)}><section className="fynvo-mobile-more-sheet" aria-label="More navigation"><div className="fynvo-mobile-sheet-head"><strong>More</strong><button type="button" onClick={() => setMoreOpen(false)} aria-label="Close More">×</button></div><nav><button type="button" onClick={() => open('Cash Flow')}>Cash Flow</button><button type="button" onClick={() => open('Bills')}>Bills</button><button type="button" onClick={() => open('Recurring Expenses')}>Recurring Expenses</button><button type="button" onClick={() => open('Calendar')}>Calendar</button><button type="button" onClick={() => open('Transactions')}>Transactions</button><span className="fynvo-mobile-version">Fynvo v{productionVersion || '1.21.1'}</span></nav></section></div>}
+    {moreOpen && <div className="fynvo-mobile-more-backdrop" onMouseDown={(event) => event.target === event.currentTarget && setMoreOpen(false)}><section className="fynvo-mobile-more-sheet" aria-label="More navigation"><div className="fynvo-mobile-sheet-head"><strong>More</strong><button type="button" onClick={() => setMoreOpen(false)} aria-label="Close More">×</button></div><nav><h3>Planning</h3><button type="button" onClick={() => open('Cash Flow')}>Cash Flow</button><button type="button" onClick={() => open('Calendar')}>Calendar</button><h3>Payments</h3><button type="button" onClick={() => open('Payment Centre')}>Payment Centre</button><button type="button" onClick={() => open('Bills')}>Bills</button><button type="button" onClick={() => open('Recurring Expenses')}>Recurring Expenses</button><h3>Money &amp; accounts</h3><button type="button" onClick={() => open('Accounts')}>Accounts &amp; Cards</button><button type="button" onClick={() => open('Income')}>Income</button><button type="button" onClick={() => open('Transactions')}>Transactions</button><span className="fynvo-mobile-version">Fynvo v{productionVersion || '1.23.0'}</span></nav></section></div>}
     {bufferOpen && createPortal(<div className="v1190-buffer-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && setBufferOpen(false)}><form className="v1190-buffer-dialog" role="dialog" aria-modal="true" aria-labelledby="v1190-buffer-title" onSubmit={saveBuffer}><h2 id="v1190-buffer-title">Cash buffer</h2><p>Protect this amount from Safe-to-Spend until your next pay.</p><label htmlFor="v1190-buffer-input">Protected amount</label><input id="v1190-buffer-input" inputMode="decimal" pattern="[0-9]*[.,]?[0-9]*" value={bufferValue} onChange={(event) => setBufferValue(event.target.value)} required />{bufferError && <div role="alert" className="v1190-warning">{bufferError}</div>}<div className="v1190-buffer-actions"><button type="button" onClick={() => setBufferOpen(false)}>Cancel</button><button type="submit" disabled={bufferSaving}>{bufferSaving ? 'Saving…' : 'Save buffer'}</button></div></form></div>, document.body)}
   </>;
 }

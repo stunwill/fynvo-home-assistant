@@ -2,7 +2,20 @@
 
 Fynvo is a household finance and cash-planning application for understanding upcoming commitments, available cash, pay-cycle pressure, spending decisions and near-term financial risk. The roadmap prioritises practical household planning over business accounting, tax, payroll or investment-trading functionality.
 
-The current development baseline is v1.22.0. Payment Centre, recurring-payment lifecycle, 7/14/30-day commitment planning, pay-cycle cash planning, account funding requirements, available-cash comparisons, transactions, reconciliation, budgets, goals, scenarios, date-oriented financial Calendar, Cash Flow forecasting/impact analysis, CSV import, insights, Overview drill-down navigation, responsive Home Assistant ingress and prebuilt add-on image distribution are already delivered and are not repeated below as new scope.
+The current development baseline is v1.23.0. Payment Centre, recurring-payment lifecycle, 7/14/30-day commitment planning, pay-cycle cash planning, account funding requirements, available-cash comparisons, transactions, reconciliation, budgets, goals, scenarios, date-oriented financial Calendar, Cash Flow forecasting/impact analysis, CSV import, insights, Overview drill-down navigation, responsive Home Assistant ingress and prebuilt add-on image distribution are already delivered and are not repeated below as new scope.
+
+## v1.23.0 - Mobile Decision UX, Cash Plan Reliability & Information Hierarchy
+
+Status: In progress on the release branch
+
+Objective: Make the iPhone-sized Overview a concise decision dashboard and keep Cash Plan useful when optional planning inputs are incomplete.
+
+### Features
+
+- [x] Isolate Safe-to-Spend pay-cycle failures from known balances and payment obligations.
+- [x] Consolidate the mobile Overview action list under Money requiring action.
+- [x] Group mobile More navigation by planning, payments and money and accounts.
+- [ ] Validate complete, partial and failure states in Home Assistant ingress.
 
 ## v1.18.2 - Payment Centre Mobile UX Completion
 
