@@ -4,6 +4,7 @@ import BaseApp from './AppCorrectiveV0174.jsx';
 import AccountsCardsWorkspaceV1163 from './AccountsCardsWorkspaceV1163.jsx';
 import PaymentCentreMobileV1183 from './PaymentCentreMobileV1183.jsx';
 import PaymentWorkspaceV1240 from './PaymentWorkspaceV1240.jsx';
+import PlanWorkspaceV1240 from './PlanWorkspaceV1240.jsx';
 import { apiRequest } from './apiClient.js';
 import './accounts-cards-v1163.css';
 
@@ -16,6 +17,7 @@ export default function AppCorrectiveV1163({ authState = null }) {
   const [cards, setCards] = useState([]);
   const [mount, setMount] = useState(null);
   const [paymentMount, setPaymentMount] = useState(null);
+  const [planMount, setPlanMount] = useState(null);
   const [paymentSupporting, setPaymentSupporting] = useState({ accounts: [], cards: [], categories: [], recurring: [] });
 
   async function refreshAccountsCards() {
@@ -69,7 +71,9 @@ export default function AppCorrectiveV1163({ authState = null }) {
       const content = document.querySelector('main.content');
       const accountsActive = current === 'Accounts' || current === 'Cards' || current === 'Accounts & Cards';
       const paymentActive = current === 'Payment Centre' && window.matchMedia('(max-width: 980px)').matches;
+      const planActive = current === 'Cash Plan' && window.matchMedia('(max-width: 980px)').matches;
       document.body.classList.toggle('fynvo-accounts-cards-v1163-active', accountsActive);
+      document.body.classList.toggle('fynvo-plan-v1240-active', planActive);
       if (accountsActive) {
         setLegacyView(current === 'Cards' ? 'Cards' : 'Accounts');
         if (current === 'Cards') {
@@ -90,6 +94,10 @@ export default function AppCorrectiveV1163({ authState = null }) {
         const nextMount = paymentActive ? content : null;
         return currentMount === nextMount ? currentMount : nextMount;
       });
+      setPlanMount((currentMount) => {
+        const nextMount = planActive ? content : null;
+        return currentMount === nextMount ? currentMount : nextMount;
+      });
     };
     const observer = new MutationObserver(sync);
     observer.observe(document.body, { childList: true, subtree: true, characterData: true });
@@ -99,6 +107,7 @@ export default function AppCorrectiveV1163({ authState = null }) {
       observer.disconnect();
       window.removeEventListener('resize', sync);
       document.body.classList.remove('fynvo-accounts-cards-v1163-active');
+      document.body.classList.remove('fynvo-plan-v1240-active');
     };
   }, []);
 
@@ -146,5 +155,9 @@ export default function AppCorrectiveV1163({ authState = null }) {
     ? createPortal(<div className="payment-v1183-overlay"><PaymentWorkspaceV1240 onNavigate={navigate} onQuickAdd={openQuickAdd} onAddBill={addBill} onRefreshSupporting={refreshPaymentSupporting}/></div>, paymentMount)
     : null;
 
-  return <><BaseApp authState={authState}/>{workspace}{paymentWorkspace}</>;
+  const planWorkspace = planMount
+    ? createPortal(<div className="plan-v1240-overlay"><PlanWorkspaceV1240 onNavigate={navigate}/></div>, planMount)
+    : null;
+
+  return <><BaseApp authState={authState}/>{workspace}{paymentWorkspace}{planWorkspace}</>;
 }
