@@ -2,11 +2,13 @@ import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import BaseApp from './AppCorrectiveV0174.jsx';
 import AccountsCardsWorkspaceV1163 from './AccountsCardsWorkspaceV1163.jsx';
+import AccountsWorkspaceV1240 from './AccountsWorkspaceV1240.jsx';
 import PaymentCentreMobileV1183 from './PaymentCentreMobileV1183.jsx';
 import PaymentWorkspaceV1240 from './PaymentWorkspaceV1240.jsx';
 import PlanWorkspaceV1240 from './PlanWorkspaceV1240.jsx';
 import { apiRequest } from './apiClient.js';
 import './accounts-cards-v1163.css';
+import './accounts-workspace-v1240.css';
 
 export const APP_VERSION_V1163 = '1.16.3';
 
@@ -142,13 +144,24 @@ export default function AppCorrectiveV1163({ authState = null }) {
     }, 30);
   };
 
+  const addTransaction = () => {
+    openQuickAdd();
+    window.setTimeout(() => {
+      const choice = [...document.querySelectorAll('button')].find((button) => button.textContent?.trim().startsWith('Transaction'));
+      choice?.click();
+    }, 30);
+  };
+
   const navigate = (label) => {
     const button = [...document.querySelectorAll('.nav-group button')].find((item) => item.textContent?.trim() === label);
     button?.click();
   };
 
+  const mobileAccounts = window.matchMedia('(max-width: 980px)').matches;
   const workspace = mount && (legacyView === 'Accounts' || legacyView === 'Cards')
-    ? createPortal(<div className="accounts-cards-v1163-overlay"><AccountsCardsWorkspaceV1163 activeAccounts={accounts} cards={cards} initialView={subview} onViewChange={setSubview} onEditAccount={openAccountEdit} onAddAccount={addAccount} onRefresh={refreshAccountsCards}/></div>, mount)
+    ? createPortal(mobileAccounts
+      ? <div className="accounts-v1240-overlay"><AccountsWorkspaceV1240 onNavigate={navigate} onAddAccount={addAccount} onAddTransaction={addTransaction}/></div>
+      : <div className="accounts-cards-v1163-overlay"><AccountsCardsWorkspaceV1163 activeAccounts={accounts} cards={cards} initialView={subview} onViewChange={setSubview} onEditAccount={openAccountEdit} onAddAccount={addAccount} onRefresh={refreshAccountsCards}/></div>, mount)
     : null;
 
   const paymentWorkspace = paymentMount
