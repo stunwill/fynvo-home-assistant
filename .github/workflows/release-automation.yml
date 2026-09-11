@@ -1,0 +1,155 @@
+name: Release Fynvo
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Semantic version to release, without v prefix (for example 1.23.1)"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  packages: write
+  actions: read
+
+concurrency:
+  group: fynvo-release-${{ inputs.version }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    name: Validate release metadata
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.version.outputs.tag }}
+    steps:
+      - name: Check out main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Validate requested version and repository metadata
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION='${{ inputs.version }}'
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Version must be semantic X.Y.Z without a v prefix: $VERSION" >&2
+            exit 1
+          fi
+
+          CONFIG_VERSION="$(python - <<'PY'
+          import yaml
+          with open('fynvo/config.yaml', encoding='utf-8') as f:
+              print(yaml.safe_load(f)['version'])
+          PY
+          )"
+
+          if [[ "$CONFIG_VERSION" != "$VERSION" ]]; then
+            echo "fynvo/config.yaml advertises $CONFIG_VERSION, not requested $VERSION" >&2
+            exit 1
+          fi
+
+          if git rev-parse "refs/tags/v$VERSION" >/dev/null 2>&1; then
+            echo "Tag v$VERSION already exists" >&2
+            exit 1
+          fi
+
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
+
+  create_tag:
+    name: Create release tag
+    needs: validate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Create and push release tag
+        env:
+          VERSION: ${{ needs.validate.outputs.version }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "v${VERSION}" -m "Fynvo v${VERSION}"
+          git push origin "v${VERSION}"
+
+  wait_for_image:
+    name: Wait for published Home Assistant image
+    needs: [validate, create_tag]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for release-image workflow result
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.validate.outputs.version }}
+          TAG: ${{ needs.validate.outputs.tag }}
+          REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "Waiting for Publish Fynvo release image workflow for ${TAG}..."
+
+          RUN_ID=""
+          for _ in {1..30}; do
+            RUN_ID="$(gh run list --repo "$REPO" --workflow release-image.yml --event push --limit 30 --json databaseId,headBranch,status --jq ".[] | select(.headBranch == \"${TAG}\") | .databaseId" | head -n1)"
+            if [[ -n "$RUN_ID" ]]; then
+              break
+            fi
+            sleep 10
+          done
+
+          if [[ -z "$RUN_ID" ]]; then
+            echo "No release-image workflow run appeared for ${TAG}" >&2
+            exit 1
+          fi
+
+          gh run watch "$RUN_ID" --repo "$REPO" --exit-status
+
+      - name: Verify exact Home Assistant image reference anonymously
+        env:
+          VERSION: ${{ needs.validate.outputs.version }}
+        run: |
+          set -euo pipefail
+          docker logout ghcr.io >/dev/null 2>&1 || true
+          docker buildx imagetools inspect "ghcr.io/stunwill/fynvo:${VERSION}" >/dev/null
+          echo "Verified ghcr.io/stunwill/fynvo:${VERSION}"
+
+  publish_release:
+    name: Publish GitHub release
+    needs: [validate, wait_for_image]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Publish release only after image verification
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.validate.outputs.version }}
+          TAG: ${{ needs.validate.outputs.tag }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          gh release create "$TAG" \
+            --repo "$REPO" \
+            --title "$TAG" \
+            --generate-notes \
+            --latest
+
+      - name: Release readiness summary
+        env:
+          VERSION: ${{ needs.validate.outputs.version }}
+        run: |
+          {
+            echo "## Fynvo ${VERSION} released"
+            echo
+            echo "Home Assistant image verified before GitHub Release publication:"
+            echo "\`ghcr.io/stunwill/fynvo:${VERSION}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
