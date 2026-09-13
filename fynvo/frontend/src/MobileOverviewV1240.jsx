@@ -144,7 +144,7 @@ export default function MobileOverviewV1240({ authenticated = false, productionV
       {!model.safeAvailable && model.needsIncomeSetup && <button type="button" className="fynvo-ui-link fynvo-overview-v1240-safe-action" onClick={() => open('Income')}>Review income setup ›</button>}
       {!model.safeAvailable && model.unavailableAction === 'accounts' && <button type="button" className="fynvo-ui-link fynvo-overview-v1240-safe-action" onClick={() => open('Accounts')}>Review accounts ›</button>}
       {model.progress !== null && <div className="fynvo-overview-v1240-progress" role="progressbar" aria-label="Safe to spend position" aria-valuenow={model.progress} aria-valuemin="0" aria-valuemax="100"><span style={{ width: `${model.progress}%` }} /></div>}
-      <div className="fynvo-overview-v1240-breakdown"><div><strong>{money(model.available)}</strong><span>Available cash</span></div><div><strong>{money(model.committed)}</strong><span>Committed</span></div><div><strong>{money(model.buffer)}</strong><span>Buffer</span></div></div>
+      <div className="fynvo-overview-v1240-breakdown"><div><strong>{money(model.available)}</strong><span>Available cash</span></div><div><strong>{money(model.committed)}</strong><span>{model.safeAvailable ? 'Committed before next pay' : 'Known commitments'}</span></div><div><strong>{money(model.buffer)}</strong><span>Buffer</span></div></div>
     </section>
 
     <section className="fynvo-ui-card fynvo-overview-v1240-section fynvo-overview-v1240-attention" aria-labelledby="attention-title">

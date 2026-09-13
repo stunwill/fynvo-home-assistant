@@ -50,6 +50,11 @@ test('Safe to Spend exposes a structured unavailable reason and resolution actio
   assert.match(overview, /Review income setup/);
 });
 
+test('Planning summaries make the pay-cycle commitment horizon explicit', () => {
+  assert.match(read('MobileOverviewV1240.jsx'), /Committed before next pay|Known commitments/);
+  assert.match(read('PlanWorkspaceV1240.jsx'), /Committed before next pay/);
+});
+
 test('Corrective responsive protections cover the supported iPhone widths', () => {
   const css = fs.readFileSync(new URL('../src/payment-workspace-v1240.css', import.meta.url), 'utf8');
   const accounts = fs.readFileSync(new URL('../src/accounts-workspace-v1240.css', import.meta.url), 'utf8');
