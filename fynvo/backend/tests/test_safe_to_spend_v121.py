@@ -101,3 +101,17 @@ def test_safe_to_spend_isolates_unavailable_pay_cycle_from_known_cash(client, mo
     assert data["planning_error"]["code"] == "pay_cycle_unavailable"
     assert data["available_cash"] == "750.00"
     assert data["reserved_payments"][0]["name"] == "Electricity"
+
+
+def test_safe_to_spend_names_missing_income_boundary_and_resolution(client):
+    setup(client)
+    everyday = account(client)
+    bill(client, everyday["id"])
+
+    response = client.get("/api/payment-planning/safe-to-spend")
+
+    assert response.status_code == 200
+    reason = response.json()["unavailable_reason"]
+    assert reason["code"] == "missing_next_income"
+    assert reason["action"] == "income"
+    assert "income source" in reason["message"]

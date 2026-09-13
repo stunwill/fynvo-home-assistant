@@ -59,18 +59,15 @@ export default function PaymentWorkspaceV1240({ onNavigate = () => {}, onQuickAd
   const [selected, setSelected] = useState(null);
   const [actionError, setActionError] = useState('');
   const [dateEditor, setDateEditor] = useState(null);
-  const [attentionCount, setAttentionCount] = useState(null);
 
   const load = async () => {
     setLoading(true); setError(''); setActionError('');
     const results = await Promise.allSettled([
       apiRequest('/payment-centre?date_range=next_90_days'),
       apiRequest('/payment-centre?date_range=history'),
-      apiRequest('/payment-centre?date_range=next_90_days&requires_action=true'),
     ]);
     if (results[0].status === 'fulfilled') setRows(results[0].value?.rows || []); else setError('Payments could not load. Try again.');
     if (results[1].status === 'fulfilled') setHistory(results[1].value?.rows || []); else setHistory([]);
-    if (results[2].status === 'fulfilled') setAttentionCount(results[2].value?.rows?.length ?? 0); else setAttentionCount(null);
     setLoading(false);
   };
   useEffect(() => { load(); }, []);
@@ -78,6 +75,7 @@ export default function PaymentWorkspaceV1240({ onNavigate = () => {}, onQuickAd
 
   const activeRows = useMemo(() => rows.filter((row) => !TERMINAL.has(row.status) && ACTIVE_STATUSES.has(row.status || 'upcoming')), [rows]);
   const attentionRows = useMemo(() => activeRows.filter((row) => row.requires_action || paymentAttentionReason(row)).sort((a, b) => String(a.status).localeCompare(String(b.status))), [activeRows]);
+  const attentionCount = attentionRows.length;
   const upcomingRows = useMemo(() => activeRows.filter((row) => !paymentAttentionReason(row)).sort((a, b) => String(a.expected_date || a.due_date || '').localeCompare(String(b.expected_date || b.due_date || ''))), [activeRows]);
   const groups = useMemo(() => groupUpcoming(upcomingRows), [upcomingRows]);
   const nextPayment = upcomingRows[0] || activeRows[0] || null;

@@ -109,8 +109,9 @@ function TransactionDetail({ row, categories, candidates, money, dateLabel, onCl
   </section></div>;
 }
 
-export default function TransactionWorkspace({ accounts = [], categories = [], money, dateLabel, refreshKey, accountId = null }) {
-  const [rows, setRows] = useState([]);
+export default function TransactionWorkspace({ accounts = [], categories = [], money, dateLabel, refreshKey, accountId = null, initialRows = null }) {
+  const hasInitialRows = Array.isArray(initialRows) && initialRows.length > 0;
+  const [rows, setRows] = useState(hasInitialRows ? initialRows : []);
   const [candidates, setCandidates] = useState([]);
   const [loadState, setLoadState] = useState('loading');
   const [candidateState, setCandidateState] = useState('loading');
@@ -134,7 +135,19 @@ export default function TransactionWorkspace({ accounts = [], categories = [], m
     try { const result = await apiRequest('/payments/match-candidates?date_tolerance_days=7'); setCandidates(Array.isArray(result) ? result : []); setCandidateState('loaded'); }
     catch { setCandidates([]); setCandidateState('error'); }
   };
-  useEffect(() => { Promise.allSettled([load(), loadCandidates()]); }, [revision, refreshKey]);
+  useEffect(() => {
+    if (Array.isArray(initialRows) && initialRows.length > 0) {
+      setRows(initialRows);
+      setLoadState('loaded');
+    }
+  }, [initialRows]);
+  // refreshKey is retained for callers using the legacy contract, but it must
+  // not restart the primary request when the parent finishes a background load.
+  useEffect(() => {
+    const requests = [loadCandidates()];
+    if (!hasInitialRows) requests.unshift(load());
+    Promise.allSettled(requests);
+  }, [revision, accountId]);
   useEffect(() => { setFilters((current) => ({ ...current, account: accountId == null ? 'all' : String(accountId) })); }, [accountId]);
 
   const categoryById = useMemo(() => new Map(categories.map((row) => [Number(row.id), row])), [categories]);
