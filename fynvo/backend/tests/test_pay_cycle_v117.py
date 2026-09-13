@@ -1,6 +1,7 @@
 from datetime import date, timedelta
 
 from app.database import get_engine, get_session_factory
+from app.finance import today_local
 from sqlalchemy import text
 
 
@@ -26,7 +27,7 @@ def create_income(client, name, amount, days, frequency="fortnightly", account_i
         "name": name,
         "amount": amount,
         "frequency": frequency,
-        "next_payment_date": (date.today() + timedelta(days=days)).isoformat(),
+        "next_payment_date": (today_local() + timedelta(days=days)).isoformat(),
         "is_active": True,
     }
     if account_id is not None:
@@ -41,7 +42,7 @@ def create_recurring(client, name, amount, days, *, frequency="monthly", account
         "name": name,
         "amount": amount,
         "frequency": frequency,
-        "next_due_date": (date.today() + timedelta(days=days)).isoformat(),
+        "next_due_date": (today_local() + timedelta(days=days)).isoformat(),
         "payment_method": "automatic_card_payment" if card_id else "direct_debit" if automatic else "manual_payment",
         "payment_handling": "automatic" if automatic or card_id else "manual",
     }
@@ -58,7 +59,7 @@ def create_bill(client, name, amount, days, account_id=None, automatic=False, re
     payload = {
         "name": name,
         "amount": amount,
-        "due_date": (date.today() + timedelta(days=days)).isoformat(),
+        "due_date": (today_local() + timedelta(days=days)).isoformat(),
         "payment_method": "direct_debit" if automatic else "bpay",
         "payment_handling": "automatic" if automatic else "manual",
     }

@@ -42,7 +42,25 @@ function TransactionRow({ row }) { const income = row.transaction_type === 'inco
 
 export default function AccountsWorkspaceV1240({ onNavigate = () => {}, onManageAccount = () => {}, onAddAccount = () => {}, onAddTransaction = () => {} }) {
   const [view, setView] = useState(() => localStorage.getItem('fynvo.accounts.view.v1240') || 'accounts'); const [accounts, setAccounts] = useState([]); const [cards, setCards] = useState([]); const [categories, setCategories] = useState([]); const [recurring, setRecurring] = useState([]); const [transactions, setTransactions] = useState([]); const [selected, setSelected] = useState(null); const [cardEdit, setCardEdit] = useState(null); const [accountEdit, setAccountEdit] = useState(null); const [loading, setLoading] = useState(true); const [error, setError] = useState('');
-  const load = async () => { setLoading(true); setError(''); const results = await Promise.allSettled([apiRequest('/accounts?include_archived=true'), apiRequest('/cards?include_inactive=true'), apiRequest('/categories'), apiRequest('/recurring-expenses'), apiRequest('/payments/transactions?limit=2000')]); const [accountsResult, cardsResult, categoriesResult, recurringResult, transactionsResult] = results; if (accountsResult.status === 'fulfilled') setAccounts(accountsResult.value || []); else setError('Accounts could not load. Try again.'); if (cardsResult.status === 'fulfilled') setCards(cardsResult.value || []); if (categoriesResult.status === 'fulfilled') setCategories(categoriesResult.value || []); if (recurringResult.status === 'fulfilled') setRecurring(recurringResult.value || []); if (transactionsResult.status === 'fulfilled') setTransactions(transactionsResult.value || []); setLoading(false); };
+  const load = async () => {
+    setLoading(true); setError('');
+    // Accounts is the primary view. Supporting data must never hold it on a
+    // skeleton when a slow transactions or match request is still running.
+    try {
+      const accountRows = await apiRequest('/accounts?include_archived=true');
+      setAccounts(Array.isArray(accountRows) ? accountRows : []);
+      setLoading(false);
+    } catch (requestError) {
+      setLoading(false);
+      setError(requestError?.message || 'Accounts could not load. Try again.');
+    }
+    const results = await Promise.allSettled([apiRequest('/cards?include_inactive=true'), apiRequest('/categories'), apiRequest('/recurring-expenses'), apiRequest('/payments/transactions?limit=2000')]);
+    const [cardsResult, categoriesResult, recurringResult, transactionsResult] = results;
+    if (cardsResult.status === 'fulfilled') setCards(Array.isArray(cardsResult.value) ? cardsResult.value : []);
+    if (categoriesResult.status === 'fulfilled') setCategories(Array.isArray(categoriesResult.value) ? categoriesResult.value : []);
+    if (recurringResult.status === 'fulfilled') setRecurring(Array.isArray(recurringResult.value) ? recurringResult.value : []);
+    if (transactionsResult.status === 'fulfilled') setTransactions(Array.isArray(transactionsResult.value) ? transactionsResult.value : []);
+  };
   useEffect(() => { load(); }, []); useEffect(() => { localStorage.setItem('fynvo.accounts.view.v1240', view); }, [view]);
   const activeAccounts = useMemo(() => accounts.filter((account) => !account.archived_at && account.is_active !== false), [accounts]); const activeCards = cards.filter((card) => card.is_active !== false); const totalBalance = activeAccounts.reduce((sum, account) => sum + Number(account.current_balance ?? account.opening_balance ?? 0), 0); const pending = transactions.filter((row) => String(row.status || '').toLowerCase() === 'pending');
   if (selected) return <>{<AccountDetail account={selected} accounts={activeAccounts} cards={activeCards} transactions={transactions} recurring={recurring} onBack={() => setSelected(null)} onManage={setAccountEdit} onAddTransaction={onAddTransaction} onOpenPayments={() => onNavigate('Payments')}/>} {accountEdit && <AccountEditor account={accountEdit} onClose={() => setAccountEdit(null)} onSaved={async () => { setAccountEdit(null); await load(); }}/>}</>;

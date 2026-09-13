@@ -76,6 +76,7 @@ export default function AppCorrectiveV1163({ authState = null }) {
       const planActive = current === 'Cash Plan' && window.matchMedia('(max-width: 980px)').matches;
       document.body.classList.toggle('fynvo-accounts-cards-v1163-active', accountsActive);
       document.body.classList.toggle('fynvo-plan-v1240-active', planActive);
+      document.body.classList.toggle('fynvo-payment-v1240-active', paymentActive);
       if (accountsActive) {
         setLegacyView(current === 'Cards' ? 'Cards' : 'Accounts');
         if (current === 'Cards') {
@@ -110,6 +111,7 @@ export default function AppCorrectiveV1163({ authState = null }) {
       window.removeEventListener('resize', sync);
       document.body.classList.remove('fynvo-accounts-cards-v1163-active');
       document.body.classList.remove('fynvo-plan-v1240-active');
+      document.body.classList.remove('fynvo-payment-v1240-active');
     };
   }, []);
 
