@@ -106,7 +106,8 @@ jobs:
     name: Build and verify Home Assistant image
     needs: [prepare, create_tag]
     uses: ./.github/workflows/release-image.yml
-    with: {}
+    with:
+      release_ref: ${{ needs.prepare.outputs.tag }}
     secrets: inherit
 
   publish_release:
