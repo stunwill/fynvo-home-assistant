@@ -1,5 +1,12 @@
 # Fynvo Add-on Changelog
 
+## v1.24.3 - Post-v1.24.1 Production Corrections
+
+- Aligns Payments Attention counts, badges, totals and displayed rows from the same canonical payment set.
+- Ensures Accounts Activity reaches a populated, empty or error state without indefinite loading.
+- Corrects Plan Calendar selected-date labelling and exposes actionable Safe to Spend configuration reasons.
+- Preserves payment, account, transaction, reconciliation, ingress and `/data` behaviour. No database migration is required.
+
 ## v1.24.1 - Core UX Redesign Production Corrections
 
 - Corrects Accounts and Activity loading and terminal states, with scoped errors, retry and deliberate empty states.

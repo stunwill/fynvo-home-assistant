@@ -6,7 +6,7 @@
 
 ## Current release
 
-Current development release: **v1.24.1 Core UX Redesign production corrections**.
+Current development release: **v1.24.3 post-v1.24.1 production corrections**.
 
 v1.22.0 builds on the merged v1.21.2 Payments Requiring Attention baseline. It:
 

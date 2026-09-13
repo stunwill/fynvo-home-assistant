@@ -2,6 +2,14 @@
 
 All notable Fynvo changes are documented here. Starting with v0.3.0, every release must include a user-readable changelog entry, Home Assistant-visible release notes and GitHub release notes.
 
+## v1.24.3 - Post-v1.24.1 Production Corrections
+
+- Corrects Payments Attention so badges, summaries, totals and rows share one source of truth.
+- Prevents Accounts Activity from being held in a skeleton by parent background refreshes, while preserving reconciliation.
+- Keeps selected Plan Calendar dates valid and distinct from missing planning configuration.
+- Adds structured Safe to Spend unavailable reasons and actionable setup guidance.
+- Preserves the v1.24 architecture, Home Assistant ingress, `/data`, routes and financial data.
+
 ## v1.24.1 - Core UX Redesign Production Corrections
 
 - Corrects Accounts and Activity loading so primary data reaches explicit loading, populated, empty or error states without waiting on slow supporting requests.
