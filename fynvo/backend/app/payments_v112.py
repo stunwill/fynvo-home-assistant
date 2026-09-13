@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import text
 from sqlalchemy.orm import Session as DbSession
 
-from . import payments_v17, v1, v111
+from . import finance, payments_v17, v1, v111
 from .auth import get_current_user
 from .database import get_db
 from .models import User
@@ -117,7 +117,7 @@ def _require_card(db: DbSession, user: User, card_id: int | None) -> dict[str, A
 
 
 def _bill_status(row: dict[str, Any], today: date | None = None) -> str:
-    today = today or date.today()
+    today = today or finance.today_local()
     if row.get("cancelled_at") or not bool(row.get("is_active", True)):
         return "cancelled"
     if row.get("paid_at") or row.get("actual_date") or row.get("remaining_amount_cents") == 0:
@@ -143,7 +143,7 @@ def _bill_status(row: dict[str, Any], today: date | None = None) -> str:
 
 def _bill_response(row: Any, today: date | None = None) -> dict[str, Any]:
     data = dict(row._mapping) if hasattr(row, "_mapping") else dict(row)
-    current = today or date.today()
+    current = today or finance.today_local()
     due = _as_date(data.get("due_date"))
     expected_cents = data.get("original_amount_cents")
     if expected_cents is None:
@@ -204,7 +204,7 @@ def list_bills_v112(db: DbSession, user: User, filter_value: str = "all") -> lis
     if filter_value == "overdue":
         return [row for row in rows if row["status"] == "overdue"]
     if filter_value == "due_soon":
-        return [row for row in rows if row["status"] in {"due_today", "upcoming"} and row.get("due_date") and _as_date(row["due_date"]) <= date.today() + timedelta(days=7)]
+        return [row for row in rows if row["status"] in {"due_today", "upcoming"} and row.get("due_date") and _as_date(row["due_date"]) <= finance.today_local() + timedelta(days=7)]
     if filter_value == "paid":
         return [row for row in rows if row["status"] == "paid"]
     if filter_value == "active":
@@ -383,7 +383,7 @@ def update_bill(bill_id: int, payload: BillUpdatePayload, current_user: User = U
         db.rollback()
         raise HTTPException(status_code=409, detail="This payment changed while you were reviewing it")
     if requested_status in {"paid", "resolved"}:
-        actual_date = date.today()
+        actual_date = finance.today_local()
         db.execute(text("""
             UPDATE bills SET remaining_amount_cents=0,paid_at=:paid,actual_date=:actual_date,actual_amount_cents=:actual,
                 confirmation_source='manual',resolved_at=:resolved,updated_at=:now
@@ -426,7 +426,7 @@ def mark_bill_paid(bill_id: int, payload: MarkPaidPayload, current_user: User = 
     actual = parse_money(payload.paid_amount) if payload.paid_amount not in (None, "") else existing.get("original_amount_cents")
     if actual is None:
         raise HTTPException(status_code=400, detail="Actual amount is required because this Bill has no expected amount")
-    paid_date = payload.paid_date or date.today()
+    paid_date = payload.paid_date or finance.today_local()
     now = utcnow()
     result = db.execute(text("""
         UPDATE bills SET remaining_amount_cents=0,paid_at=:now,actual_date=:paid_date,actual_amount_cents=:actual,
@@ -477,7 +477,7 @@ def _scheduled_payment_rows(db: DbSession, user: User) -> list[dict[str, Any]]:
     }
     candidate_ids = {int(item["scheduled_payment_id"]) for item in v111.payment_match_candidates(7, user, db)}
     output = []
-    current = date.today()
+    current = finance.today_local()
     for item in rows:
         meta = recurring_meta.get(int(item["recurring_expense_id"]), {})
         due = _as_date(item.get("expected_date"))
@@ -498,7 +498,7 @@ def _scheduled_payment_rows(db: DbSession, user: User) -> list[dict[str, Any]]:
 
 
 def _date_range(kind: str, start: date | None, end: date | None) -> tuple[date | None, date | None]:
-    current = date.today()
+    current = finance.today_local()
     if kind == "overdue":
         return None, current - timedelta(days=1)
     if kind == "today":

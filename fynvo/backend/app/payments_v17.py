@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import text
 from sqlalchemy.orm import Session as DbSession
 
-from . import v1
+from . import finance, v1
 from .auth import get_current_user
 from .database import get_db
 from .models import User
@@ -222,7 +222,7 @@ def _scheduled_response(row: Any) -> dict[str, Any]:
 
 
 def ensure_scheduled_payments(db: DbSession, user: User, horizon_days: int = 120, today: date | None = None) -> None:
-    today = today or date.today()
+    today = today or finance.today_local()
     end = today + timedelta(days=horizon_days)
     rows = db.execute(text("""
         SELECT r.*,c.account_id AS card_account_id
@@ -344,7 +344,7 @@ def mark_paid(payment_id: int, payload: MarkPaidPayload, current_user: User = US
         raise HTTPException(status_code=409, detail="This Scheduled Payment is already resolved")
     actual = parse_money(payload.paid_amount) if payload.paid_amount not in (None, "") else row["expected_amount_cents"]
     now = utcnow()
-    paid_date = payload.paid_date or date.today()
+    paid_date = payload.paid_date or finance.today_local()
     db.execute(text("UPDATE scheduled_payments SET status='paid',actual_date=:actual_date,actual_amount_cents=:actual,confirmation_source='manual',note=:note,updated_at=:now WHERE id=:id"), {"actual_date": paid_date, "actual": actual, "note": payload.note, "now": now, "id": payment_id})
     db.execute(text("INSERT INTO scheduled_payment_history(user_id,scheduled_payment_id,from_status,to_status,source,note,created_at) VALUES(:uid,:sid,:from_status,'paid','manual',:note,:now)"), {"uid": current_user.id, "sid": payment_id, "from_status": row["status"], "note": payload.note, "now": now})
     db.commit()
