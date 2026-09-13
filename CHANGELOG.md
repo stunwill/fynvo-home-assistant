@@ -2,6 +2,13 @@
 
 All notable Fynvo changes are documented here. Starting with v0.3.0, every release must include a user-readable changelog entry, Home Assistant-visible release notes and GitHub release notes.
 
+## v1.24.1 - Core UX Redesign Production Corrections
+
+- Corrects Accounts and Activity loading so primary data reaches explicit loading, populated, empty or error states without waiting on slow supporting requests.
+- Improves scoped retry and empty-state handling while preserving cards, transactions, reconciliation, historical data and API contracts.
+- Removes the obsolete mobile Payment Centre outer shell, clarifies Safe to Spend configuration-unavailable states and keeps legitimate recurring occurrences distinct.
+- Tightens mobile shell cleanup and safe-area presentation. No database migration is required.
+
 ## v1.24.0 - Core UX Redesign
 
 - Reorganises the mobile product around Overview, Payments, Plan, Accounts and More.

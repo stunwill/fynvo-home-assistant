@@ -10,6 +10,7 @@ from pydantic import BaseModel
 from sqlalchemy import text
 from sqlalchemy.orm import Session as DbSession
 
+from . import finance
 from . import payments_v17 as legacy
 from .auth import get_current_user
 from .database import get_db
@@ -42,7 +43,7 @@ def ensure_scheduled_payments(db: DbSession, user: User, horizon_days: int = 120
     section inside the add-on process. INSERT OR IGNORE keeps concurrent/retried
     generation idempotent at the database constraint as well.
     """
-    today = today or date.today()
+    today = today or finance.today_local()
     end = today + timedelta(days=horizon_days)
     stats = {"rules": 0, "occurrences": 0, "inserted": 0, "updated": 0, "history": 0}
 
@@ -493,7 +494,7 @@ def unmatch_payment(payment_id: int, current_user: User = USER, db: DbSession = 
         expected_date,
         payment["payment_handling"],
         int(payment.get("auto_payment_grace_days") or legacy.DEFAULT_GRACE_DAYS),
-        date.today(),
+        finance.today_local(),
     )
     now = utcnow()
     db.execute(

@@ -1,5 +1,12 @@
 # Fynvo Add-on Changelog
 
+## v1.24.1 - Core UX Redesign Production Corrections
+
+- Corrects Accounts and Activity loading and terminal states, with scoped errors, retry and deliberate empty states.
+- Removes the obsolete mobile Payment Centre presentation around the redesigned Payments workspace.
+- Improves Safe to Spend unavailable explanations and configuration follow-up while preserving financial semantics and data.
+- Preserves Home Assistant ingress, existing routes, reconciliation and `/data` persistence. No database migration is required.
+
 ## v1.24.0 - Core UX Redesign
 
 - Recommends a focused Overview around Safe to Spend, Needs attention, Coming up and Your plan.

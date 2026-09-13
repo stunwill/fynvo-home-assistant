@@ -81,7 +81,7 @@ def _schedule_key(recurring_expense_id: int, occurrence_date: Any) -> tuple[int,
 
 
 def ensure_scheduled_payments(db: DbSession, user: User, horizon_days: int = 120, today: date | None = None) -> dict[str, int]:
-    today = today or date.today()
+    today = today or finance.today_local()
     end = today + timedelta(days=horizon_days)
     stats = {"rules": 0, "occurrences": 0, "inserted": 0, "updated": 0, "history": 0}
     with _schedule_lock:
@@ -234,7 +234,7 @@ def _mutate_expected_date(db: DbSession, user: User, row: dict[str, Any], new_da
         raise HTTPException(status_code=409, detail="Another payment in this recurring series already uses that date")
     handling = row.get("payment_handling") or payments_v17.default_payment_handling(row.get("payment_method"))
     grace = int(row.get("auto_payment_grace_days") or payments_v17.DEFAULT_GRACE_DAYS)
-    status_name = payments_v17._status_for(new_date, handling, grace, date.today())
+    status_name = payments_v17._status_for(new_date, handling, grace, finance.today_local())
     now = utcnow()
     current_version = int(row.get("version") or 1)
     updated = db.execute(text("""
@@ -293,7 +293,7 @@ def _linked_bill_keys(db: DbSession, user: User) -> set[tuple[int, str]]:
 
 
 def scheduled_occurrence_events(db: DbSession, user: User, start: date, end: date) -> list[dict[str, Any]]:
-    horizon = max(120, (end - date.today()).days + 7)
+    horizon = max(120, (end - finance.today_local()).days + 7)
     ensure_scheduled_payments(db, user, horizon_days=horizon)
     linked_bills = _linked_bill_keys(db, user)
     rows = db.execute(text("""
