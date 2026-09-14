@@ -1,0 +1,63 @@
+name: Repair PR91 branch
+
+on:
+  push:
+    branches:
+      - release/v1.24.2-release-pipeline-hardening
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out release branch
+        uses: actions/checkout@v4
+        with:
+          ref: release/v1.24.2-release-pipeline-hardening
+          fetch-depth: 0
+
+      - name: Update stale frontend release assertions
+        shell: bash
+        run: |
+          set -euo pipefail
+          files=(
+            fynvo/frontend/tests/v1161-corrective-ux.test.mjs
+            fynvo/frontend/tests/v117-pay-cycle-planning.test.mjs
+            fynvo/frontend/tests/v1174-direct-auth-startup.test.mjs
+            fynvo/frontend/tests/v1176-accounts-cards-interactivity.test.mjs
+            fynvo/frontend/tests/v1177-mobile-performance.test.mjs
+            fynvo/frontend/tests/v1178-mobile-overview.test.mjs
+            fynvo/frontend/tests/v1179-mobile-workspace-ux.test.mjs
+            fynvo/frontend/tests/v1180-mobile-financial-decision-ux.test.mjs
+            fynvo/frontend/tests/v1181-overview-decision-dashboard.test.mjs
+            fynvo/frontend/tests/v1182-payment-centre-mobile-ux.test.mjs
+            fynvo/frontend/tests/v1183-payment-centre-actionability.test.mjs
+          )
+          for file in "${files[@]}"; do
+            sed -i 's/1\.24\.1/1.24.2/g' "$file"
+          done
+
+      - name: Regenerate frontend package lock
+        working-directory: fynvo/frontend
+        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+
+      - name: Verify lockfile clean install
+        working-directory: fynvo/frontend
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Commit repaired branch files
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add fynvo/frontend/package-lock.json fynvo/frontend/tests/*.test.mjs
+          if git diff --cached --quiet; then
+            echo "No repair changes were required."
+            exit 0
+          fi
+          git commit -m "fix: align v1.24.2 frontend release metadata"
+          git push origin HEAD:release/v1.24.2-release-pipeline-hardening
