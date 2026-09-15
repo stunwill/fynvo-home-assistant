@@ -1,10 +1,18 @@
 name: Publish Fynvo release image
 
 on:
-  push:
-    tags:
-      - "v*.*.*"
+  workflow_call:
+    inputs:
+      release_ref:
+        description: "Release tag/ref to build, for example v1.24.3"
+        required: true
+        type: string
   workflow_dispatch:
+    inputs:
+      release_ref:
+        description: "Release tag/ref to build, for example v1.24.3"
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -17,18 +25,43 @@ jobs:
   validate:
     name: Validate release metadata
     runs-on: ubuntu-latest
+    outputs:
+      release_ref: ${{ steps.ref.outputs.release_ref }}
+      version: ${{ steps.ref.outputs.version }}
     steps:
-      - name: Checkout
+      - name: Resolve release ref
+        id: ref
+        shell: bash
+        env:
+          CALLED_REF: ${{ inputs.release_ref }}
+          DISPATCH_REF: ${{ github.event.inputs.release_ref }}
+        run: |
+          set -euo pipefail
+          RELEASE_REF="${CALLED_REF:-${DISPATCH_REF:-${GITHUB_REF_NAME}}}"
+          if [[ ! "$RELEASE_REF" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Release ref must be vX.Y.Z: $RELEASE_REF" >&2
+            exit 1
+          fi
+          VERSION="${RELEASE_REF#v}"
+          echo "release_ref=$RELEASE_REF" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout release tag
         uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.ref.outputs.release_ref }}
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+
       - name: Install metadata validator dependency
         run: python -m pip install pyyaml
+
       - name: Validate version and image contract
         env:
-          FYNVO_RELEASE_TAG: ${{ github.ref_name }}
+          FYNVO_RELEASE_TAG: ${{ steps.ref.outputs.release_ref }}
         run: python scripts/validate_release_metadata.py
 
   build:
@@ -55,23 +88,30 @@ jobs:
             platform: linux/arm/v7
             build_from: ghcr.io/home-assistant/armv7-base-python:3.12-alpine3.20
     steps:
-      - name: Checkout
+      - name: Checkout release tag
         uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.validate.outputs.release_ref }}
+
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
+
       - name: Set up Buildx
         uses: docker/setup-buildx-action@v3
+
       - name: Log in to GHCR
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Resolve build metadata
         id: metadata
         run: |
-          echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          echo "version=${{ needs.validate.outputs.version }}" >> "$GITHUB_OUTPUT"
           echo "created=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+
       - name: Build and publish architecture image
         uses: docker/build-push-action@v6
         with:
@@ -91,7 +131,7 @@ jobs:
 
   manifest:
     name: Publish multi-architecture manifest
-    needs: build
+    needs: [validate, build]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -99,28 +139,33 @@ jobs:
     steps:
       - name: Set up Buildx
         uses: docker/setup-buildx-action@v3
+
       - name: Log in to GHCR
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Resolve release version
-        id: metadata
-        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
       - name: Publish immutable version manifest
+        env:
+          VERSION: ${{ needs.validate.outputs.version }}
+          RELEASE_REF: ${{ needs.validate.outputs.release_ref }}
         run: |
-          VERSION="${{ steps.metadata.outputs.version }}"
+          set -euo pipefail
           docker buildx imagetools create \
             --tag "${IMAGE_NAME}:${VERSION}" \
-            --tag "${IMAGE_NAME}:${GITHUB_REF_NAME}" \
+            --tag "${IMAGE_NAME}:${RELEASE_REF}" \
             "${IMAGE_NAMESPACE}/aarch64-fynvo:${VERSION}" \
             "${IMAGE_NAMESPACE}/amd64-fynvo:${VERSION}" \
             "${IMAGE_NAMESPACE}/armhf-fynvo:${VERSION}" \
             "${IMAGE_NAMESPACE}/armv7-fynvo:${VERSION}"
+
       - name: Verify published manifest
+        env:
+          VERSION: ${{ needs.validate.outputs.version }}
         run: |
-          VERSION="${{ steps.metadata.outputs.version }}"
+          set -euo pipefail
           docker buildx imagetools inspect "${IMAGE_NAME}:${VERSION}" --raw > manifest.json
           python - <<'PY'
           import json
@@ -142,9 +187,13 @@ jobs:
               raise SystemExit(f"Published manifest is missing platforms: {sorted(missing)}")
           print(f"Verified release manifest platforms: {sorted(actual)}")
           PY
-      - name: Verify Home Assistant image reference anonymously
+
+      - name: Verify exact Home Assistant image reference anonymously
+        env:
+          VERSION: ${{ needs.validate.outputs.version }}
         run: |
-          VERSION="${{ steps.metadata.outputs.version }}"
-          docker logout ghcr.io || true
+          set -euo pipefail
+          docker logout ghcr.io >/dev/null 2>&1 || true
           docker buildx imagetools inspect "${IMAGE_NAME}:${VERSION}" >/dev/null
-          echo "Anonymous registry resolution succeeded for ${IMAGE_NAME}:${VERSION}"
+          docker pull --platform linux/amd64 "${IMAGE_NAME}:${VERSION}" >/dev/null
+          echo "Anonymous registry resolution and pull succeeded for ${IMAGE_NAME}:${VERSION}"
