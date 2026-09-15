@@ -1,68 +1,1283 @@
-import { useEffect, useMemo, useState } from 'react';
-import { apiRequest } from './apiClient.js';
-import TransactionWorkspace from './TransactionWorkspace.jsx';
+import { useEffect, useMemo, useState } from "react";
+import { apiRequest } from "./apiClient.js";
+import TransactionWorkspace from "./TransactionWorkspace.jsx";
 
-const money = (value) => { if (value === null || value === undefined || value === '') return '—'; const number = Number(value); return Number.isFinite(number) ? new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(number) : '—'; };
-const dateLabel = (value) => { if (!value) return 'Date unavailable'; const [year, month, day] = String(value).slice(0, 10).split('-').map(Number); const date = new Date(year, month - 1, day); return Number.isNaN(date.getTime()) ? 'Date unavailable' : new Intl.DateTimeFormat('en-AU', { day: 'numeric', month: 'short', year: 'numeric' }).format(date); };
-const accountType = (account) => String(account?.account_type || 'account').replaceAll('_', ' ');
-const isCredit = (account) => /credit|loan|liability|mortgage|card/i.test(String(account?.account_type || ''));
-const accountIcon = (account) => isCredit(account) ? '▣' : /saving/i.test(accountType(account)) ? '◇' : '▦';
+const money = (value) => {
+  if (value === null || value === undefined || value === "") return "—";
+  const number = Number(value);
+  return Number.isFinite(number)
+    ? new Intl.NumberFormat("en-AU", {
+        style: "currency",
+        currency: "AUD",
+      }).format(number)
+    : "—";
+};
+const dateLabel = (value) => {
+  if (!value) return "Date unavailable";
+  const [year, month, day] = String(value).slice(0, 10).split("-").map(Number);
+  const date = new Date(year, month - 1, day);
+  return Number.isNaN(date.getTime())
+    ? "Date unavailable"
+    : new Intl.DateTimeFormat("en-AU", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      }).format(date);
+};
+const accountType = (account) =>
+  String(account?.account_type || "account").replaceAll("_", " ");
+const isCredit = (account) =>
+  /credit|loan|liability|mortgage|card/i.test(
+    String(account?.account_type || ""),
+  );
+const accountIcon = (account) =>
+  isCredit(account) ? "▣" : /saving/i.test(accountType(account)) ? "◇" : "▦";
 const transactionAmount = (row) => Number(row?.amount || 0);
+const fundingStatus = (row) =>
+  row?.status === "add"
+    ? `Add ${money(row.funding_shortfall)}`
+    : row?.status === "covered"
+      ? "Covered"
+      : row?.status === "no_payments_due"
+        ? "No payments due"
+        : "Needs setup";
+const freshness = (value) => {
+  if (!value) return "Balance date not recorded";
+  const then = new Date(value);
+  const now = new Date();
+  const days = Math.floor((now - then) / 86400000);
+  if (days <= 0)
+    return `Updated today, ${new Intl.DateTimeFormat("en-AU", { hour: "numeric", minute: "2-digit" }).format(then)}`;
+  return `Updated ${days} day${days === 1 ? "" : "s"} ago`;
+};
 
 function CardEditor({ card, accounts, onClose, onSaved }) {
-  const [form, setForm] = useState({ id: card?.id || null, name: card?.name || '', account_id: card?.account_id || accounts[0]?.id || '', card_type: card?.card_type || 'debit', last_four: card?.last_four || '', is_active: card?.is_active !== false });
-  const [error, setError] = useState(''); const [busy, setBusy] = useState(false);
-  const save = async (event) => { event.preventDefault(); setBusy(true); setError(''); try { await apiRequest(form.id ? `/cards/${form.id}` : '/cards', { method: form.id ? 'PUT' : 'POST', body: JSON.stringify({ ...form, account_id: Number(form.account_id) }) }); await onSaved(); } catch (requestError) { setError(requestError?.message || 'Card could not be saved.'); } finally { setBusy(false); } };
-  return <div className="fynvo-accounts-v1240-backdrop"><form className="fynvo-accounts-v1240-sheet" role="dialog" aria-modal="true" aria-label={form.id ? 'Edit Card' : 'Add Card'} onSubmit={save}><header><h2>{form.id ? 'Edit Card' : 'Add Card'}</h2><button type="button" aria-label="Close Card editor" onClick={onClose}>×</button></header><label><span>Card name</span><input required value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })}/></label><label><span>Linked account</span><select required value={form.account_id} onChange={(event) => setForm({ ...form, account_id: event.target.value })}>{accounts.map((account) => <option value={account.id} key={account.id}>{account.name}</option>)}</select></label><label><span>Card type</span><select value={form.card_type} onChange={(event) => setForm({ ...form, card_type: event.target.value })}><option value="debit">Debit</option><option value="credit">Credit</option><option value="prepaid">Prepaid</option><option value="other">Other</option></select></label><label><span>Last four digits</span><input required inputMode="numeric" pattern="[0-9]{4}" maxLength="4" value={form.last_four} onChange={(event) => setForm({ ...form, last_four: event.target.value.replace(/\D/g, '').slice(0, 4) })}/></label>{form.id && <label className="checkbox"><input type="checkbox" checked={form.is_active} onChange={(event) => setForm({ ...form, is_active: event.target.checked })}/><span>Active</span></label>}{error && <p className="fynvo-accounts-v1240-error-text" role="alert">{error}</p>}<footer><button type="button" onClick={onClose}>Cancel</button><button type="submit" className="primary" disabled={busy}>{busy ? 'Saving…' : 'Save Card'}</button></footer></form></div>;
+  const [form, setForm] = useState({
+    id: card?.id || null,
+    name: card?.name || "",
+    account_id: card?.account_id || accounts[0]?.id || "",
+    card_type: card?.card_type || "debit",
+    last_four: card?.last_four || "",
+    is_active: card?.is_active !== false,
+  });
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  const save = async (event) => {
+    event.preventDefault();
+    setBusy(true);
+    setError("");
+    try {
+      await apiRequest(form.id ? `/cards/${form.id}` : "/cards", {
+        method: form.id ? "PUT" : "POST",
+        body: JSON.stringify({ ...form, account_id: Number(form.account_id) }),
+      });
+      await onSaved();
+    } catch (requestError) {
+      setError(requestError?.message || "Card could not be saved.");
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="fynvo-accounts-v1240-backdrop">
+      <form
+        className="fynvo-accounts-v1240-sheet"
+        role="dialog"
+        aria-modal="true"
+        aria-label={form.id ? "Edit Card" : "Add Card"}
+        onSubmit={save}
+      >
+        <header>
+          <h2>{form.id ? "Edit Card" : "Add Card"}</h2>
+          <button
+            type="button"
+            aria-label="Close Card editor"
+            onClick={onClose}
+          >
+            ×
+          </button>
+        </header>
+        <label>
+          <span>Card name</span>
+          <input
+            required
+            value={form.name}
+            onChange={(event) => setForm({ ...form, name: event.target.value })}
+          />
+        </label>
+        <label>
+          <span>Linked account</span>
+          <select
+            required
+            value={form.account_id}
+            onChange={(event) =>
+              setForm({ ...form, account_id: event.target.value })
+            }
+          >
+            {accounts.map((account) => (
+              <option value={account.id} key={account.id}>
+                {account.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          <span>Card type</span>
+          <select
+            value={form.card_type}
+            onChange={(event) =>
+              setForm({ ...form, card_type: event.target.value })
+            }
+          >
+            <option value="debit">Debit</option>
+            <option value="credit">Credit</option>
+            <option value="prepaid">Prepaid</option>
+            <option value="other">Other</option>
+          </select>
+        </label>
+        <label>
+          <span>Last four digits</span>
+          <input
+            required
+            inputMode="numeric"
+            pattern="[0-9]{4}"
+            maxLength="4"
+            value={form.last_four}
+            onChange={(event) =>
+              setForm({
+                ...form,
+                last_four: event.target.value.replace(/\D/g, "").slice(0, 4),
+              })
+            }
+          />
+        </label>
+        {form.id && (
+          <label className="checkbox">
+            <input
+              type="checkbox"
+              checked={form.is_active}
+              onChange={(event) =>
+                setForm({ ...form, is_active: event.target.checked })
+              }
+            />
+            <span>Active</span>
+          </label>
+        )}
+        {error && (
+          <p className="fynvo-accounts-v1240-error-text" role="alert">
+            {error}
+          </p>
+        )}
+        <footer>
+          <button type="button" onClick={onClose}>
+            Cancel
+          </button>
+          <button type="submit" className="primary" disabled={busy}>
+            {busy ? "Saving…" : "Save Card"}
+          </button>
+        </footer>
+      </form>
+    </div>
+  );
 }
 
 function AccountEditor({ account, onClose, onSaved }) {
-  const [form, setForm] = useState({ name: account.name || '', institution: account.institution || '', account_type: account.account_type || 'transaction', opening_balance: String(account.opening_balance ?? '0.00'), account_suffix: account.account_suffix || '', description: account.description || '' });
-  const [error, setError] = useState(''); const [busy, setBusy] = useState(false);
-  const save = async (event) => { event.preventDefault(); setBusy(true); setError(''); try { await apiRequest(`/accounts/${account.id}`, { method: 'PUT', body: JSON.stringify(form) }); await onSaved(); } catch (requestError) { setError(requestError?.message || 'Account could not be saved.'); } finally { setBusy(false); } };
-  return <div className="fynvo-accounts-v1240-backdrop"><form className="fynvo-accounts-v1240-sheet" role="dialog" aria-modal="true" aria-label={`Edit ${account.name}`} onSubmit={save}><header><h2>Account details</h2><button type="button" aria-label="Close Account details" onClick={onClose}>×</button></header><label><span>Account name</span><input required value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })}/></label><label><span>Institution</span><input value={form.institution} onChange={(event) => setForm({ ...form, institution: event.target.value })}/></label><label><span>Account type</span><select value={form.account_type} onChange={(event) => setForm({ ...form, account_type: event.target.value })}>{['transaction', 'savings', 'offset', 'cash', 'credit_card', 'mortgage', 'personal_loan', 'car_loan', 'line_of_credit', 'other_asset', 'other_liability'].map((type) => <option value={type} key={type}>{type.replaceAll('_', ' ')}</option>)}</select></label><label><span>Opening balance</span><input inputMode="decimal" value={form.opening_balance} onChange={(event) => setForm({ ...form, opening_balance: event.target.value })}/></label><label><span>Account suffix</span><input value={form.account_suffix} onChange={(event) => setForm({ ...form, account_suffix: event.target.value })}/></label><label><span>Description</span><textarea rows="3" value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })}/></label>{error && <p className="fynvo-accounts-v1240-error-text" role="alert">{error}</p>}<footer><button type="button" onClick={onClose}>Cancel</button><button type="submit" className="primary" disabled={busy}>{busy ? 'Saving…' : 'Save Account'}</button></footer></form></div>;
+  const [form, setForm] = useState({
+    name: account.name || "",
+    institution: account.institution || "",
+    account_type: account.account_type || "transaction",
+    opening_balance: String(account.opening_balance ?? "0.00"),
+    account_suffix: account.account_suffix || "",
+    description: account.description || "",
+  });
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  const save = async (event) => {
+    event.preventDefault();
+    setBusy(true);
+    setError("");
+    try {
+      await apiRequest(`/accounts/${account.id}`, {
+        method: "PUT",
+        body: JSON.stringify(form),
+      });
+      await onSaved();
+    } catch (requestError) {
+      setError(requestError?.message || "Account could not be saved.");
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="fynvo-accounts-v1240-backdrop">
+      <form
+        className="fynvo-accounts-v1240-sheet"
+        role="dialog"
+        aria-modal="true"
+        aria-label={`Edit ${account.name}`}
+        onSubmit={save}
+      >
+        <header>
+          <h2>Account details</h2>
+          <button
+            type="button"
+            aria-label="Close Account details"
+            onClick={onClose}
+          >
+            ×
+          </button>
+        </header>
+        <label>
+          <span>Account name</span>
+          <input
+            required
+            value={form.name}
+            onChange={(event) => setForm({ ...form, name: event.target.value })}
+          />
+        </label>
+        <label>
+          <span>Institution</span>
+          <input
+            value={form.institution}
+            onChange={(event) =>
+              setForm({ ...form, institution: event.target.value })
+            }
+          />
+        </label>
+        <label>
+          <span>Account type</span>
+          <select
+            value={form.account_type}
+            onChange={(event) =>
+              setForm({ ...form, account_type: event.target.value })
+            }
+          >
+            {[
+              "transaction",
+              "savings",
+              "offset",
+              "cash",
+              "credit_card",
+              "mortgage",
+              "personal_loan",
+              "car_loan",
+              "line_of_credit",
+              "other_asset",
+              "other_liability",
+            ].map((type) => (
+              <option value={type} key={type}>
+                {type.replaceAll("_", " ")}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          <span>Opening balance</span>
+          <input
+            inputMode="decimal"
+            value={form.opening_balance}
+            onChange={(event) =>
+              setForm({ ...form, opening_balance: event.target.value })
+            }
+          />
+        </label>
+        <label>
+          <span>Account suffix</span>
+          <input
+            value={form.account_suffix}
+            onChange={(event) =>
+              setForm({ ...form, account_suffix: event.target.value })
+            }
+          />
+        </label>
+        <label>
+          <span>Description</span>
+          <textarea
+            rows="3"
+            value={form.description}
+            onChange={(event) =>
+              setForm({ ...form, description: event.target.value })
+            }
+          />
+        </label>
+        {error && (
+          <p className="fynvo-accounts-v1240-error-text" role="alert">
+            {error}
+          </p>
+        )}
+        <footer>
+          <button type="button" onClick={onClose}>
+            Cancel
+          </button>
+          <button type="submit" className="primary" disabled={busy}>
+            {busy ? "Saving…" : "Save Account"}
+          </button>
+        </footer>
+      </form>
+    </div>
+  );
 }
 
-function AccountRow({ account, cards, onOpen }) {
-  const linkedCards = cards.filter((card) => Number(card.account_id) === Number(account.id));
-  return <button type="button" className="fynvo-accounts-v1240-account-row" onClick={() => onOpen(account)}><span className={`fynvo-accounts-v1240-icon ${isCredit(account) ? 'credit' : ''}`}>{accountIcon(account)}</span><span className="fynvo-accounts-v1240-row-copy"><strong>{account.name || 'Account'}</strong><small>{account.institution || accountType(account)}</small></span><span className={`fynvo-accounts-v1240-row-value ${Number(account.current_balance ?? account.opening_balance ?? 0) < 0 ? 'negative' : ''}`}><strong>{money(account.current_balance ?? account.opening_balance)}</strong><small>{linkedCards.length ? `${linkedCards.length} linked card${linkedCards.length === 1 ? '' : 's'}` : accountType(account)}</small></span><span className="fynvo-accounts-v1240-chevron">›</span></button>;
+function BalanceUpdater({ accounts, onClose, onSaved }) {
+  const initial = Object.fromEntries(
+    accounts.map((account) => [
+      account.id,
+      String(account.current_balance ?? account.opening_balance ?? "0.00"),
+    ]),
+  );
+  const [values, setValues] = useState(initial);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const changed = accounts.filter(
+    (account) =>
+      String(values[account.id]).trim() !== String(initial[account.id]).trim(),
+  );
+  const dirty = changed.length > 0;
+  useEffect(() => {
+    const warn = (event) => {
+      if (!dirty) return;
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [dirty]);
+  const close = () => {
+    if (
+      !dirty ||
+      window.confirm(
+        "Discard balance changes?\n\nYou have unsaved account balance updates.",
+      )
+    )
+      onClose();
+  };
+  const save = async (event) => {
+    event.preventDefault();
+    setError("");
+    const invalid = changed.find(
+      (account) =>
+        !/^-?(?:\d+|\d*\.\d{1,2})$/.test(String(values[account.id]).trim()),
+    );
+    if (invalid) {
+      setError(
+        `Enter a valid balance for ${invalid.name}. Blank values are not saved as zero.`,
+      );
+      return;
+    }
+    if (!dirty) {
+      onClose();
+      return;
+    }
+    setBusy(true);
+    try {
+      const result = await apiRequest("/accounts/balances", {
+        method: "PATCH",
+        body: JSON.stringify({
+          balances: changed.map((account) => ({
+            account_id: account.id,
+            balance: String(values[account.id]).trim(),
+          })),
+        }),
+      });
+      await onSaved(result);
+    } catch (requestError) {
+      setError(
+        requestError?.message ||
+          "Balances could not be updated. Your entries have been kept.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="fynvo-accounts-v1240-backdrop">
+      <form
+        className="fynvo-accounts-v1240-balance-view"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Update Balances"
+        onSubmit={save}
+      >
+        <header>
+          <button
+            type="button"
+            className="back"
+            onClick={close}
+            aria-label="Close Update Balances"
+          >
+            ‹
+          </button>
+          <div>
+            <h2>Update balances</h2>
+            <p>Enter the balances shown in your banking apps.</p>
+          </div>
+        </header>
+        <div className="fynvo-accounts-v1240-balance-list">
+          {accounts.map((account, index) => {
+            const value = values[account.id];
+            const isChanged =
+              String(value).trim() !== String(initial[account.id]).trim();
+            return (
+              <label className={isChanged ? "changed" : ""} key={account.id}>
+                <span className="account">
+                  <strong>{account.name}</strong>
+                  <small>
+                    {[
+                      account.institution,
+                      account.account_suffix
+                        ? `••${account.account_suffix}`
+                        : "",
+                    ]
+                      .filter(Boolean)
+                      .join(" · ") || accountType(account)}
+                  </small>
+                </span>
+                <span className="current">
+                  Current: {money(initial[account.id])}
+                </span>
+                <span className="field-label">
+                  New balance {isChanged && <em>Changed</em>}
+                </span>
+                <input
+                  inputMode="decimal"
+                  enterKeyHint={index === accounts.length - 1 ? "done" : "next"}
+                  value={value}
+                  onFocus={(event) => event.target.select()}
+                  onChange={(event) =>
+                    setValues({ ...values, [account.id]: event.target.value })
+                  }
+                  aria-label={`New balance for ${account.name}`}
+                />
+                {isChanged && (
+                  <small className="difference">
+                    {money(initial[account.id])} → {money(value)}
+                  </small>
+                )}
+              </label>
+            );
+          })}
+        </div>
+        {error && (
+          <p className="fynvo-accounts-v1240-error-text" role="alert">
+            {error}
+          </p>
+        )}
+        <footer>
+          <span>
+            {changed.length ? `${changed.length} changed` : "No changes"}
+          </span>
+          <button type="submit" className="primary" disabled={busy || !dirty}>
+            {busy ? "Saving…" : "Save balances"}
+          </button>
+        </footer>
+      </form>
+    </div>
+  );
+}
+
+function AccountRow({ account, cards, funding, onOpen }) {
+  const linkedCards = cards.filter(
+    (card) => Number(card.account_id) === Number(account.id),
+  );
+  return (
+    <button
+      type="button"
+      className="fynvo-accounts-v1240-account-row"
+      onClick={() => onOpen(account)}
+    >
+      <span
+        className={`fynvo-accounts-v1240-icon ${isCredit(account) ? "credit" : ""}`}
+      >
+        {accountIcon(account)}
+      </span>
+      <span className="fynvo-accounts-v1240-row-copy">
+        <strong>{account.name || "Account"}</strong>
+        <small>{account.institution || accountType(account)}</small>
+        {funding && (
+          <small className="funding-need">
+            {funding.commitment_count
+              ? `Need ${money(funding.target_balance)} until ${dateLabel(funding.cycle_end_date)}`
+              : "No scheduled payments before next pay"}
+          </small>
+        )}
+      </span>
+      <span
+        className={`fynvo-accounts-v1240-row-value ${Number(account.current_balance ?? account.opening_balance ?? 0) < 0 ? "negative" : ""}`}
+      >
+        <strong>
+          {money(account.current_balance ?? account.opening_balance)}
+        </strong>
+        <small>
+          {funding
+            ? fundingStatus(funding)
+            : linkedCards.length
+              ? `${linkedCards.length} linked card${linkedCards.length === 1 ? "" : "s"}`
+              : accountType(account)}
+        </small>
+        {funding?.status === "covered" && (
+          <small>{money(funding.funding_surplus)} above target</small>
+        )}
+      </span>
+      <span className="fynvo-accounts-v1240-chevron">›</span>
+    </button>
+  );
 }
 
 function InsightSummary({ rows }) {
-  const expenses = rows.filter((row) => row.transaction_type === 'expense'); const total = expenses.reduce((sum, row) => sum + Math.abs(transactionAmount(row)), 0); const categories = [...expenses.reduce((map, row) => map.set(row.category || 'Uncategorised', (map.get(row.category || 'Uncategorised') || 0) + Math.abs(transactionAmount(row))), new Map())].sort((a, b) => b[1] - a[1]).slice(0, 5); const max = categories[0]?.[1] || 1;
-  return <section className="fynvo-accounts-v1240-card"><div className="fynvo-accounts-v1240-section-head"><div><h2>Spending this month</h2><small>Based on recorded transactions</small></div><strong>{money(total)}</strong></div>{categories.length ? <div className="fynvo-accounts-v1240-bars">{categories.map(([label, value]) => <div key={label}><span><b>{label}</b><small>{money(value)}</small></span><i><em style={{ width: `${Math.max(8, (value / max) * 100)}%` }}/></i></div>)}</div> : <p className="fynvo-accounts-v1240-state">No expense transactions are available for this month.</p>}</section>;
+  const expenses = rows.filter((row) => row.transaction_type === "expense");
+  const total = expenses.reduce(
+    (sum, row) => sum + Math.abs(transactionAmount(row)),
+    0,
+  );
+  const categories = [
+    ...expenses.reduce(
+      (map, row) =>
+        map.set(
+          row.category || "Uncategorised",
+          (map.get(row.category || "Uncategorised") || 0) +
+            Math.abs(transactionAmount(row)),
+        ),
+      new Map(),
+    ),
+  ]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5);
+  const max = categories[0]?.[1] || 1;
+  return (
+    <section className="fynvo-accounts-v1240-card">
+      <div className="fynvo-accounts-v1240-section-head">
+        <div>
+          <h2>Spending this month</h2>
+          <small>Based on recorded transactions</small>
+        </div>
+        <strong>{money(total)}</strong>
+      </div>
+      {categories.length ? (
+        <div className="fynvo-accounts-v1240-bars">
+          {categories.map(([label, value]) => (
+            <div key={label}>
+              <span>
+                <b>{label}</b>
+                <small>{money(value)}</small>
+              </span>
+              <i>
+                <em style={{ width: `${Math.max(8, (value / max) * 100)}%` }} />
+              </i>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="fynvo-accounts-v1240-state">
+          No expense transactions are available for this month.
+        </p>
+      )}
+    </section>
+  );
 }
 
-function AccountDetail({ account, accounts, cards, transactions, recurring, onBack, onManage, onAddTransaction, onOpenPayments }) {
-  const [view, setView] = useState('transactions'); const accountRows = transactions.filter((row) => Number(row.account_id) === Number(account.id)); const pending = accountRows.filter((row) => String(row.status || '').toLowerCase() === 'pending'); const currentMonth = new Date(); const monthRows = accountRows.filter((row) => { const date = new Date(`${String(row.date).slice(0, 10)}T00:00:00`); return date.getFullYear() === currentMonth.getFullYear() && date.getMonth() === currentMonth.getMonth(); }); const recurringRows = recurring.filter((row) => Number(row.account_id) === Number(account.id));
-  return <section className="fynvo-accounts-v1240-detail"><header className="fynvo-accounts-v1240-detail-head"><button type="button" className="back" onClick={onBack} aria-label="Back to Accounts">‹</button><span className={`fynvo-accounts-v1240-icon large ${isCredit(account) ? 'credit' : ''}`}>{accountIcon(account)}</span><div><strong>{account.name}</strong><small>{account.institution || accountType(account)}</small></div><button type="button" className="more" onClick={() => onManage(account)} aria-label="Manage Account">•••</button></header><div className="fynvo-accounts-v1240-detail-balance"><strong className={Number(account.current_balance ?? 0) < 0 ? 'negative' : ''}>{money(account.current_balance ?? account.opening_balance)}</strong><span>{isCredit(account) ? 'Current balance' : 'Available balance'}</span></div><div className="fynvo-accounts-v1240-actions"><button type="button" onClick={onAddTransaction}>＋<small>Add transaction</small></button><button type="button" onClick={() => onManage(account)}>▤<small>Account details</small></button><button type="button" onClick={() => setView('insights')}>◒<small>Insights</small></button><button type="button" onClick={() => onManage(account)}>•••<small>More</small></button></div><nav className="fynvo-accounts-v1240-detail-tabs" aria-label="Account detail views"><button type="button" className={view === 'transactions' ? 'active' : ''} onClick={() => setView('transactions')}>Transactions</button>{pending.length > 0 && <button type="button" className={view === 'pending' ? 'active' : ''} onClick={() => setView('pending')}>Pending ({pending.length})</button>}<button type="button" className={view === 'insights' ? 'active' : ''} onClick={() => setView('insights')}>Insights</button></nav>{view === 'transactions' && <><section className="fynvo-accounts-v1240-card"><div className="fynvo-accounts-v1240-section-head"><div><h2>Recent transactions</h2><small>{accountRows.length} recorded</small></div><button type="button" className="link" onClick={() => onOpenPayments()}>View Activity ›</button></div>{accountRows.slice(0, 8).map((row) => <TransactionRow row={row} key={row.id}/>) }{!accountRows.length && <p className="fynvo-accounts-v1240-state">No transactions are recorded for this account.</p>}</section>{recurringRows.length > 0 && <section className="fynvo-accounts-v1240-card"><div className="fynvo-accounts-v1240-section-head"><div><h2>Recurring from this account</h2><small>{recurringRows.length} payment{recurringRows.length === 1 ? '' : 's'}</small></div><button type="button" className="link" onClick={onOpenPayments}>View all ›</button></div>{recurringRows.slice(0, 4).map((row) => <div className="fynvo-accounts-v1240-recurring-row" key={row.id}><span><strong>{row.name}</strong><small>{row.frequency || 'Scheduled'} · Next {dateLabel(row.next_due_date)}</small></span><strong>{money(row.amount)}</strong></div>)}</section>}</>}{view === 'pending' && <section className="fynvo-accounts-v1240-card"><div className="fynvo-accounts-v1240-section-head"><h2>Pending transactions</h2><small>{pending.length} item{pending.length === 1 ? '' : 's'}</small></div>{pending.map((row) => <TransactionRow row={row} key={row.id}/>)}</section>}{view === 'insights' && <InsightSummary rows={monthRows}/>}</section>;
+function FundingCard({ funding, onBufferSaved, onOpenPayments }) {
+  const [buffer, setBuffer] = useState(
+    String(funding?.preferred_buffer ?? "0.00"),
+  );
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  if (!funding)
+    return (
+      <section className="fynvo-accounts-v1240-card">
+        <p className="fynvo-accounts-v1240-state">
+          Funding is unavailable until an Income schedule and funding accounts
+          are configured.
+        </p>
+      </section>
+    );
+  const saveBuffer = async () => {
+    setSaving(true);
+    setError("");
+    try {
+      await apiRequest(`/accounts/${funding.account_id}/preferred-buffer`, {
+        method: "PUT",
+        body: JSON.stringify({ amount: buffer }),
+      });
+      await onBufferSaved();
+    } catch (requestError) {
+      setError(requestError?.message || "Preferred buffer could not be saved.");
+    } finally {
+      setSaving(false);
+    }
+  };
+  return (
+    <section className="fynvo-accounts-v1240-card fynvo-accounts-v1240-funding">
+      <div className="fynvo-accounts-v1240-section-head">
+        <div>
+          <h2>Until next pay</h2>
+          <small>Next pay {dateLabel(funding.cycle_end_date)}</small>
+        </div>
+        <strong className={funding.status === "add" ? "negative" : "positive"}>
+          {fundingStatus(funding)}
+        </strong>
+      </div>
+      <dl>
+        <div>
+          <dt>Current balance</dt>
+          <dd>{money(funding.current_balance)}</dd>
+        </div>
+        <div>
+          <dt>Payments before next pay</dt>
+          <dd>{money(funding.commitment_total)}</dd>
+        </div>
+        <div>
+          <dt>Buffer</dt>
+          <dd>{money(funding.preferred_buffer)}</dd>
+        </div>
+        <div>
+          <dt>Target balance</dt>
+          <dd>{money(funding.target_balance)}</dd>
+        </div>
+        <div>
+          <dt>Projected after payments</dt>
+          <dd>{money(funding.projected_remaining)}</dd>
+        </div>
+      </dl>
+      <label className="fynvo-accounts-v1240-buffer">
+        <span>Preferred account buffer</span>
+        <span>
+          <input
+            inputMode="decimal"
+            value={buffer}
+            onChange={(event) => setBuffer(event.target.value)}
+          />
+          <button type="button" onClick={saveBuffer} disabled={saving}>
+            {saving ? "Saving…" : "Save"}
+          </button>
+        </span>
+      </label>
+      {error && (
+        <p className="fynvo-accounts-v1240-error-text" role="alert">
+          {error}
+        </p>
+      )}
+      <div className="fynvo-accounts-v1240-breakdown">
+        <div className="fynvo-accounts-v1240-section-head">
+          <div>
+            <h2>Funding breakdown</h2>
+            <small>
+              {funding.commitment_count} payment
+              {funding.commitment_count === 1 ? "" : "s"}
+            </small>
+          </div>
+          {funding.commitment_count > 0 && (
+            <button type="button" className="link" onClick={onOpenPayments}>
+              View payments ›
+            </button>
+          )}
+        </div>
+        {funding.commitments?.length ? (
+          funding.commitments.map((row) => (
+            <div
+              className="fynvo-accounts-v1240-funding-row"
+              key={`${row.source_type}-${row.source_id}-${row.date}`}
+            >
+              <span>
+                <strong>{row.name}</strong>
+                <small>{dateLabel(row.date)}</small>
+              </span>
+              <strong>{money(row.amount)}</strong>
+            </div>
+          ))
+        ) : (
+          <p className="fynvo-accounts-v1240-state">
+            No scheduled payments before next pay.
+          </p>
+        )}
+        <div className="fynvo-accounts-v1240-funding-total">
+          <span>Payments {money(funding.commitment_total)}</span>
+          <span>Buffer {money(funding.preferred_buffer)}</span>
+          <strong>Target {money(funding.target_balance)}</strong>
+        </div>
+      </div>
+      <p className="fynvo-accounts-v1240-freshness">
+        {freshness(funding.balance_updated_at)}
+      </p>
+      <p className="fynvo-accounts-v1240-monthly">
+        This month: {money(funding.monthly_requirement?.scheduled_total)}{" "}
+        scheduled · {funding.monthly_requirement?.remaining_count || 0} payments
+        remaining
+      </p>
+    </section>
+  );
 }
 
-function TransactionRow({ row }) { const income = row.transaction_type === 'income' || Number(row.amount) > 0; return <div className="fynvo-accounts-v1240-transaction-row"><span className={`fynvo-accounts-v1240-icon small ${income ? 'income' : ''}`}>{income ? '↑' : '↓'}</span><span><strong>{row.merchant || row.description || 'Transaction'}</strong><small>{row.category || 'Uncategorised'} · {dateLabel(row.date)}</small></span><strong className={income ? 'positive' : 'negative'}>{income ? '+' : ''}{money(Math.abs(transactionAmount(row)))}</strong></div>; }
+function AccountDetail({
+  account,
+  accounts,
+  cards,
+  transactions,
+  recurring,
+  funding,
+  onBack,
+  onManage,
+  onAddTransaction,
+  onOpenPayments,
+  onBufferSaved,
+}) {
+  const [view, setView] = useState("transactions");
+  const accountRows = transactions.filter(
+    (row) => Number(row.account_id) === Number(account.id),
+  );
+  const pending = accountRows.filter(
+    (row) => String(row.status || "").toLowerCase() === "pending",
+  );
+  const currentMonth = new Date();
+  const monthRows = accountRows.filter((row) => {
+    const date = new Date(`${String(row.date).slice(0, 10)}T00:00:00`);
+    return (
+      date.getFullYear() === currentMonth.getFullYear() &&
+      date.getMonth() === currentMonth.getMonth()
+    );
+  });
+  const recurringRows = recurring.filter(
+    (row) => Number(row.account_id) === Number(account.id),
+  );
+  return (
+    <section className="fynvo-accounts-v1240-detail">
+      <header className="fynvo-accounts-v1240-detail-head">
+        <button
+          type="button"
+          className="back"
+          onClick={onBack}
+          aria-label="Back to Accounts"
+        >
+          ‹
+        </button>
+        <span
+          className={`fynvo-accounts-v1240-icon large ${isCredit(account) ? "credit" : ""}`}
+        >
+          {accountIcon(account)}
+        </span>
+        <div>
+          <strong>{account.name}</strong>
+          <small>{account.institution || accountType(account)}</small>
+        </div>
+        <button
+          type="button"
+          className="more"
+          onClick={() => onManage(account)}
+          aria-label="Manage Account"
+        >
+          •••
+        </button>
+      </header>
+      <div className="fynvo-accounts-v1240-detail-balance">
+        <strong
+          className={Number(account.current_balance ?? 0) < 0 ? "negative" : ""}
+        >
+          {money(account.current_balance ?? account.opening_balance)}
+        </strong>
+        <span>
+          {isCredit(account) ? "Current balance" : "Available balance"}
+        </span>
+        <small>{freshness(account.balance_updated_at)}</small>
+      </div>
+      <div className="fynvo-accounts-v1240-actions">
+        <button type="button" onClick={onAddTransaction}>
+          ＋<small>Add transaction</small>
+        </button>
+        <button type="button" onClick={() => onManage(account)}>
+          ▤<small>Account details</small>
+        </button>
+        <button type="button" onClick={() => setView("insights")}>
+          ◒<small>Insights</small>
+        </button>
+        <button type="button" onClick={() => onManage(account)}>
+          •••<small>More</small>
+        </button>
+      </div>
+      <FundingCard
+        funding={funding}
+        onBufferSaved={onBufferSaved}
+        onOpenPayments={onOpenPayments}
+      />
+      <nav
+        className="fynvo-accounts-v1240-detail-tabs"
+        aria-label="Account detail views"
+      >
+        <button
+          type="button"
+          className={view === "transactions" ? "active" : ""}
+          onClick={() => setView("transactions")}
+        >
+          Transactions
+        </button>
+        {pending.length > 0 && (
+          <button
+            type="button"
+            className={view === "pending" ? "active" : ""}
+            onClick={() => setView("pending")}
+          >
+            Pending ({pending.length})
+          </button>
+        )}
+        <button
+          type="button"
+          className={view === "insights" ? "active" : ""}
+          onClick={() => setView("insights")}
+        >
+          Insights
+        </button>
+      </nav>
+      {view === "transactions" && (
+        <>
+          <section className="fynvo-accounts-v1240-card">
+            <div className="fynvo-accounts-v1240-section-head">
+              <div>
+                <h2>Recent transactions</h2>
+                <small>{accountRows.length} recorded</small>
+              </div>
+              <button
+                type="button"
+                className="link"
+                onClick={() => onOpenPayments()}
+              >
+                View Activity ›
+              </button>
+            </div>
+            {accountRows.slice(0, 8).map((row) => (
+              <TransactionRow row={row} key={row.id} />
+            ))}
+            {!accountRows.length && (
+              <p className="fynvo-accounts-v1240-state">
+                No transactions are recorded for this account.
+              </p>
+            )}
+          </section>
+          {recurringRows.length > 0 && (
+            <section className="fynvo-accounts-v1240-card">
+              <div className="fynvo-accounts-v1240-section-head">
+                <div>
+                  <h2>Recurring from this account</h2>
+                  <small>
+                    {recurringRows.length} payment
+                    {recurringRows.length === 1 ? "" : "s"}
+                  </small>
+                </div>
+                <button type="button" className="link" onClick={onOpenPayments}>
+                  View all ›
+                </button>
+              </div>
+              {recurringRows.slice(0, 4).map((row) => (
+                <div
+                  className="fynvo-accounts-v1240-recurring-row"
+                  key={row.id}
+                >
+                  <span>
+                    <strong>{row.name}</strong>
+                    <small>
+                      {row.frequency || "Scheduled"} · Next{" "}
+                      {dateLabel(row.next_due_date)}
+                    </small>
+                  </span>
+                  <strong>{money(row.amount)}</strong>
+                </div>
+              ))}
+            </section>
+          )}
+        </>
+      )}
+      {view === "pending" && (
+        <section className="fynvo-accounts-v1240-card">
+          <div className="fynvo-accounts-v1240-section-head">
+            <h2>Pending transactions</h2>
+            <small>
+              {pending.length} item{pending.length === 1 ? "" : "s"}
+            </small>
+          </div>
+          {pending.map((row) => (
+            <TransactionRow row={row} key={row.id} />
+          ))}
+        </section>
+      )}
+      {view === "insights" && <InsightSummary rows={monthRows} />}
+    </section>
+  );
+}
 
-export default function AccountsWorkspaceV1240({ onNavigate = () => {}, onManageAccount = () => {}, onAddAccount = () => {}, onAddTransaction = () => {} }) {
-  const [view, setView] = useState(() => localStorage.getItem('fynvo.accounts.view.v1240') || 'accounts'); const [accounts, setAccounts] = useState([]); const [cards, setCards] = useState([]); const [categories, setCategories] = useState([]); const [recurring, setRecurring] = useState([]); const [transactions, setTransactions] = useState([]); const [selected, setSelected] = useState(null); const [cardEdit, setCardEdit] = useState(null); const [accountEdit, setAccountEdit] = useState(null); const [loading, setLoading] = useState(true); const [error, setError] = useState('');
+function TransactionRow({ row }) {
+  const income = row.transaction_type === "income" || Number(row.amount) > 0;
+  return (
+    <div className="fynvo-accounts-v1240-transaction-row">
+      <span
+        className={`fynvo-accounts-v1240-icon small ${income ? "income" : ""}`}
+      >
+        {income ? "↑" : "↓"}
+      </span>
+      <span>
+        <strong>{row.merchant || row.description || "Transaction"}</strong>
+        <small>
+          {row.category || "Uncategorised"} · {dateLabel(row.date)}
+        </small>
+      </span>
+      <strong className={income ? "positive" : "negative"}>
+        {income ? "+" : ""}
+        {money(Math.abs(transactionAmount(row)))}
+      </strong>
+    </div>
+  );
+}
+
+export default function AccountsWorkspaceV1240({
+  onNavigate = () => {},
+  onManageAccount = () => {},
+  onAddAccount = () => {},
+  onAddTransaction = () => {},
+}) {
+  const [view, setView] = useState(
+    () => localStorage.getItem("fynvo.accounts.view.v1240") || "accounts",
+  );
+  const [accounts, setAccounts] = useState([]);
+  const [cards, setCards] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [recurring, setRecurring] = useState([]);
+  const [transactions, setTransactions] = useState([]);
+  const [funding, setFunding] = useState(null);
+  const [selected, setSelected] = useState(null);
+  const [cardEdit, setCardEdit] = useState(null);
+  const [accountEdit, setAccountEdit] = useState(null);
+  const [balanceEdit, setBalanceEdit] = useState(false);
+  const [success, setSuccess] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const load = async () => {
-    setLoading(true); setError('');
+    setLoading(true);
+    setError("");
     // Accounts is the primary view. Supporting data must never hold it on a
     // skeleton when a slow transactions or match request is still running.
     try {
-      const accountRows = await apiRequest('/accounts?include_archived=true');
+      const accountRows = await apiRequest("/accounts?include_archived=true");
       setAccounts(Array.isArray(accountRows) ? accountRows : []);
       setLoading(false);
     } catch (requestError) {
       setLoading(false);
-      setError(requestError?.message || 'Accounts could not load. Try again.');
+      setError(requestError?.message || "Accounts could not load. Try again.");
     }
-    const results = await Promise.allSettled([apiRequest('/cards?include_inactive=true'), apiRequest('/categories'), apiRequest('/recurring-expenses'), apiRequest('/payments/transactions?limit=2000')]);
-    const [cardsResult, categoriesResult, recurringResult, transactionsResult] = results;
-    if (cardsResult.status === 'fulfilled') setCards(Array.isArray(cardsResult.value) ? cardsResult.value : []);
-    if (categoriesResult.status === 'fulfilled') setCategories(Array.isArray(categoriesResult.value) ? categoriesResult.value : []);
-    if (recurringResult.status === 'fulfilled') setRecurring(Array.isArray(recurringResult.value) ? recurringResult.value : []);
-    if (transactionsResult.status === 'fulfilled') setTransactions(Array.isArray(transactionsResult.value) ? transactionsResult.value : []);
+    const results = await Promise.allSettled([
+      apiRequest("/cards?include_inactive=true"),
+      apiRequest("/categories"),
+      apiRequest("/recurring-expenses"),
+      apiRequest("/payments/transactions?limit=2000"),
+      apiRequest("/payment-planning/account-funding"),
+    ]);
+    const [
+      cardsResult,
+      categoriesResult,
+      recurringResult,
+      transactionsResult,
+      fundingResult,
+    ] = results;
+    if (cardsResult.status === "fulfilled")
+      setCards(Array.isArray(cardsResult.value) ? cardsResult.value : []);
+    if (categoriesResult.status === "fulfilled")
+      setCategories(
+        Array.isArray(categoriesResult.value) ? categoriesResult.value : [],
+      );
+    if (recurringResult.status === "fulfilled")
+      setRecurring(
+        Array.isArray(recurringResult.value) ? recurringResult.value : [],
+      );
+    if (transactionsResult.status === "fulfilled")
+      setTransactions(
+        Array.isArray(transactionsResult.value) ? transactionsResult.value : [],
+      );
+    if (fundingResult.status === "fulfilled")
+      setFunding(fundingResult.value || null);
   };
-  useEffect(() => { load(); }, []); useEffect(() => { localStorage.setItem('fynvo.accounts.view.v1240', view); }, [view]);
-  const activeAccounts = useMemo(() => accounts.filter((account) => !account.archived_at && account.is_active !== false), [accounts]); const activeCards = cards.filter((card) => card.is_active !== false); const totalBalance = activeAccounts.reduce((sum, account) => sum + Number(account.current_balance ?? account.opening_balance ?? 0), 0); const pending = transactions.filter((row) => String(row.status || '').toLowerCase() === 'pending');
-  if (selected) return <>{<AccountDetail account={selected} accounts={activeAccounts} cards={activeCards} transactions={transactions} recurring={recurring} onBack={() => setSelected(null)} onManage={setAccountEdit} onAddTransaction={onAddTransaction} onOpenPayments={() => onNavigate('Payments')}/>} {accountEdit && <AccountEditor account={accountEdit} onClose={() => setAccountEdit(null)} onSaved={async () => { setAccountEdit(null); await load(); }}/>}</>;
-  return <section className="fynvo-accounts-v1240" aria-label="Accounts"><header className="fynvo-accounts-v1240-heading"><strong>Fynvo</strong><div><button type="button" aria-label="Notifications">♧</button><button type="button" aria-label="Settings">⚙</button></div><h1>Accounts</h1><p>Your money, in one place</p></header><nav className="fynvo-accounts-v1240-tabs" aria-label="Accounts views"><button type="button" className={view === 'accounts' ? 'active' : ''} onClick={() => setView('accounts')}>Accounts</button><button type="button" className={view === 'activity' ? 'active' : ''} onClick={() => setView('activity')}>Activity</button><button type="button" className={view === 'cards' ? 'active' : ''} onClick={() => setView('cards')}>Cards</button></nav>{error && <div className="fynvo-accounts-v1240-error" role="alert">{error}<button type="button" onClick={load}>Retry</button></div>}{loading ? <div className="fynvo-accounts-v1240-loading" role="status" aria-label="Loading Accounts"><span/><span/><span/></div> : <>{view === 'accounts' && <><section className="fynvo-accounts-v1240-total"><div><small>Total balance</small><strong>{money(totalBalance)}</strong><p>{activeAccounts.length} active account{activeAccounts.length === 1 ? '' : 's'} · {activeCards.length} active card{activeCards.length === 1 ? '' : 's'}</p></div><span>Current balances</span></section><section className="fynvo-accounts-v1240-list"><div className="fynvo-accounts-v1240-section-head"><h2>Accounts</h2><button type="button" className="link" onClick={onAddAccount}>＋ Add account</button></div>{activeAccounts.length ? activeAccounts.map((account) => <AccountRow account={account} cards={activeCards} onOpen={setSelected} key={account.id}/>) : <p className="fynvo-accounts-v1240-state">No active accounts are available.</p>}</section>{pending.length > 0 && <section className="fynvo-accounts-v1240-card"><div className="fynvo-accounts-v1240-section-head"><div><h2>Upcoming account activity</h2><small>{pending.length} pending transaction{pending.length === 1 ? '' : 's'}</small></div><button type="button" className="link" onClick={() => setView('activity')}>View all ›</button></div>{pending.slice(0, 3).map((row) => <TransactionRow row={row} key={row.id}/>)}</section>}<button type="button" className="fynvo-accounts-v1240-manage" onClick={onAddAccount}>⚙ <span><strong>Manage accounts</strong><small>Add or edit your account records</small></span>›</button></>}{view === 'activity' && <section className="fynvo-accounts-v1240-activity"><TransactionWorkspace accounts={activeAccounts} categories={categories} initialRows={transactions}/></section>}{view === 'cards' && <section className="fynvo-accounts-v1240-cards"><div className="fynvo-accounts-v1240-section-head"><div><h2>Cards</h2><small>View and manage linked cards</small></div><button type="button" className="link" onClick={() => setCardEdit({})}>＋ Add card</button></div>{activeCards.length ? activeCards.map((card) => <button type="button" className="fynvo-accounts-v1240-card-row" key={card.id} onClick={() => setCardEdit(card)}><span className="fynvo-accounts-v1240-card-visual">{String(card.card_type || 'card').toUpperCase()}</span><span><strong>{card.name || 'Card'}</strong><small>•••• {card.last_four || '????'} · {card.account_name || activeAccounts.find((account) => Number(account.id) === Number(card.account_id))?.name || 'Unknown account'}</small></span><span>›</span></button>) : <p className="fynvo-accounts-v1240-state">No active cards are available.</p>}</section>}</>}{cardEdit && <CardEditor card={cardEdit.id ? cardEdit : null} accounts={activeAccounts} onClose={() => setCardEdit(null)} onSaved={async () => { setCardEdit(null); await load(); }}/>}</section>;
+  useEffect(() => {
+    load();
+  }, []);
+  useEffect(() => {
+    localStorage.setItem("fynvo.accounts.view.v1240", view);
+  }, [view]);
+  const activeAccounts = useMemo(
+    () =>
+      accounts.filter(
+        (account) => !account.archived_at && account.is_active !== false,
+      ),
+    [accounts],
+  );
+  const activeCards = cards.filter((card) => card.is_active !== false);
+  const totalBalance = activeAccounts.reduce(
+    (sum, account) =>
+      sum + Number(account.current_balance ?? account.opening_balance ?? 0),
+    0,
+  );
+  const pending = transactions.filter(
+    (row) => String(row.status || "").toLowerCase() === "pending",
+  );
+  const fundingByAccount = new Map(
+    (funding?.current_cycle?.accounts || []).map((row) => [
+      Number(row.account_id),
+      row,
+    ]),
+  );
+  if (selected)
+    return (
+      <>
+        {
+          <AccountDetail
+            account={selected}
+            accounts={activeAccounts}
+            cards={activeCards}
+            transactions={transactions}
+            recurring={recurring}
+            funding={fundingByAccount.get(Number(selected.id))}
+            onBack={() => setSelected(null)}
+            onManage={setAccountEdit}
+            onAddTransaction={onAddTransaction}
+            onOpenPayments={() => onNavigate("Payments")}
+            onBufferSaved={load}
+          />
+        }{" "}
+        {accountEdit && (
+          <AccountEditor
+            account={accountEdit}
+            onClose={() => setAccountEdit(null)}
+            onSaved={async () => {
+              setAccountEdit(null);
+              await load();
+            }}
+          />
+        )}
+      </>
+    );
+  return (
+    <section className="fynvo-accounts-v1240" aria-label="Accounts">
+      <header className="fynvo-accounts-v1240-heading">
+        <strong>Fynvo</strong>
+        <div>
+          <button type="button" aria-label="Notifications">
+            ♧
+          </button>
+          <button type="button" aria-label="Settings">
+            ⚙
+          </button>
+        </div>
+        <h1>Accounts</h1>
+        <p>Your money, in one place</p>
+      </header>
+      <nav className="fynvo-accounts-v1240-tabs" aria-label="Accounts views">
+        <button
+          type="button"
+          className={view === "accounts" ? "active" : ""}
+          onClick={() => setView("accounts")}
+        >
+          Accounts
+        </button>
+        <button
+          type="button"
+          className={view === "activity" ? "active" : ""}
+          onClick={() => setView("activity")}
+        >
+          Activity
+        </button>
+        <button
+          type="button"
+          className={view === "cards" ? "active" : ""}
+          onClick={() => setView("cards")}
+        >
+          Cards
+        </button>
+      </nav>
+      {error && (
+        <div className="fynvo-accounts-v1240-error" role="alert">
+          {error}
+          <button type="button" onClick={load}>
+            Retry
+          </button>
+        </div>
+      )}
+      {success && (
+        <p className="fynvo-accounts-v1240-success" role="status">
+          {success}
+        </p>
+      )}
+      {loading ? (
+        <div
+          className="fynvo-accounts-v1240-loading"
+          role="status"
+          aria-label="Loading Accounts"
+        >
+          <span />
+          <span />
+          <span />
+        </div>
+      ) : (
+        <>
+          {view === "accounts" && (
+            <>
+              <section className="fynvo-accounts-v1240-total">
+                <div>
+                  <small>Total balance</small>
+                  <strong>{money(totalBalance)}</strong>
+                  <p>
+                    {activeAccounts.length} active account
+                    {activeAccounts.length === 1 ? "" : "s"} ·{" "}
+                    {activeCards.length} active card
+                    {activeCards.length === 1 ? "" : "s"}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className="fynvo-accounts-v1240-update-balances"
+                  onClick={() => {
+                    setSuccess("");
+                    setBalanceEdit(true);
+                  }}
+                >
+                  Update balances
+                </button>
+              </section>
+              <section className="fynvo-accounts-v1240-list">
+                <div className="fynvo-accounts-v1240-section-head">
+                  <h2>Accounts</h2>
+                  <button type="button" className="link" onClick={onAddAccount}>
+                    ＋ Add account
+                  </button>
+                </div>
+                {activeAccounts.length ? (
+                  activeAccounts.map((account) => (
+                    <AccountRow
+                      account={account}
+                      cards={activeCards}
+                      funding={fundingByAccount.get(Number(account.id))}
+                      onOpen={setSelected}
+                      key={account.id}
+                    />
+                  ))
+                ) : (
+                  <p className="fynvo-accounts-v1240-state">
+                    No active accounts are available.
+                  </p>
+                )}
+              </section>
+              {pending.length > 0 && (
+                <section className="fynvo-accounts-v1240-card">
+                  <div className="fynvo-accounts-v1240-section-head">
+                    <div>
+                      <h2>Upcoming account activity</h2>
+                      <small>
+                        {pending.length} pending transaction
+                        {pending.length === 1 ? "" : "s"}
+                      </small>
+                    </div>
+                    <button
+                      type="button"
+                      className="link"
+                      onClick={() => setView("activity")}
+                    >
+                      View all ›
+                    </button>
+                  </div>
+                  {pending.slice(0, 3).map((row) => (
+                    <TransactionRow row={row} key={row.id} />
+                  ))}
+                </section>
+              )}
+              <button
+                type="button"
+                className="fynvo-accounts-v1240-manage"
+                onClick={onAddAccount}
+              >
+                ⚙{" "}
+                <span>
+                  <strong>Manage accounts</strong>
+                  <small>Add or edit your account records</small>
+                </span>
+                ›
+              </button>
+            </>
+          )}
+          {view === "activity" && (
+            <section className="fynvo-accounts-v1240-activity">
+              <TransactionWorkspace
+                accounts={activeAccounts}
+                categories={categories}
+                initialRows={transactions}
+              />
+            </section>
+          )}
+          {view === "cards" && (
+            <section className="fynvo-accounts-v1240-cards">
+              <div className="fynvo-accounts-v1240-section-head">
+                <div>
+                  <h2>Cards</h2>
+                  <small>View and manage linked cards</small>
+                </div>
+                <button
+                  type="button"
+                  className="link"
+                  onClick={() => setCardEdit({})}
+                >
+                  ＋ Add card
+                </button>
+              </div>
+              {activeCards.length ? (
+                activeCards.map((card) => (
+                  <button
+                    type="button"
+                    className="fynvo-accounts-v1240-card-row"
+                    key={card.id}
+                    onClick={() => setCardEdit(card)}
+                  >
+                    <span className="fynvo-accounts-v1240-card-visual">
+                      {String(card.card_type || "card").toUpperCase()}
+                    </span>
+                    <span>
+                      <strong>{card.name || "Card"}</strong>
+                      <small>
+                        •••• {card.last_four || "????"} ·{" "}
+                        {card.account_name ||
+                          activeAccounts.find(
+                            (account) =>
+                              Number(account.id) === Number(card.account_id),
+                          )?.name ||
+                          "Unknown account"}
+                      </small>
+                    </span>
+                    <span>›</span>
+                  </button>
+                ))
+              ) : (
+                <p className="fynvo-accounts-v1240-state">
+                  No active cards are available.
+                </p>
+              )}
+            </section>
+          )}
+        </>
+      )}
+      {cardEdit && (
+        <CardEditor
+          card={cardEdit.id ? cardEdit : null}
+          accounts={activeAccounts}
+          onClose={() => setCardEdit(null)}
+          onSaved={async () => {
+            setCardEdit(null);
+            await load();
+          }}
+        />
+      )}
+      {balanceEdit && (
+        <BalanceUpdater
+          accounts={activeAccounts}
+          onClose={() => setBalanceEdit(false)}
+          onSaved={async (result) => {
+            setBalanceEdit(false);
+            await load();
+            setSuccess(
+              `Balances updated. ${result.updated_count} account balance${result.updated_count === 1 ? "" : "s"} updated.`,
+            );
+          }}
+        />
+      )}
+    </section>
+  );
 }

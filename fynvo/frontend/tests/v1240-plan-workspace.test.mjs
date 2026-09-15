@@ -24,7 +24,7 @@ test('Plan uses authoritative planning and forecast responses', () => {
 test('Plan distinguishes pressure, income, payments and healthy states', () => {
   for (const label of ['Upcoming pressure point', 'Healthy trajectory', 'Incoming income', 'Total income', 'Total expenses', 'Projected shortfall', 'eventType']) assert.match(plan, new RegExp(label));
   assert.match(plan, /View all payments for this date/);
-  assert.match(plan, /onNavigate\('Payments'\)/);
+  assert.match(plan, /onNavigate\(["']Payments["']\)/);
 });
 
 test('Calendar supports month navigation, selected dates and event markers', () => {

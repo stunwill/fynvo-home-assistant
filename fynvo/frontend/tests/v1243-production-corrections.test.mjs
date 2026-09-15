@@ -36,7 +36,7 @@ test('Accounts passes already-loaded activity into the Activity view', () => {
 test('Calendar validates selected dates before rendering a date heading', () => {
   const source = read('PlanWorkspaceV1240.jsx');
   assert.match(source, /getFullYear\(\) === year/);
-  assert.match(source, /selectedCalendarDate = parseDate\(selectedDate\) \? selectedDate : localDateKey\(\)/);
+  assert.match(source, /selectedCalendarDate = parseDate\(selectedDate\)[\s\S]*\? selectedDate[\s\S]*: localDateKey\(\)/);
   assert.match(source, /dateLabel\(selectedCalendarDate/);
 });
 
