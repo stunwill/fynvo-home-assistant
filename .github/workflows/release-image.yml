@@ -4,13 +4,13 @@ on:
   workflow_call:
     inputs:
       release_ref:
-        description: "Release tag/ref to build, for example v1.24.2"
+        description: "Release tag/ref to build, for example v1.24.3"
         required: true
         type: string
   workflow_dispatch:
     inputs:
       release_ref:
-        description: "Release tag/ref to build, for example v1.24.2"
+        description: "Release tag/ref to build, for example v1.24.3"
         required: false
         type: string
 

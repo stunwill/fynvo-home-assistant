@@ -101,6 +101,14 @@ def build_safe_to_spend(db: DbSession, user: User, today: date | None = None) ->
         coverage.append({"date": when.isoformat(), "name": row.get("name"), "amount": cents_to_decimal(_amount_cents(row)), "projected_balance": cents_to_decimal(running)})
     incomplete = not balance_known or end is None or pay_cycle_error is not None
     covered_through = None if first_insufficient_date else (end.isoformat() if end else None)
+    if pay_cycle_error:
+        unavailable_reason = {"code": "pay_cycle_unavailable", "message": pay_cycle_error["message"], "action": "retry"}
+    elif not balance_known:
+        unavailable_reason = {"code": "missing_account_balance", "message": "Add an active liquid account balance to calculate Safe to Spend.", "action": "accounts"}
+    elif end is None:
+        unavailable_reason = {"code": "missing_next_income", "message": "Add or complete an active income source to set the next pay-cycle boundary.", "action": "income"}
+    else:
+        unavailable_reason = None
     return {
         "as_of": current.isoformat(), "planning_start": current.isoformat(), "planning_end": end.isoformat() if end else None,
         "next_income": next_income, "available_cash": cents_to_decimal(available) if balance_known else None,
@@ -110,7 +118,7 @@ def build_safe_to_spend(db: DbSession, user: User, today: date | None = None) ->
         "payment_readiness": "needs_information" if incomplete else "covered" if safe_cents >= 0 else "at_risk",
         "incomplete": incomplete,
         "planning_status": "unavailable" if pay_cycle_error else "complete" if not incomplete else "incomplete",
-        "planning_error": pay_cycle_error,
+        "planning_error": pay_cycle_error, "unavailable_reason": unavailable_reason,
         "warnings": (["No active liquid account balance is available."] if not balance_known else []) + (["No next pay-cycle boundary is available."] if end is None else []) + ([pay_cycle_error["message"]] if pay_cycle_error else []),
         "reserved_payments": commitments, "coverage": coverage,
         "payment_coverage": {"covered_through": covered_through, "first_insufficient_date": first_insufficient_date},

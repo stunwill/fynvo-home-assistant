@@ -114,7 +114,8 @@ export default function MobileOverviewV1240({ authenticated = false, productionV
     const buffer = finite(authoritative.protected_buffer);
     const safe = finite(authoritative.safe_to_spend ?? before.projected_cash);
     const safeAvailable = authoritative.safe_to_spend !== undefined && authoritative.safe_to_spend !== null && !authoritative.incomplete;
-    const needsIncomeSetup = !safeAvailable && (!payCycle.next_income || payCycle.completeness?.next_income_known === false);
+    const unavailableReason = authoritative.unavailable_reason || authoritative.planning_error || null;
+    const needsIncomeSetup = !safeAvailable && (unavailableReason?.action === 'income' || (!unavailableReason && (!payCycle.next_income || payCycle.completeness?.next_income_known === false)));
     const attention = (Array.isArray(planning?.attention) ? planning.attention : [])
       .filter((row) => !inactiveStatuses.has(row.status)).sort((a, b) => attentionRank(a) - attentionRank(b)).slice(0, 2);
     const upcoming = eventRows(planning);
@@ -127,7 +128,7 @@ export default function MobileOverviewV1240({ authenticated = false, productionV
       attention, attentionCount: Number(planning?.attention_count ?? planning?.attention?.length ?? 0), upcoming,
       projectedBalance, nextIncome, pressure, progress: progressBase > 0 ? Math.max(0, Math.min(100, (safe / progressBase) * 100)) : null,
       planMessage: pressure ? `${pressure.name || 'An upcoming payment'} is the next pressure point.` : 'No immediate pressure point is identified.',
-      warning: authoritative.warnings?.[0] || payCycle.completeness?.message || 'Some planning information is unavailable.', needsIncomeSetup,
+      warning: unavailableReason?.message || payCycle.completeness?.message || authoritative.warnings?.[0] || 'Some planning information is unavailable.', unavailableAction: unavailableReason?.action || null, needsIncomeSetup,
     };
   }, [planning, safeToSpend]);
 
@@ -141,8 +142,9 @@ export default function MobileOverviewV1240({ authenticated = false, productionV
       <div className="fynvo-overview-v1240-card-head"><div><h2 id="safe-to-spend-title">Safe to spend <span title="Calculated from available cash, committed payments and protected buffer">ⓘ</span></h2><strong>{model.safeAvailable ? money(model.safe) : 'Unavailable'}</strong></div>{model.safeAvailable && <span className="fynvo-ui-status">{model.safe < 0 ? 'At risk' : 'On track'}</span>}</div>
       <p>{model.safeAvailable ? 'After upcoming payments and your buffer' : model.warning}</p>
       {!model.safeAvailable && model.needsIncomeSetup && <button type="button" className="fynvo-ui-link fynvo-overview-v1240-safe-action" onClick={() => open('Income')}>Review income setup ›</button>}
+      {!model.safeAvailable && model.unavailableAction === 'accounts' && <button type="button" className="fynvo-ui-link fynvo-overview-v1240-safe-action" onClick={() => open('Accounts')}>Review accounts ›</button>}
       {model.progress !== null && <div className="fynvo-overview-v1240-progress" role="progressbar" aria-label="Safe to spend position" aria-valuenow={model.progress} aria-valuemin="0" aria-valuemax="100"><span style={{ width: `${model.progress}%` }} /></div>}
-      <div className="fynvo-overview-v1240-breakdown"><div><strong>{money(model.available)}</strong><span>Available cash</span></div><div><strong>{money(model.committed)}</strong><span>Committed</span></div><div><strong>{money(model.buffer)}</strong><span>Buffer</span></div></div>
+      <div className="fynvo-overview-v1240-breakdown"><div><strong>{money(model.available)}</strong><span>Available cash</span></div><div><strong>{money(model.committed)}</strong><span>{model.safeAvailable ? 'Committed before next pay' : 'Known commitments'}</span></div><div><strong>{money(model.buffer)}</strong><span>Buffer</span></div></div>
     </section>
 
     <section className="fynvo-ui-card fynvo-overview-v1240-section fynvo-overview-v1240-attention" aria-labelledby="attention-title">

@@ -2,46 +2,11 @@
 
 Fynvo is a household finance and cash-planning application for understanding upcoming commitments, available cash, pay-cycle pressure, spending decisions and near-term financial risk. The roadmap prioritises practical household planning over business accounting, tax, payroll or investment-trading functionality.
 
-The current development baseline is v1.24.2.
-
-## v1.24.2 - Release Pipeline Hardening & Home Assistant Update Reliability
-
-Status: Complete on release branch, pending Pull Request review
-
-Objective: Prevent Home Assistant from being offered a Fynvo update before the exact GHCR image it needs is publicly available.
-
-### Features
-
-- [x] Replace asynchronous dispatch/watch release-image orchestration with an explicit reusable release-image workflow.
-- [x] Pass the exact release tag into the image workflow and build that immutable ref.
-- [x] Verify the final multi-architecture manifest contains the configured Home Assistant platforms.
-- [x] Verify `ghcr.io/stunwill/fynvo:X.Y.Z` anonymously after logout.
-- [x] Perform an anonymous amd64 pull of the exact Home Assistant-consumed image before GitHub Release publication.
-- [x] Preserve the `vX.Y.Z` alias, `/data`, ingress and application behaviour.
-- [x] Document deterministic failure and rerun behaviour.
-
-### Validation
-
-- [ ] Complete CI on the Pull Request.
-- [ ] Confirm release workflow syntax and reusable-workflow dependency graph on GitHub Actions.
-- [ ] Confirm the next production release publishes the image before the GitHub Release is exposed.
-
-## v1.24.1 - Core UX Redesign Production Corrections
-
-Status: Released
-
-Objective: Correct production reliability issues discovered after the v1.24.0 Core UX Redesign.
-
-### Features
-
-- [x] Correct Accounts and Activity loading/terminal states.
-- [x] Remove the obsolete mobile Payment Centre outer presentation.
-- [x] Improve Safe to Spend unavailable-state explanations.
-- [x] Preserve Home Assistant ingress, routes, reconciliation and `/data` persistence.
+The current development baseline is v1.24.0. Payment Centre, recurring-payment lifecycle, 7/14/30-day commitment planning, pay-cycle cash planning, account funding requirements, available-cash comparisons, transactions, reconciliation, budgets, goals, scenarios, date-oriented financial Calendar, Cash Flow forecasting/impact analysis, CSV import, insights, Overview drill-down navigation, responsive Home Assistant ingress and prebuilt add-on image distribution are already delivered and are not repeated below as new scope.
 
 ## v1.24.0 - Core UX Redesign
 
-Status: Released
+Status: Complete on the release branch, pending final Pull Request review
 
 Objective: Recompose Fynvo's core financial destinations into a consistent, focused mobile experience without changing financial semantics.
 
@@ -54,8 +19,231 @@ Objective: Recompose Fynvo's core financial destinations into a consistent, focu
 - [x] Recompose Accounts around Accounts, Activity and Cards.
 - [x] Preserve existing payment lifecycle, transaction, reconciliation, account and historical data behaviour.
 
+### Validation
+
+- [x] Frontend regression tests and production build pass.
+- [x] Backend tests, Python compilation and Ruff pass.
+- [x] Home Assistant release metadata is aligned to v1.24.0.
+
+## v1.23.0 - Mobile Decision UX, Cash Plan Reliability & Information Hierarchy
+
+Status: In progress on the release branch
+
+Objective: Make the iPhone-sized Overview a concise decision dashboard and keep Cash Plan useful when optional planning inputs are incomplete.
+
+### Features
+
+- [x] Isolate Safe-to-Spend pay-cycle failures from known balances and payment obligations.
+- [x] Consolidate the mobile Overview action list under Money requiring action.
+- [x] Group mobile More navigation by planning, payments and money and accounts.
+- [ ] Validate complete, partial and failure states in Home Assistant ingress.
+
+## v1.18.2 - Payment Centre Mobile UX Completion
+
+Status: Implemented in release branch, pending PR review and installed acceptance
+
+Objective: Turn Payment Centre into a fast, clear and efficient mobile financial-management queue by reducing repeated visual weight, strengthening payment hierarchy and preserving complete lifecycle access.
+
+### Features
+
+- [x] Replace vertically heavy mobile payment cards with compact rows that prioritise payment name and full amount.
+- [x] Consolidate due/overdue, payment handling, payment method and funding metadata while keeping missing information explicit.
+- [x] Keep Mark paid visible as the primary action and retain lower-frequency lifecycle actions through an overflow path and the existing detailed workspace.
+- [x] Replace separate Grouped/Chronological controls with a segmented selector and improve date-group counts and within-group priority ordering.
+- [x] Consolidate Quick Add, Add Bill, quick date/attention filters and the full Filters sheet into a compact sticky mobile toolbar.
+- [x] Simplify Before next pay around Available now, Required before pay and Next income while retaining View calculation for additional detail.
+- [x] Replace ambiguous bare Unknown states with explicit before-pay availability explanations.
+- [x] Add structure-preserving payment/funding loading states, section-level errors and deliberate empty/filter states.
+- [x] Move the installed mobile release version from the Payment Centre footer into More → About.
+
+### UX / Quality
+
+- [x] Preserve the Home Assistant ingress shell and Overview / Accounts / Cash Flow / Transactions / More bottom navigation.
+- [x] Add bottom-navigation and iOS safe-area clearance so the final payment and modal actions remain reachable.
+- [x] Keep touch targets usable while reducing payment-card height through structural simplification rather than smaller typography.
+- [x] Preserve desktop Payment Centre using the existing detailed workspace.
+- [x] Preserve authoritative Payment Planning, Pay-Cycle Cash Planning, Bills, Scheduled Payments, Recurring Expenses and reconciliation semantics.
+
+### Testing / Validation
+
+- [ ] Complete frontend regression coverage for compact card structure, Mark paid, lifecycle overflow, filters, grouped/chronological modes, funding states, loading/error/empty states, breakpoints and release metadata.
+- [ ] Complete all CI checks.
+- [ ] Complete real installed iPhone/Home Assistant ingress visual acceptance before merge.
+
+## v1.18.1 - Overview Decision Dashboard
+
+Status: Merged to main
+
+Objective: Refine the merged v1.18.0 financial-decision work into a concise iPhone/Home Assistant Overview that answers immediate household cash questions with materially less scrolling.
+
+### Features
+
+- [x] Consolidate the before-next-pay state so incomplete funding is explained once instead of repeating Funding incomplete, Not known and UNKNOWN.
+- [x] Replace the nested 2 × 2 mobile decision cards with compact stacked rows for Available now, Committed before pay, Next income and Projected after pay.
+- [x] Make incomplete funding actionable using the existing pay-cycle completeness and unassigned-funding data.
+- [x] Put Needs attention immediately after Before next pay and limit Overview to the three highest-priority exceptions.
+- [x] Add Money needed soon for Next 7 days, Before next pay and Next 30 days using the existing Payment Planning service.
+- [x] Add compact Cash position and Accounts summaries using existing command-centre/account data.
+- [x] Add a lightweight What changed? comparison using a previous Overview snapshot without introducing a parallel financial ledger.
+- [x] Move lower-priority forecast information behind More financial insights while retaining Cash Flow as the detailed forecast workspace.
+
+### UX / Quality
+
+- [x] Treat the supplied 1179 × 2556 iPhone 15 Pro screenshots as physical-pixel visual references while using the actual CSS viewport for responsive decisions.
+- [x] Preserve Home Assistant ingress shell ownership and the Overview / Accounts / Cash Flow / Transactions / More bottom navigation.
+- [x] Preserve iOS safe-area handling and prevent Overview content from being hidden by the fixed bottom navigation.
+- [x] Retain stacked fallbacks for narrower iPhone-class viewports instead of forcing tablet-style layouts.
+- [x] Preserve explicit text status meaning and reduced-motion behaviour.
+
+### Testing / Validation
+
+- [x] Add frontend source-contract regression coverage for hierarchy, stacked pay-cycle rows, Needs attention, Money needed soon, What changed, responsive breakpoints and release metadata.
+- [x] Preserve existing backend pay-cycle, payment-planning, forecast and payment lifecycle semantics.
+- [x] Merge v1.18.1 to main.
+
+## v1.18.0 - Mobile Financial Decision UX
+
+Status: Merged to main
+
+Objective: Make the existing authoritative pay-cycle, payment-planning and forecast results immediately understandable and actionable on iPhone and Home Assistant ingress without changing financial calculation semantics.
+
+### Features
+
+- [x] Put the before-next-pay position first on mobile Overview, including available cash, next income, commitments and projected after-pay balance.
+- [x] Express an authoritative positive before-pay remainder as safe-to-spend context and a negative projected position as a funding shortfall.
+- [x] Promote overdue payments, payments requiring attention and incomplete funding information into explicit exceptions.
+- [x] Add interpreted funded, shortfall and incomplete states to Payment Centre without duplicating the pay-cycle service.
+- [x] Add explicit Cash Flow lowest-balance and shortfall interpretation while retaining the forecast chart.
+- [x] Default Cash Flow events to chronological next events while retaining Largest movements as an alternate view.
+- [x] Add compact mobile Payment Centre filters and visible incomplete-payment states.
+- [x] Improve Recurring Expenses overdue aggregation and incomplete-payment visibility while retaining explicit lifecycle actions.
+- [x] Group mobile More navigation into task-oriented sections.
+
+### UX / Quality
+
+- [x] Prevent final mobile financial values from being ellipsised.
+- [x] Replace the disruptive textual pay-cycle loader with a stable skeleton and reduced-motion fallback.
+- [x] Preserve Home Assistant ingress safe-area handling, touch-friendly controls and desktop analytical layouts.
+- [x] Keep status meaning explicit in text and labels rather than relying on colour alone.
+
+### Testing / Validation
+
+- [x] Add frontend regression coverage for decision summaries, funded/shortfall/unknown states, compact filters, incomplete records, Cash Flow interpretation and release metadata.
+- [x] Preserve existing backend pay-cycle, payment-planning, forecast and payment lifecycle test suites unchanged because calculation semantics are unchanged.
+- [x] Merge v1.18.0 to main.
+
+## v1.19.0 - Budget Decision Support
+
+Status: Planned
+
+Objective: Build on Fynvo's existing Budget model so households can see what remains safe to spend after committed obligations, rather than only comparing budget amounts with historical activity.
+
+### Features
+
+- [ ] Add clear committed-versus-discretionary classification for budget analysis, using existing recurring commitments, bills, planned spending and actual transactions where reliable.
+- [ ] Show remaining budget for the active period after Actual, Committed and included Planned amounts are applied.
+- [ ] Add projected end-of-period budget position using the existing forecast/event model instead of a separate budget forecast engine.
+- [ ] Surface categories likely to exceed budget before period end and explain the contributing committed/planned items.
+- [ ] Add previous-period comparison for major categories and household totals so month-to-month change is visible.
+- [ ] Review and refine existing rollover behaviour so positive and negative rollover are understandable in household terms and do not obscure current-period spending limits.
+- [ ] Add a household-level discretionary amount indicator only when sufficient budget, commitment and balance information exists.
+
+### UX / Quality
+
+- [ ] Redesign Budgeting summaries around "Budget", "Spent", "Committed", "Planned", "Remaining" and "Projected" with consistent definitions.
+- [ ] Provide drill-through from overspend or risk warnings to the transactions and commitments causing them.
+- [ ] Keep category hierarchy and parent/child budget relationships readable on mobile without dense accounting-style tables.
+
+### Testing / Validation
+
+- [ ] Add regression coverage for shared parent pools, parent-equals-children budgets, rollover, unbudgeted categories and discretionary calculations.
+- [ ] Verify budget projections use the same actual/committed/planned records as Cash Flow and Forecast.
+- [ ] Validate month-boundary and true-fortnightly budget periods against representative Australian household examples.
+
+## v1.20.0 - Commitment Intelligence & Renewal Planning
+
+Status: Planned
+
+Objective: Make recurring household obligations easier to maintain by identifying meaningful changes, exceptions and longer-cycle commitments without automatically altering financial records.
+
+### Features
+
+- [ ] Detect meaningful recurring-payment amount changes from reconciled Transaction history and present them as reviewable suggestions rather than silently editing Recurring Expenses.
+- [ ] Identify missed or unexpectedly absent recurring payments when an expected occurrence passes without a matching Transaction or valid lifecycle resolution.
+- [ ] Highlight annual, quarterly and other infrequent commitments early enough to plan for registrations, insurance, rates, memberships and similar household costs.
+- [ ] Add optional renewal/expiry metadata for relevant recurring commitments and Bills where it provides planning value.
+- [ ] Show recent expected-versus-actual amount history for variable recurring expenses without overwriting the authoritative recurring rule.
+- [ ] Improve duplicate/overlap diagnostics for Bills, Recurring Expenses and Scheduled Payments while preserving the existing v1.16 deduplication rules.
+- [ ] Add actionable data-quality prompts for commitments missing amount, expected date, Account/Card or payment method.
+
+### UX / Quality
+
+- [ ] Add a focused Commitment Health view or section that separates upcoming obligations, exceptions, amount changes, renewals and missing information.
+- [ ] Make suggested changes explicitly reviewable with Accept/Dismiss behaviour and supporting evidence.
+- [ ] Keep renewal and exception indicators visible in List, Calendar and payment detail without adding status clutter.
+
+### Testing / Validation
+
+- [ ] Add regression coverage for variable amounts, infrequent recurrence, missed occurrences, duplicate suppression and renewal metadata.
+- [ ] Verify accepted suggestions update only the intended recurring rule/effective date and preserve historical Scheduled Payments and Transactions.
+- [ ] Verify no intelligence workflow automatically creates, pays, skips or reconciles a payment.
+
+## v1.21.0 - Household Reporting & Cost Trends
+
+Status: Planned
+
+Objective: Turn Fynvo's existing transactions, commitments, budgets and forecast data into practical household trend reporting without becoming an enterprise BI product.
+
+### Features
+
+- [ ] Add monthly household income-versus-expense reporting with drill-through to the underlying Transactions.
+- [ ] Add category spending trends across recent months with clear treatment of transfers, refunds and uncategorised activity.
+- [ ] Show recurring-cost growth over time, including material changes to regular household commitments.
+- [ ] Add committed-versus-discretionary spending trend reporting using the classification introduced in v1.19.0.
+- [ ] Add year-to-date household totals for income, expenses, committed costs and selected major categories.
+- [ ] Add account-level cash movement summaries while keeping internal transfers separate from household income/expense totals.
+- [ ] Add simple export of report-ready CSV data where useful, reusing existing canonical records and privacy boundaries.
+
+### UX / Quality
+
+- [ ] Add a Reports area with a small set of purpose-built household views rather than a generic report builder.
+- [ ] Support mobile-friendly trend summaries with detail available on demand instead of wide tables.
+- [ ] Use plain-language comparison labels such as "up from last month" and always expose the comparison basis.
+
+### Testing / Validation
+
+- [ ] Add regression coverage for transfer exclusion, refunds/negative amounts, category hierarchy, year boundaries and incomplete months.
+- [ ] Reconcile report totals against canonical Transaction and commitment data for representative periods.
+- [ ] Verify exported values match on-screen totals and retain Australian date/currency conventions.
+
+## v1.22.0 - Home Assistant Financial Entities & Alerts
+
+Status: Planned
+
+Objective: Deepen Fynvo's Home Assistant value by exposing a small, stable set of household financial entities and actionable alerts based on the same authoritative Fynvo calculations.
+
+### Features
+
+- [ ] Expose stable Home Assistant-facing values for available cash, next income date/amount, cash required before next pay, projected before-pay balance and near-term shortfall state.
+- [ ] Add entities or equivalent HA integration surfaces for upcoming commitment totals and payment-attention counts where they remain semantically stable.
+- [ ] Add opt-in alerts for predicted before-pay shortfall, overdue payment attention and materially incomplete funding information.
+- [ ] Keep alerts state-based and idempotent so Home Assistant restarts do not create repeated notifications for the same unchanged condition.
+- [ ] Provide clear entity availability/unknown behaviour when Fynvo lacks sufficient source data.
+
+### UX / Quality
+
+- [ ] Document entity meanings and update cadence in household language.
+- [ ] Keep Home Assistant alerts opt-in and avoid noisy notifications for low-value state changes.
+- [ ] Ensure the Fynvo ingress UI remains the detailed investigation surface while HA entities serve dashboards and automations.
+
+### Testing / Validation
+
+- [ ] Verify entities reconcile with the same pay-cycle and payment-planning service values shown in Fynvo.
+- [ ] Add restart/idempotency coverage for alert state.
+- [ ] Verify unknown values remain unavailable rather than silently becoming zero.
+
 ## Future
 
 Status: Planned
 
-- [ ] Continue production validation and corrective releases based on installed Home Assistant usage.
+- [ ] Continue evidence-led improvements that strengthen household financial decisions without turning Fynvo into business accounting software.

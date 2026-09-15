@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Semantic version to release, without v prefix (for example 1.24.2)"
+        description: "Semantic version to release, without v prefix (for example 1.24.3)"
         required: true
         type: string
 

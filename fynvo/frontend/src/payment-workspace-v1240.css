@@ -2,6 +2,8 @@
   body.fynvo-payment-v1240-active main.content > .header,
   body.fynvo-payment-v1240-active main.content > .payment-centre-page,
   body.fynvo-payment-v1240-active main.content > .payment-v1161-shell,
+  body.fynvo-payment-v1240-active main.content > .payment-v1182-shell,
+  body.fynvo-payment-v1240-active main.content > .payment-v1183-shell,
   body.fynvo-payment-v1240-active main.content > .panel { display: none !important; }
   .fynvo-payments-v1240 { position: relative; display: grid; gap: 12px; min-width: 0; padding: 0 0 calc(88px + env(safe-area-inset-bottom, 0px)); }
   .fynvo-payments-v1240-heading { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; padding: 4px 2px 8px; }
