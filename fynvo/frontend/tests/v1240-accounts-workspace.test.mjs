@@ -17,9 +17,9 @@ test('Accounts has the approved Accounts, Activity and Cards information archite
 
 test('Account Detail preserves actual account activity, pending states and recurring links', () => {
   for (const label of ['Account details', 'Recent transactions', 'Pending transactions', 'Insights', 'Recurring from this account', 'View Activity', 'View all']) assert.match(accounts, new RegExp(label));
-  assert.match(accounts, /status \|\| ''\)\.toLowerCase\(\) === 'pending'/);
+  assert.match(accounts, /status \|\| ["']{2}\)\.toLowerCase\(\) === ["']pending["']/);
   assert.match(accounts, /recurring\.filter/);
-  assert.match(accounts, /apiRequest\('\/payments\/transactions\?limit=2000'/);
+  assert.match(accounts, /apiRequest\(["']\/payments\/transactions\?limit=2000["']/);
 });
 
 test('Activity keeps transaction search, filters and reconciliation workflows', () => {

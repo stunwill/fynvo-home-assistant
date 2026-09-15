@@ -200,12 +200,16 @@ def _account_rows(db: DbSession, user: User) -> list[dict[str, Any]]:
         for row in db.execute(
             text(
                 """
-                SELECT a.id,a.name,a.account_type,a.opening_balance_cents,a.is_active,a.archived_at,
+                SELECT a.id,a.name,a.account_type,a.institution,a.account_suffix,
+                       a.opening_balance_cents,COALESCE(a.minimum_balance_cents,0) AS minimum_balance_cents,
+                       a.balance_updated_at,a.balance_update_source,a.is_active,a.archived_at,
                        COALESCE(SUM(t.amount_cents),0) AS transaction_total
                 FROM accounts a
                 LEFT JOIN transactions t ON t.account_id=a.id AND t.user_id=a.user_id
                 WHERE a.user_id=:uid
-                GROUP BY a.id,a.name,a.account_type,a.opening_balance_cents,a.is_active,a.archived_at
+                GROUP BY a.id,a.name,a.account_type,a.institution,a.account_suffix,
+                         a.opening_balance_cents,a.minimum_balance_cents,a.balance_updated_at,
+                         a.balance_update_source,a.is_active,a.archived_at
                 ORDER BY a.name,a.id
                 """
             ),
@@ -407,25 +411,81 @@ def _commitments_before_income(
     return result
 
 
+def _commitment_breakdown(row: dict[str, Any], account_id: int | None) -> dict[str, Any]:
+    return {
+        "source_type": row.get("source_type"),
+        "source_id": row.get("source_id") or row.get("id"),
+        "name": row.get("name") or row.get("merchant") or "Payment",
+        "date": (_as_date(row.get("expected_date") or row.get("due_date")) or date.min).isoformat(),
+        "amount": cents_to_decimal(_amount_cents(row)),
+        "status": row.get("status"),
+        "account_id": account_id,
+        "card_id": row.get("card_id"),
+        "is_planned_spending": bool(row.get("is_planned_spending")),
+    }
+
+
+def _monthly_requirements(
+    payment_rows: list[dict[str, Any]], planned_rows: list[dict[str, Any]], db: DbSession, user: User, current: date
+) -> dict[int, dict[str, Any]]:
+    month_start = current.replace(day=1)
+    month_end = (month_start.replace(day=28) + timedelta(days=4)).replace(day=1)
+    totals: dict[int, dict[str, int]] = defaultdict(lambda: {"scheduled": 0, "remaining": 0, "count": 0})
+    for row in [*payment_rows, *planned_rows]:
+        when = _as_date(row.get("expected_date") or row.get("due_date"))
+        if when is None or not month_start <= when < month_end:
+            continue
+        account_id = _derived_account_id(row, db, user)
+        if account_id is None:
+            continue
+        status_name = row.get("status")
+        if status_name not in {"skipped", "cancelled"}:
+            totals[account_id]["scheduled"] += _amount_cents(row)
+        if status_name in FUNDING_STATUSES:
+            totals[account_id]["remaining"] += _amount_cents(row)
+            totals[account_id]["count"] += 1
+    return {
+        account_id: {
+            "month": month_start.isoformat(),
+            "scheduled_total": cents_to_decimal(values["scheduled"]),
+            "remaining_total": cents_to_decimal(values["remaining"]),
+            "remaining_count": values["count"],
+        }
+        for account_id, values in totals.items()
+    }
+
+
 def _account_pay_cycle_requirements(
-    commitments: list[dict[str, Any]], db: DbSession, user: User
+    commitments: list[dict[str, Any]],
+    db: DbSession,
+    user: User,
+    *,
+    cycle_start: date,
+    cycle_end: date,
+    starting_balances: dict[int, int] | None = None,
+    monthly: dict[int, dict[str, Any]] | None = None,
+    next_cycle: bool = False,
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     accounts = {int(row["id"]): row for row in _account_rows(db, user)}
-    active_balances = {
+    active_balances = starting_balances or {
         account_id: int(row["opening_balance_cents"] or 0) + int(row["transaction_total"] or 0)
         for account_id, row in accounts.items()
         if row["account_type"] in LIQUID_ACCOUNT_TYPES and bool(row["is_active"]) and row["archived_at"] is None
     }
-    grouped: dict[int | None, dict[str, int]] = defaultdict(lambda: {"required": 0, "count": 0})
+    grouped: dict[int | None, dict[str, Any]] = defaultdict(lambda: {"required": 0, "count": 0, "commitments": []})
     for row in commitments:
         account_id = _derived_account_id(row, db, user)
         grouped[account_id]["required"] += _amount_cents(row)
         grouped[account_id]["count"] += 1
+        grouped[account_id]["commitments"].append(_commitment_breakdown(row, account_id))
 
     output: list[dict[str, Any]] = []
     unassigned_required = 0
     unassigned_count = 0
-    for account_id, values in grouped.items():
+    account_ids: set[int | None] = set(grouped)
+    account_ids.update(active_balances)
+    for account_id in account_ids:
+        values = grouped[account_id]
         required = int(values["required"])
         count = int(values["count"])
         if account_id is None:
@@ -436,16 +496,25 @@ def _account_pay_cycle_requirements(
                     "account_id": None,
                     "account_name": "Account not specified",
                     "current_balance": None,
+                    "projected_starting_balance": None,
+                    "cycle_start_date": cycle_start.isoformat(),
+                    "cycle_end_date": cycle_end.isoformat(),
                     "required_before_pay": cents_to_decimal(required),
-                    "preferred_buffer": None,
+                    "commitment_total": cents_to_decimal(required),
+                    "target_balance": None,
+                    "recommended_transfer": None,
+                    "preferred_buffer": "0.00",
                     "balance_after_commitments": None,
+                    "projected_remaining": None,
                     "funding_surplus": None,
                     "funding_shortfall": None,
                     "commitment_count": count,
-                    "status": "unknown",
+                    "status": "needs_setup",
                     "balance_known": False,
                     "funding_destination_known": False,
                     "archived": False,
+                    "commitments": values["commitments"],
+                    "setup_action": "payments",
                 }
             )
             continue
@@ -457,32 +526,79 @@ def _account_pay_cycle_requirements(
             and account["archived_at"] is None
         )
         balance = active_balances.get(account_id) if active_funding else None
+        buffer_cents = max(int(account["minimum_balance_cents"] or 0), 0) if account else 0
+        target = required + buffer_cents
         remaining = balance - required if balance is not None else None
-        shortfall = max(required - balance, 0) if balance is not None else None
-        surplus = max(balance - required, 0) if balance is not None else None
+        shortfall = max(target - balance, 0) if balance is not None else None
+        surplus = max(balance - target, 0) if balance is not None else None
+        if not active_funding or balance is None:
+            status_name = "needs_setup"
+        elif count == 0 and buffer_cents == 0:
+            status_name = "no_payments_due"
+        elif shortfall:
+            status_name = "transfer" if next_cycle else "add"
+        else:
+            status_name = "already_funded" if next_cycle else "covered"
         output.append(
             {
                 "account_id": account_id,
                 "account_name": account["name"] if account else "Account unavailable",
-                "current_balance": cents_to_decimal(balance) if balance is not None else None,
+                "institution": account.get("institution") if account else None,
+                "account_suffix": account.get("account_suffix") if account else None,
+                "current_balance": cents_to_decimal(
+                    int(account["opening_balance_cents"] or 0) + int(account["transaction_total"] or 0)
+                ) if active_funding else None,
+                "projected_starting_balance": cents_to_decimal(balance) if balance is not None else None,
+                "cycle_start_date": cycle_start.isoformat(),
+                "cycle_end_date": cycle_end.isoformat(),
                 "required_before_pay": cents_to_decimal(required),
-                "preferred_buffer": None,
+                "commitment_total": cents_to_decimal(required),
+                "preferred_buffer": cents_to_decimal(buffer_cents),
+                "target_balance": cents_to_decimal(target),
+                "recommended_transfer": cents_to_decimal(shortfall) if shortfall is not None else None,
                 "balance_after_commitments": cents_to_decimal(remaining) if remaining is not None else None,
+                "projected_remaining": cents_to_decimal(remaining) if remaining is not None else None,
                 "funding_surplus": cents_to_decimal(surplus) if surplus is not None else None,
                 "funding_shortfall": cents_to_decimal(shortfall) if shortfall is not None else None,
                 "commitment_count": count,
-                "status": "shortfall" if shortfall else "funded" if balance is not None else "unknown",
+                "status": status_name,
                 "balance_known": balance is not None,
                 "funding_destination_known": active_funding,
                 "archived": bool(account and (not account["is_active"] or account["archived_at"] is not None)),
+                "balance_updated_at": str(account["balance_updated_at"]) if account and account["balance_updated_at"] else None,
+                "balance_update_source": account.get("balance_update_source") if account else None,
+                "monthly_requirement": (monthly or {}).get(
+                    account_id,
+                    {"month": cycle_start.replace(day=1).isoformat(), "scheduled_total": "0.00", "remaining_total": "0.00", "remaining_count": 0},
+                ),
+                "commitments": sorted(values["commitments"], key=lambda item: (item["date"], item["name"])),
+                "setup_action": None if active_funding else "accounts",
             }
         )
-    output.sort(key=lambda row: (row["status"] != "shortfall", row["status"] == "unknown", row["account_name"]))
+    priority = {"add": 0, "transfer": 0, "needs_setup": 1, "covered": 2, "already_funded": 2, "no_payments_due": 3}
+    output.sort(key=lambda row: (priority.get(row["status"], 4), row["account_name"]))
     return output, {
         "required": cents_to_decimal(unassigned_required),
         "commitment_count": unassigned_count,
         "account_funding_unknown": bool(unassigned_count),
+        "commitments": sorted(grouped[None]["commitments"], key=lambda item: (item["date"], item["name"])),
+        "setup_action": "payments" if unassigned_count else None,
     }
+
+
+def _commitments_in_cycle(
+    payment_rows: list[dict[str, Any]], planned_rows: list[dict[str, Any]], start: date, end: date
+) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    for row in payment_rows:
+        when = _as_date(row.get("expected_date") or row.get("due_date"))
+        if row.get("status") in FUNDING_STATUSES and row.get("status") != "overdue" and when and start <= when < end:
+            rows.append(row)
+    for row in planned_rows:
+        when = _as_date(row.get("expected_date"))
+        if when and start <= when < end:
+            rows.append(row)
+    return rows
 
 
 def _active_liquid_cash(db: DbSession, user: User) -> tuple[int, int]:
@@ -551,6 +667,22 @@ def build_pay_cycle_planning(
             "before_next_income": None,
             "after_next_income": None,
             "accounts": [],
+            "account_funding": {
+                "status": "needs_setup",
+                "cycle_start_date": current.isoformat(),
+                "cycle_end_date": None,
+                "accounts": [],
+                "unassigned": {"required": "0.00", "commitment_count": 0, "commitments": []},
+            },
+            "payday_allocation": {
+                "status": "needs_setup",
+                "cycle_start_date": None,
+                "cycle_end_date": None,
+                "total_recommended_allocation": None,
+                "accounts": [],
+                "unassigned": {"required": "0.00", "commitment_count": 0, "commitments": []},
+                "message": "Add or complete an active Income schedule to calculate Payday Allocation.",
+            },
             "unassigned": {"required": "0.00", "commitment_count": 0, "account_funding_unknown": False},
             "upcoming_income_events": [],
             "cycles": [],
@@ -570,7 +702,17 @@ def build_pay_cycle_planning(
     next_income = income_events[0]
     next_income_date = _as_date(next_income["date"])
     commitments = _commitments_before_income(payment_rows, planned_rows, current, next_income_date)
-    accounts, unassigned = _account_pay_cycle_requirements(commitments, db, user)
+    monthly = _monthly_requirements(payment_rows, planned_rows, db, user, current)
+    funding_accounts, unassigned = _account_pay_cycle_requirements(
+        commitments,
+        db,
+        user,
+        cycle_start=current,
+        cycle_end=next_income_date,
+        monthly=monthly,
+    )
+    legacy_status = {"add": "shortfall", "covered": "funded", "no_payments_due": "funded", "needs_setup": "unknown"}
+    accounts = [{**row, "status": legacy_status.get(row["status"], row["status"])} for row in funding_accounts]
     commitments_total = sum(_amount_cents(row) for row in commitments)
     overdue_total = sum(
         _amount_cents(row) for row in commitments if row.get("status") == "overdue"
@@ -584,9 +726,11 @@ def build_pay_cycle_planning(
     before_cents = current_cash_cents - commitments_total
     after_cents = before_cents + int(next_income["amount_cents"])
     household_shortfall = max(-before_cents, 0)
-    assignments_complete = all(row["funding_destination_known"] for row in accounts)
+    assignments_complete = not unassigned["account_funding_unknown"] and all(
+        row["funding_destination_known"] for row in funding_accounts
+    )
     cash_known = liquid_account_count > 0
-    account_shortfall = any(row["status"] == "shortfall" for row in accounts)
+    account_shortfall = any(row["status"] == "add" for row in funding_accounts)
     if not cash_known or not assignments_complete:
         status_name = "unknown"
     elif household_shortfall or account_shortfall:
@@ -618,6 +762,101 @@ def build_pay_cycle_planning(
         )
         running_cash = projected_after
         cycle_start = income_date
+
+    active_balances = _account_balances(db, user)
+    current_commitments_by_account: dict[int, int] = defaultdict(int)
+    for row in commitments:
+        account_id = _derived_account_id(row, db, user)
+        if account_id in active_balances:
+            current_commitments_by_account[int(account_id)] += _amount_cents(row)
+    boundary_income_by_account: dict[int, int] = defaultdict(int)
+    boundary_income_events = [event for event in income_events if _as_date(event["date"]) == next_income_date]
+    for event in boundary_income_events:
+        account_id = event.get("account_id")
+        if account_id in active_balances:
+            boundary_income_by_account[int(account_id)] += int(event["amount_cents"])
+    projected_at_payday = {
+        account_id: balance - current_commitments_by_account[account_id] + boundary_income_by_account[account_id]
+        for account_id, balance in active_balances.items()
+    }
+    following_event = next((event for event in income_events if _as_date(event["date"]) > next_income_date), None)
+    if following_event:
+        following_pay_date = _as_date(following_event["date"])
+        next_commitments = _commitments_in_cycle(payment_rows, planned_rows, next_income_date, following_pay_date)
+        allocation_accounts, next_unassigned = _account_pay_cycle_requirements(
+            next_commitments,
+            db,
+            user,
+            cycle_start=next_income_date,
+            cycle_end=following_pay_date,
+            starting_balances=projected_at_payday,
+            monthly=monthly,
+            next_cycle=True,
+        )
+        projection_complete = assignments_complete
+        if not projection_complete:
+            for row in allocation_accounts:
+                row.update(
+                    {
+                        "projected_starting_balance": None,
+                        "recommended_transfer": None,
+                        "projected_remaining": None,
+                        "funding_surplus": None,
+                        "funding_shortfall": None,
+                        "status": "needs_setup",
+                        "balance_known": False,
+                    }
+                )
+        allocation_total = (
+            sum(
+                parse_money(row["recommended_transfer"])
+                for row in allocation_accounts
+                if row["recommended_transfer"] is not None
+            )
+            if projection_complete
+            else None
+        )
+        payday_allocation = {
+            "status": "needs_setup" if not projection_complete or next_unassigned["account_funding_unknown"] or any(row["status"] == "needs_setup" for row in allocation_accounts) else "ready",
+            "cycle_start_date": next_income_date.isoformat(),
+            "cycle_end_date": following_pay_date.isoformat(),
+            "incoming_payday": next_income_date.isoformat(),
+            "following_payday": following_pay_date.isoformat(),
+            "income_events": boundary_income_events,
+            "total_recommended_allocation": cents_to_decimal(allocation_total) if allocation_total is not None else None,
+            "accounts": allocation_accounts,
+            "unassigned": next_unassigned,
+            "reconciles": allocation_total is not None and allocation_total == sum(
+                parse_money(row["recommended_transfer"] or "0") for row in allocation_accounts
+            ),
+            "message": None if projection_complete else "Assign every current-cycle payment to calculate reliable payday balances.",
+        }
+    else:
+        payday_allocation = {
+            "status": "needs_setup",
+            "cycle_start_date": next_income_date.isoformat(),
+            "cycle_end_date": None,
+            "incoming_payday": next_income_date.isoformat(),
+            "following_payday": None,
+            "income_events": boundary_income_events,
+            "total_recommended_allocation": None,
+            "accounts": [],
+            "unassigned": {"required": "0.00", "commitment_count": 0, "commitments": []},
+            "reconciles": False,
+            "message": "The following payday is not known. Complete the Income schedule to calculate Payday Allocation.",
+        }
+
+    current_total_required = sum(parse_money(row["target_balance"] or "0") for row in funding_accounts)
+    current_total_shortfall = sum(parse_money(row["funding_shortfall"] or "0") for row in funding_accounts)
+    account_funding = {
+        "status": "needs_setup" if not cash_known or not assignments_complete else "add" if current_total_shortfall else "covered",
+        "cycle_start_date": current.isoformat(),
+        "cycle_end_date": next_income_date.isoformat(),
+        "total_required": cents_to_decimal(current_total_required),
+        "total_shortfall": cents_to_decimal(current_total_shortfall),
+        "accounts": funding_accounts,
+        "unassigned": unassigned,
+    }
 
     return {
         "as_of": current.isoformat(),
@@ -652,6 +891,8 @@ def build_pay_cycle_planning(
             "projected_cash": cents_to_decimal(after_cents) if cash_known else None,
         },
         "accounts": accounts,
+        "account_funding": account_funding,
+        "payday_allocation": payday_allocation,
         "unassigned": unassigned,
         "upcoming_income_events": income_events[:PAY_CYCLE_SEQUENCE_LIMIT],
         "cycles": cycles,
@@ -660,7 +901,7 @@ def build_pay_cycle_planning(
             "cash_balance_known": cash_known,
             "funding_assignments_complete": assignments_complete,
             "complete": bool(next_income["complete"] and cash_known and assignments_complete),
-            "buffer_supported": False,
+            "buffer_supported": True,
             "message": None if next_income["complete"] and cash_known and assignments_complete else "Some Account funding information is incomplete. Unknown information is not treated as zero.",
         },
     }

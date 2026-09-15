@@ -221,8 +221,8 @@ def test_household_shortfall_and_no_invented_buffer(client):
     data = pay_cycle(client)
     assert data["status"] == "shortfall"
     assert data["before_next_income"]["funding_shortfall"] == "200.00"
-    assert data["accounts"][0]["preferred_buffer"] is None
-    assert data["completeness"]["buffer_supported"] is False
+    assert data["accounts"][0]["preferred_buffer"] == "0.00"
+    assert data["completeness"]["buffer_supported"] is True
 
 
 def test_true_fortnightly_month_end_and_effective_income_change(client):

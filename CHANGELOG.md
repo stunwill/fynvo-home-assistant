@@ -2,6 +2,15 @@
 
 All notable Fynvo changes are documented here. Starting with v0.3.0, every release must include a user-readable changelog entry, Home Assistant-visible release notes and GitHub release notes.
 
+## v1.25.0 - Account Funding, Payday Allocation & Balance Management
+
+- Adds one authoritative account-funding calculation for the current cycle and the next payday-to-payday cycle, with explicit dates and traceable canonical commitments.
+- Adds fast, atomic bulk balance updates with negative and cent-precision support, freshness timestamps, retained input on errors and immediate planning refresh.
+- Completes preferred per-account buffers using the existing minimum-balance model and exposes funding status, breakdowns and monthly context in Accounts and Account Detail.
+- Adds Payday Allocation to Plan and a compact Overview summary, including projected payday balances, per-account transfer recommendations and actionable unassigned commitments.
+- Preserves same-day income-before-payment ordering, Bill/Scheduled Payment suppression, terminal-state exclusions, planned spending, card-derived funding accounts, Safe-to-Spend and Home Assistant ingress.
+- Adds a safe schema v14 forward migration for balance freshness fields while preserving existing accounts and balances.
+
 ## v1.24.3 - Post-v1.24.1 Production Corrections
 
 - Corrects Payments Attention so badges, summaries, totals and rows share one source of truth.

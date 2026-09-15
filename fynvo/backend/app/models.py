@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Integer, String, Text, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .database import Base
@@ -53,6 +53,11 @@ class Account(Base):
     account_type: Mapped[str] = mapped_column(String(40), index=True, nullable=False)
     institution: Mapped[str | None] = mapped_column(String(120), nullable=True)
     opening_balance_cents: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    minimum_balance_cents: Mapped[int] = mapped_column(
+        Integer, default=0, server_default=text("0"), nullable=False
+    )
+    balance_updated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    balance_update_source: Mapped[str | None] = mapped_column(String(40), nullable=True)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     account_suffix: Mapped[str | None] = mapped_column(String(12), nullable=True)
     icon: Mapped[str | None] = mapped_column(String(80), nullable=True)

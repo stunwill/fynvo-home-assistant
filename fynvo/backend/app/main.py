@@ -9,6 +9,7 @@ from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session as DbSession
 
 from . import (
+    account_funding,
     accounts_cards_v1163,
     intelligence,
     v09,
@@ -27,7 +28,7 @@ from .auth import (
 )
 from .config import APP_VERSION
 from .dashboard import get_overview
-from .database import get_db, run_migrations
+from .database import get_db, get_engine, run_migrations
 from .finance import (
     annual_matrix,
     cancel_planned,
@@ -99,16 +100,18 @@ USER_DEPENDENCY = Depends(get_current_user)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     run_migrations()
+    account_funding.ensure_account_funding_schema(get_engine())
     yield
 
 
 app = FastAPI(title="Fynvo API", version=APP_VERSION, description="Fynvo household cash-flow forecasting API.", lifespan=lifespan)
-app.add_middleware(CORSMiddleware, allow_origins=[], allow_credentials=True, allow_methods=["GET", "POST", "PUT", "DELETE"], allow_headers=["Content-Type"])
+app.add_middleware(CORSMiddleware, allow_origins=[], allow_credentials=True, allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"], allow_headers=["Content-Type"])
 app.include_router(v09.router)
 app.include_router(intelligence.router)
 app.include_router(v12_mount.router, prefix="/api")
 app.include_router(v13_cashflow.router)
 app.include_router(accounts_cards_v1163.router, prefix="/api")
+app.include_router(account_funding.router, prefix="/api")
 
 
 def public_user(user: User) -> UserResponse:

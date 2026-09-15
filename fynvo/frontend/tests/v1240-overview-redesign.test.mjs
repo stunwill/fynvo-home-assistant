@@ -19,8 +19,8 @@ test('Overview follows the approved four-part hierarchy without Accounts duplica
 test('Overview uses real planning states and links to later destinations', () => {
   assert.match(overview, /safeAvailable/);
   assert.match(overview, /Unavailable/);
-  assert.match(overview, /open\('Payments'\)/);
-  assert.match(overview, /open\('Plan'\)/);
+  assert.match(overview, /open\(["']Payments["']\)/);
+  assert.match(overview, /open\(["']Plan["']\)/);
   assert.match(overview, /No payments need your attention right now/);
   assert.match(overview, /No upcoming payments/);
 });
@@ -35,9 +35,9 @@ test('shared foundation and mobile shell protect narrow ingress layouts', () => 
 });
 
 test('More keeps secondary tools discoverable without duplicating redesigned destinations', () => {
-  assert.match(overview, /open\('Categories'\)/);
-  assert.match(overview, /open\('CSV Import'\)/);
-  assert.match(overview, /open\('Review Queue'\)/);
+  assert.match(overview, /open\(["']Categories["']\)/);
+  assert.match(overview, /open\(["']CSV Import["']\)/);
+  assert.match(overview, /open\(["']Review Queue["']\)/);
   assert.doesNotMatch(overview, />Cash Flow<\/button>/);
   assert.doesNotMatch(overview, />Calendar<\/button>/);
   assert.doesNotMatch(overview, />Transactions<\/button>/);
