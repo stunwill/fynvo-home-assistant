@@ -1,6 +1,6 @@
 # Fynvo Release Process
 
-Starting with **v0.3.0**, every production Fynvo release must include:
+Every production Fynvo release must include:
 
 - version bump;
 - database migrations where required;
@@ -15,33 +15,74 @@ Starting with **v0.3.0**, every production Fynvo release must include:
 
 The changelog must describe changes from the user's perspective rather than listing raw commits.
 
-The Home Assistant add-on must expose useful release information through the repository's changelog/release notes so updates can be understood from the add-on/update experience.
+## Deterministic production release sequence
+
+A Fynvo release is not ready merely because `fynvo/config.yaml` advertises a new version.
+
+The required release lifecycle is:
+
+1. merge the completed release changes to `main`;
+2. manually start the **Release Fynvo** workflow for the exact semantic version already present in repository metadata;
+3. validate version consistency across Home Assistant, frontend, backend and changelogs;
+4. create or reuse the corresponding `vX.Y.Z` Git tag;
+5. invoke the reusable release-image workflow for that exact tag;
+6. build each supported architecture image;
+7. publish the generic multi-architecture manifest;
+8. verify the expected platforms are present;
+9. log out of GHCR and anonymously resolve the exact Home Assistant image reference `ghcr.io/stunwill/fynvo:X.Y.Z`;
+10. anonymously pull the amd64 variant of that exact final reference;
+11. only after those checks succeed, create or update the GitHub Release.
+
+This ordering is intentional. It prevents the release pipeline itself from announcing completion before the container image is actually available to Home Assistant.
+
+The release workflow is manual rather than automatically triggered by a `fynvo/config.yaml` push. This avoids starting container publication while the release PR merge is still becoming externally visible.
 
 ## Container image publication
 
-The add-on uses the immutable image reference `ghcr.io/stunwill/fynvo` from
-`fynvo/config.yaml`. Production images are published only by the release-tag
-workflow, using a tag such as `v1.22.0`; pull requests do not publish release
-packages. The workflow builds the configured architectures, creates the generic
-multi-architecture manifest, and verifies that every required platform is
-present before the release is considered ready.
+The add-on uses the generic image reference `ghcr.io/stunwill/fynvo` from `fynvo/config.yaml`.
 
-The GHCR package must be public so Home Assistant Supervisor can pull it without
-unsupported credentials. Architecture images use the builder-compatible names
-`ghcr.io/stunwill/<arch>-fynvo:vX.Y.Z`, while Supervisor consumes the generic
-manifest. The release tag, add-on version, frontend version and backend version
-must all match the image's semantic version.
+The Home Assistant-consumed immutable tag is:
 
-The image contains the built frontend and installed backend dependencies. The
-legacy `build.yaml` remains available for local and compatibility builds, but a
-normal add-on install or update pulls the published image instead of building
-application assets on the Home Assistant host. `/data` remains the persistent
-add-on mount and must be backed up before upgrades or downgrades.
+`ghcr.io/stunwill/fynvo:X.Y.Z`
 
-Home Assistant Supervisor owns the installation percentage. Fynvo does not
-invent intermediate progress values; Supervisor may continue to show 0% while
-an image is downloading or being extracted.
+The corresponding alias is also published:
 
-GitHub Releases should use the corresponding version tag, for example `v0.3.0`, with Added / Changed / Fixed / Security sections where applicable.
+`ghcr.io/stunwill/fynvo:vX.Y.Z`
 
-A release is not ready if the Home Assistant add-on cannot be opened through Home Assistant ingress, if `/` returns 404, if authentication only works through direct port access, or if the add-on enters an unexplained restart loop.
+Architecture-specific build images use:
+
+`ghcr.io/stunwill/<arch>-fynvo:X.Y.Z`
+
+Pull requests do not publish production packages.
+
+The GHCR package must remain public so Home Assistant Supervisor can pull it without registry credentials.
+
+## Failure behaviour
+
+If any architecture build, manifest publication, platform verification, anonymous resolution or anonymous pull fails:
+
+- the release workflow fails;
+- GitHub Release publication does not proceed;
+- the exact failure remains visible in GitHub Actions;
+- an existing valid immutable image is not deleted.
+
+Re-running the workflow may reuse an existing Git tag and image tags. Release publication is idempotent: an existing GitHub Release is updated rather than duplicated.
+
+## Home Assistant compatibility
+
+Normal add-on updates replace the container but preserve `/data`.
+
+Home Assistant Supervisor owns installation progress. Fynvo does not fabricate progress percentages.
+
+Legacy saved add-on options may remain in existing Supervisor configuration after the application has moved settings into the Fynvo UI/database. These compatibility concerns must be handled without exposing passwords or deleting user data.
+
+## Acceptance
+
+A release is not ready if:
+
+- the exact Home Assistant image reference cannot be pulled anonymously;
+- the required architecture is missing;
+- version metadata disagrees;
+- Home Assistant ingress fails;
+- `/data` persistence is broken;
+- the add-on enters an unexplained restart loop.
