@@ -114,6 +114,9 @@ def account_response(db: DbSession, account: Account) -> dict:
         "institution": account.institution,
         "opening_balance": cents_to_decimal(account.opening_balance_cents),
         "current_balance": cents_to_decimal(account_balance_cents(db, account)),
+        "preferred_buffer": cents_to_decimal(int(account.minimum_balance_cents or 0)),
+        "balance_updated_at": account.balance_updated_at.isoformat() if account.balance_updated_at else None,
+        "balance_update_source": account.balance_update_source,
         "description": account.description,
         "account_suffix": account.account_suffix,
         "icon": account.icon,
@@ -143,7 +146,10 @@ def create_account(db: DbSession, user: User, payload) -> dict:
         name=name,
         account_type=payload.account_type,
         institution=payload.institution.strip() if payload.institution else None,
-        opening_balance_cents=abs(parse_money(payload.opening_balance)),
+        opening_balance_cents=parse_money(payload.opening_balance),
+        minimum_balance_cents=0,
+        balance_updated_at=utcnow(),
+        balance_update_source="manual",
         description=payload.description.strip() if payload.description else None,
         account_suffix=payload.account_suffix,
         icon=payload.icon,
@@ -168,7 +174,9 @@ def update_account(db: DbSession, user: User, account_id: int, payload) -> dict:
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Account name is required")
             setattr(account, field, value)
     if payload.opening_balance is not None:
-        account.opening_balance_cents = abs(parse_money(payload.opening_balance))
+        account.opening_balance_cents = parse_money(payload.opening_balance)
+        account.balance_updated_at = utcnow()
+        account.balance_update_source = "manual"
     account.updated_at = utcnow()
     updated = account_response(db, account)
     _record_edit(db, user, "accounts", account.id, original, updated)
