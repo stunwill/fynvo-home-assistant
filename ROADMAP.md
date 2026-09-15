@@ -2,7 +2,18 @@
 
 Fynvo is a household finance and cash-planning application for understanding upcoming commitments, available cash, pay-cycle pressure, spending decisions and near-term financial risk. The roadmap prioritises practical household planning over business accounting, tax, payroll or investment-trading functionality.
 
-The current development baseline is v1.24.0. Payment Centre, recurring-payment lifecycle, 7/14/30-day commitment planning, pay-cycle cash planning, account funding requirements, available-cash comparisons, transactions, reconciliation, budgets, goals, scenarios, date-oriented financial Calendar, Cash Flow forecasting/impact analysis, CSV import, insights, Overview drill-down navigation, responsive Home Assistant ingress and prebuilt add-on image distribution are already delivered and are not repeated below as new scope.
+The current development baseline is v1.25.0. Payment Centre, recurring-payment lifecycle, 7/14/30-day commitment planning, pay-cycle cash planning, account funding requirements, Payday Allocation, bulk balance updates, available-cash comparisons, transactions, reconciliation, budgets, goals, scenarios, date-oriented financial Calendar, Cash Flow forecasting/impact analysis, CSV import, insights, Overview drill-down navigation, responsive Home Assistant ingress and prebuilt add-on image distribution are already delivered and are not repeated below as new scope.
+
+## v1.25.0 - Account Funding, Payday Allocation & Balance Management
+
+Status: Implemented, pending PR review and installed acceptance
+
+- [x] Reuse canonical Payment Planning, pay-cycle, account balance and Safe-to-Spend calculations.
+- [x] Distinguish current-cycle funding from next-cycle Payday Allocation with explicit boundaries.
+- [x] Add atomic bulk balance updates, freshness metadata and immediate planning refresh.
+- [x] Complete preferred account buffers and Account Detail funding breakdowns.
+- [x] Integrate concise funding decisions into Accounts, Overview and Plan.
+- [x] Add deterministic backend and mobile frontend regression coverage.
 
 ## v1.24.0 - Core UX Redesign
 

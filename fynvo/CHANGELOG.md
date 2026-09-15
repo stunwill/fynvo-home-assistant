@@ -1,5 +1,14 @@
 # Fynvo Add-on Changelog
 
+## v1.25.0 - Account Funding, Payday Allocation & Balance Management
+
+- Shows whether every active liquid Account is covered until the next payday and identifies the exact amount to add where it is not.
+- Adds mobile-first Update Balances with one atomic save, negative balances, cents, change review and unsaved-change protection.
+- Adds Account Detail funding breakdowns, preferred buffers, balance freshness and monthly scheduled-payment context.
+- Adds next-cycle Payday Allocation using projected payday balances and canonical payments across calendar-month boundaries.
+- Integrates one shared funding result into Accounts, Plan and Overview, with actionable incomplete and unassigned states.
+- Migrates existing installations safely to schema v14 without changing stored balances or deleting records.
+
 ## v1.24.3 - Post-v1.24.1 Production Corrections
 
 - Aligns Payments Attention counts, badges, totals and displayed rows from the same canonical payment set.
