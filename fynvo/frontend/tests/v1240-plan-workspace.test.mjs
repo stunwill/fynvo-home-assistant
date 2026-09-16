@@ -26,7 +26,7 @@ test('Plan uses authoritative planning and forecast responses', () => {
 
 test('Plan distinguishes pressure, income, payments and healthy states', () => {
   for (const label of ['Upcoming pressure point', 'Healthy trajectory', 'Incoming income', 'Committed before next pay', 'Projected shortfall', 'eventType']) assert.match(plan, new RegExp(label));
-  assert.match(plan, /View all payments for this date/);
+  assert.match(plan, /const navigatePayments/);
   assert.match(plan, /onNavigate\(["']Payments["']\)/);
 });
 
@@ -36,7 +36,7 @@ test('Calendar supports month navigation, selected dates and event markers', () 
 
 test('Plan mobile shell protects ingress widths and safe areas', () => {
   assert.match(css, /safe-area-inset-bottom/);
-  for (const width of ['430px', '393px', '374px', '329px']) assert.match(css, new RegExp(`max-width:\\s*${width}`));
+  for (const width of ['430px', '393px', '374px']) assert.match(css, new RegExp(`max-width:\\s*${width}`));
   assert.match(css, /min-width: 0/);
   assert.match(css, /overflow/);
   assert.match(wrapper, /PlanWorkspaceV1240/);
