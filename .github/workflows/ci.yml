@@ -99,3 +99,19 @@ jobs:
       - name: Build Docker image
         working-directory: fynvo
         run: docker build --build-arg BUILD_FROM=ghcr.io/home-assistant/amd64-base-python:3.12-alpine3.20 --build-arg BUILD_VERSION=$(python -c "import yaml; print(yaml.safe_load(open('config.yaml'))['version'])") --build-arg BUILD_ARCH=amd64 -t fynvo-ci .
+
+  prepublish_release_image:
+    name: Prepublish Home Assistant release image
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      startsWith(github.head_ref, 'release/v')
+    needs: [backend, frontend, addon]
+    permissions:
+      contents: read
+      packages: write
+    uses: ./.github/workflows/release-image.yml
+    with:
+      source_ref: ${{ github.head_ref }}
+      version: ${{ github.event.pull_request.head.ref != '' && github.event.pull_request.head.ref || github.head_ref }}
+    secrets: inherit
