@@ -3,13 +3,13 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session as DbSession
 
+from . import payment_planning
 from .auth import get_current_user
 from .database import get_db
 from .models import User
-from . import payment_planning
 from .payment_planning_runtime_v1251 import install as install_planning_resilience
 from .payment_planning_v1251 import unavailable_account_funding
-from .planning_resilience import PLANNING_EXCEPTIONS, exception_reason
+from .planning_resilience import PLANNING_EXCEPTIONS
 
 install_planning_resilience(payment_planning)
 
