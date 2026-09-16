@@ -4,6 +4,7 @@ import test from 'node:test';
 
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 const plan = await read('src/PlanWorkspaceV1240.jsx');
+const corrections = await read('src/productionCorrectionsV1251.js');
 const css = await read('src/plan-workspace-v1240.css');
 const wrapper = await read('src/AppCorrectiveV1163.jsx');
 
@@ -14,15 +15,17 @@ test('Plan provides Overview, Forecast and Calendar views', () => {
 });
 
 test('Plan uses authoritative planning and forecast responses', () => {
-  assert.match(plan, /payment-planning/);
-  assert.match(plan, /payment-planning\/safe-to-spend/);
+  assert.match(plan, /PLANNING_ENDPOINTS_V1251\.planning/);
+  assert.match(plan, /PLANNING_ENDPOINTS_V1251\.safeToSpend/);
+  assert.match(corrections, /planning:\s*"\/payment-planning"/);
+  assert.match(corrections, /safeToSpend:\s*"\/payment-planning\/safe-to-spend\/v1251"/);
   assert.match(plan, /forecast\?mode=expected/);
   assert.match(plan, /forecast\?mode=baseline/);
   for (const label of ['available_cash', 'committed_outgoings', 'protected_buffer', 'income_total', 'expense_total', 'shortfall', 'lowest_balance']) assert.match(plan, new RegExp(label));
 });
 
 test('Plan distinguishes pressure, income, payments and healthy states', () => {
-  for (const label of ['Upcoming pressure point', 'Healthy trajectory', 'Incoming income', 'Total income', 'Total expenses', 'Projected shortfall', 'eventType']) assert.match(plan, new RegExp(label));
+  for (const label of ['Upcoming pressure point', 'Healthy trajectory', 'Incoming income', 'Committed before next pay', 'Projected shortfall', 'eventType']) assert.match(plan, new RegExp(label));
   assert.match(plan, /View all payments for this date/);
   assert.match(plan, /onNavigate\(["']Payments["']\)/);
 });
@@ -33,7 +36,7 @@ test('Calendar supports month navigation, selected dates and event markers', () 
 
 test('Plan mobile shell protects ingress widths and safe areas', () => {
   assert.match(css, /safe-area-inset-bottom/);
-  for (const width of ['430px', '393px', '374px', '329px']) assert.match(css, new RegExp(`max-width: ${width}`));
+  for (const width of ['430px', '393px', '374px', '329px']) assert.match(css, new RegExp(`max-width:\\s*${width}`));
   assert.match(css, /min-width: 0/);
   assert.match(css, /overflow/);
   assert.match(wrapper, /PlanWorkspaceV1240/);
