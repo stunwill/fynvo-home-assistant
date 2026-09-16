@@ -4,13 +4,29 @@ on:
   workflow_call:
     inputs:
       release_ref:
-        description: "Release tag/ref to build, for example v1.24.3"
-        required: true
+        description: "Release tag/ref to build, for example v1.25.1"
+        required: false
+        type: string
+      source_ref:
+        description: "Source branch/ref to build before merge, for example release/v1.25.1-post-production-corrections"
+        required: false
+        type: string
+      version:
+        description: "Semantic version without v prefix when source_ref is used"
+        required: false
         type: string
   workflow_dispatch:
     inputs:
       release_ref:
-        description: "Release tag/ref to build, for example v1.24.3"
+        description: "Release tag/ref to build, for example v1.25.1"
+        required: false
+        type: string
+      source_ref:
+        description: "Source branch/ref to build before merge"
+        required: false
+        type: string
+      version:
+        description: "Semantic version without v prefix when source_ref is used"
         required: false
         type: string
 
@@ -26,30 +42,52 @@ jobs:
     name: Validate release metadata
     runs-on: ubuntu-latest
     outputs:
+      source_ref: ${{ steps.ref.outputs.source_ref }}
       release_ref: ${{ steps.ref.outputs.release_ref }}
       version: ${{ steps.ref.outputs.version }}
     steps:
-      - name: Resolve release ref
+      - name: Resolve source ref and release version
         id: ref
         shell: bash
         env:
-          CALLED_REF: ${{ inputs.release_ref }}
-          DISPATCH_REF: ${{ github.event.inputs.release_ref }}
+          CALLED_RELEASE_REF: ${{ inputs.release_ref }}
+          CALLED_SOURCE_REF: ${{ inputs.source_ref }}
+          CALLED_VERSION: ${{ inputs.version }}
+          DISPATCH_RELEASE_REF: ${{ github.event.inputs.release_ref }}
+          DISPATCH_SOURCE_REF: ${{ github.event.inputs.source_ref }}
+          DISPATCH_VERSION: ${{ github.event.inputs.version }}
         run: |
           set -euo pipefail
-          RELEASE_REF="${CALLED_REF:-${DISPATCH_REF:-${GITHUB_REF_NAME}}}"
-          if [[ ! "$RELEASE_REF" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "Release ref must be vX.Y.Z: $RELEASE_REF" >&2
-            exit 1
+          RELEASE_REF="${CALLED_RELEASE_REF:-${DISPATCH_RELEASE_REF:-}}"
+          SOURCE_REF="${CALLED_SOURCE_REF:-${DISPATCH_SOURCE_REF:-}}"
+          VERSION="${CALLED_VERSION:-${DISPATCH_VERSION:-}}"
+
+          if [[ -n "$RELEASE_REF" ]]; then
+            if [[ ! "$RELEASE_REF" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              echo "Release ref must be vX.Y.Z: $RELEASE_REF" >&2
+              exit 1
+            fi
+            VERSION="${RELEASE_REF#v}"
+            SOURCE_REF="$RELEASE_REF"
+          else
+            if [[ -z "$SOURCE_REF" ]]; then
+              SOURCE_REF="$GITHUB_REF_NAME"
+            fi
+            if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              echo "A semantic X.Y.Z version is required when building a source ref: $VERSION" >&2
+              exit 1
+            fi
+            RELEASE_REF="v${VERSION}"
           fi
-          VERSION="${RELEASE_REF#v}"
+
+          echo "source_ref=$SOURCE_REF" >> "$GITHUB_OUTPUT"
           echo "release_ref=$RELEASE_REF" >> "$GITHUB_OUTPUT"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
-      - name: Checkout release tag
+      - name: Checkout release source
         uses: actions/checkout@v4
         with:
-          ref: ${{ steps.ref.outputs.release_ref }}
+          ref: ${{ steps.ref.outputs.source_ref }}
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -88,10 +126,10 @@ jobs:
             platform: linux/arm/v7
             build_from: ghcr.io/home-assistant/armv7-base-python:3.12-alpine3.20
     steps:
-      - name: Checkout release tag
+      - name: Checkout release source
         uses: actions/checkout@v4
         with:
-          ref: ${{ needs.validate.outputs.release_ref }}
+          ref: ${{ needs.validate.outputs.source_ref }}
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -147,7 +185,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Publish immutable version manifest
+      - name: Publish version manifest
         env:
           VERSION: ${{ needs.validate.outputs.version }}
           RELEASE_REF: ${{ needs.validate.outputs.release_ref }}

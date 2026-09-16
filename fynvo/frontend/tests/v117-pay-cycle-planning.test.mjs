@@ -11,12 +11,10 @@ const centre = fs.readFileSync(path.join(root, 'src/PaymentCentreV1161.jsx'), 'u
 const centreCss = fs.readFileSync(path.join(root, 'src/payment-centre-v112.css'), 'utf8');
 const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
 
-
 test('v1.17 pay-cycle implementation remains authoritative on the current Payment Centre release', () => {
-  assert.equal(pkg.version, '1.25.0');
+  assert.equal(pkg.version, '1.25.1');
   assert.match(app, /const APP_VERSION = '1\.17\.0'/);
 });
-
 
 test('Overview renders a Before next pay summary with explicit states, skeleton loading and drill-through', () => {
   assert.match(app, /PayCycleOverviewCard/);
@@ -34,7 +32,6 @@ test('Overview renders a Before next pay summary with explicit states, skeleton 
   assert.match(overview, /Unknown/);
 });
 
-
 test('Payment Centre has operational pay-cycle states and account pressure', () => {
   assert.match(centre, /PayCycleSummary/);
   assert.match(centre, /Loading before-next-pay plan/);
@@ -48,7 +45,6 @@ test('Payment Centre has operational pay-cycle states and account pressure', () 
   assert.doesNotMatch(centre, /apiRequest\('\/payment-planning\/pay-cycle'\)/);
 });
 
-
 test('responsive pay-cycle layouts stack without requiring a wide desktop table', () => {
   assert.match(overviewCss, /@media\(max-width:620px\)/);
   assert.match(overviewCss, /grid-template-columns:1fr 1fr/);
@@ -59,7 +55,6 @@ test('responsive pay-cycle layouts stack without requiring a wide desktop table'
   assert.match(centreCss, /\.pay-cycle-metrics\{grid-template-columns:1fr 1fr\}/);
   assert.match(centreCss, /\.payment-centre-page\{[^}]*overflow-x:hidden/);
 });
-
 
 test('Calendar prioritises reconciled command-centre calendar events', () => {
   assert.match(app, /command\?\.calendar \|\| command\?\.upcoming_commitments/);

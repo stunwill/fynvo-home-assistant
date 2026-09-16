@@ -1,6 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { apiRequest } from "./apiClient.js";
+import {
+  commitmentScopeLabelV1251,
+  PLANNING_ENDPOINTS_V1251,
+  planningActionV1251,
+} from "./productionCorrectionsV1251.js";
 
 const finite = (value) => {
   if (value === null || value === undefined || value === "") return null;
@@ -28,15 +33,10 @@ const dateLabel = (value) =>
     : "Date unavailable";
 
 const dueOf = (row) =>
-  row?.expected_date ||
-  row?.due_date ||
-  row?.next_due_date ||
-  row?.date ||
-  null;
+  row?.expected_date || row?.due_date || row?.next_due_date || row?.date || null;
 const amountOf = (row) =>
   Math.abs(
-    Number(row?.expected_amount ?? row?.amount ?? row?.estimated_amount ?? 0) ||
-      0,
+    Number(row?.expected_amount ?? row?.amount ?? row?.estimated_amount ?? 0) || 0,
   );
 const inactiveStatuses = new Set(["paid", "skipped", "cancelled"]);
 
@@ -71,9 +71,7 @@ function useMobileShell(authenticated) {
     if (!authenticated) return undefined;
     const sync = () =>
       setActivePage(
-        document
-          .querySelector("main.content .header h1")
-          ?.textContent?.trim() || "",
+        document.querySelector("main.content .header h1")?.textContent?.trim() || "",
       );
     const observer = new MutationObserver(sync);
     observer.observe(document.body, {
@@ -90,8 +88,7 @@ function useMobileShell(authenticated) {
 function attentionRank(row) {
   const status = String(row?.status || "").toLowerCase();
   if (status === "overdue") return 0;
-  if (row?.match_review_available || status === "auto_payment_unconfirmed")
-    return 1;
+  if (row?.match_review_available || status === "auto_payment_unconfirmed") return 1;
   return 2;
 }
 
@@ -115,13 +112,13 @@ export default function MobileOverviewV1240({
   productionVersion = "",
 }) {
   const { active, activePage } = useMobileShell(authenticated);
-  const isOverview =
-    activePage === "Overview" || activePage.startsWith("Good ");
+  const isOverview = activePage === "Overview" || activePage.startsWith("Good ");
   const [host, setHost] = useState(null);
   const [planning, setPlanning] = useState(null);
   const [safeToSpend, setSafeToSpend] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [refreshKey, setRefreshKey] = useState(0);
   const [moreOpen, setMoreOpen] = useState(false);
 
   useEffect(() => {
@@ -151,19 +148,14 @@ export default function MobileOverviewV1240({
     setLoading(true);
     setError("");
     Promise.allSettled([
-      apiRequest("/payment-planning"),
-      apiRequest("/payment-planning/safe-to-spend"),
+      apiRequest(PLANNING_ENDPOINTS_V1251.planning),
+      apiRequest(PLANNING_ENDPOINTS_V1251.safeToSpend),
     ])
       .then(([planningResult, safeResult]) => {
         if (cancelled) return;
-        if (planningResult.status === "fulfilled")
-          setPlanning(planningResult.value || null);
-        if (safeResult.status === "fulfilled")
-          setSafeToSpend(safeResult.value || null);
-        if (
-          planningResult.status === "rejected" &&
-          safeResult.status === "rejected"
-        )
+        if (planningResult.status === "fulfilled") setPlanning(planningResult.value || null);
+        if (safeResult.status === "fulfilled") setSafeToSpend(safeResult.value || null);
+        if (planningResult.status === "rejected" && safeResult.status === "rejected")
           setError("Overview information could not be refreshed.");
       })
       .finally(() => {
@@ -172,51 +164,45 @@ export default function MobileOverviewV1240({
     return () => {
       cancelled = true;
     };
-  }, [active, isOverview]);
+  }, [active, isOverview, refreshKey]);
+
+  useEffect(() => {
+    const refresh = () => setRefreshKey((value) => value + 1);
+    window.addEventListener("fynvo:balances-updated", refresh);
+    return () => window.removeEventListener("fynvo:balances-updated", refresh);
+  }, []);
 
   const model = useMemo(() => {
     const payCycle = planning?.pay_cycle || {};
     const before = payCycle.before_next_income || {};
     const authoritative = safeToSpend || planning?.safe_to_spend || {};
-    const available = finite(
-      authoritative.available_cash ?? before.current_available_cash,
-    );
-    const committed = finite(
-      authoritative.committed_outgoings ?? before.commitments_total,
-    );
+    const available = finite(authoritative.available_cash ?? before.current_available_cash);
+    const committed = finite(authoritative.committed_outgoings ?? before.commitments_total);
     const buffer = finite(authoritative.protected_buffer);
     const safe = finite(authoritative.safe_to_spend ?? before.projected_cash);
     const safeAvailable =
       authoritative.safe_to_spend !== undefined &&
       authoritative.safe_to_spend !== null &&
       !authoritative.incomplete;
-    const unavailableReason =
-      authoritative.unavailable_reason || authoritative.planning_error || null;
-    const needsIncomeSetup =
-      !safeAvailable &&
-      (unavailableReason?.action === "income" ||
-        (!unavailableReason &&
-          (!payCycle.next_income ||
-            payCycle.completeness?.next_income_known === false)));
-    const attention = (
-      Array.isArray(planning?.attention) ? planning.attention : []
-    )
+    const unavailableReason = authoritative.unavailable_reason || authoritative.planning_error || null;
+    const safeAction = planningActionV1251(unavailableReason?.action);
+    const attention = (Array.isArray(planning?.attention) ? planning.attention : [])
       .filter((row) => !inactiveStatuses.has(row.status))
       .sort((a, b) => attentionRank(a) - attentionRank(b))
       .slice(0, 2);
     const upcoming = eventRows(planning);
     const nextIncome = payCycle.next_income;
     const allocation = payCycle.payday_allocation || null;
+    const allocationReason =
+      allocation?.reason || payCycle?.completeness?.reason || planning?.pay_cycle_error || unavailableReason;
+    const allocationAction = planningActionV1251(
+      allocation?.setup_action || allocationReason?.action,
+    );
     const allocationAccounts = allocation?.accounts || [];
-    const allocationNeedCount = allocationAccounts.filter(
-      (row) => row.status === "transfer",
-    ).length;
+    const allocationNeedCount = allocationAccounts.filter((row) => row.status === "transfer").length;
     const projectedBalance = finite(payCycle.after_next_income?.projected_cash);
     const pressure = upcoming.find(
-      (row) =>
-        row.status === "overdue" ||
-        row.status === "due" ||
-        row.status === "due_today",
+      (row) => row.status === "overdue" || row.status === "due" || row.status === "due_today",
     );
     const progressBase =
       available !== null && committed !== null && buffer !== null
@@ -228,10 +214,9 @@ export default function MobileOverviewV1240({
       buffer,
       safe,
       safeAvailable,
+      commitmentLabel: commitmentScopeLabelV1251(authoritative),
       attention,
-      attentionCount: Number(
-        planning?.attention_count ?? planning?.attention?.length ?? 0,
-      ),
+      attentionCount: Number(planning?.attention_count ?? planning?.attention?.length ?? 0),
       upcoming,
       projectedBalance,
       nextIncome,
@@ -239,7 +224,7 @@ export default function MobileOverviewV1240({
       allocationNeedCount,
       pressure,
       progress:
-        progressBase > 0
+        progressBase > 0 && safe !== null
           ? Math.max(0, Math.min(100, (safe / progressBase) * 100))
           : null,
       planMessage: pressure
@@ -250,8 +235,9 @@ export default function MobileOverviewV1240({
         payCycle.completeness?.message ||
         authoritative.warnings?.[0] ||
         "Some planning information is unavailable.",
-      unavailableAction: unavailableReason?.action || null,
-      needsIncomeSetup,
+      safeAction,
+      allocationAction,
+      allocationReason,
     };
   }, [planning, safeToSpend]);
 
@@ -260,6 +246,11 @@ export default function MobileOverviewV1240({
     setMoreOpen(false);
     activateNavigation(label);
   };
+  const performAction = (action) => {
+    if (!action) return;
+    if (action.destination) open(action.destination);
+    else setRefreshKey((value) => value + 1);
+  };
   const overview =
     isOverview && host
       ? createPortal(
@@ -267,7 +258,7 @@ export default function MobileOverviewV1240({
             {error && (
               <div className="fynvo-overview-v1240-error" role="alert">
                 <span>{error}</span>
-                <button type="button" onClick={() => window.location.reload()}>
+                <button type="button" onClick={() => setRefreshKey((value) => value + 1)}>
                   Retry
                 </button>
               </div>
@@ -275,12 +266,8 @@ export default function MobileOverviewV1240({
             <header className="fynvo-overview-v1240-heading">
               <strong>Fynvo</strong>
               <div aria-label="Overview actions">
-                <button type="button" aria-label="Notifications">
-                  ♧
-                </button>
-                <button type="button" aria-label="Settings">
-                  ⚙
-                </button>
+                <button type="button" aria-label="Notifications">♧</button>
+                <button type="button" aria-label="Settings">⚙</button>
               </div>
               <h1>Overview</h1>
               <p>Your financial position at a glance</p>
@@ -294,44 +281,24 @@ export default function MobileOverviewV1240({
                 <div>
                   <h2 id="safe-to-spend-title">
                     Safe to spend{" "}
-                    <span title="Calculated from available cash, committed payments and protected buffer">
-                      ⓘ
-                    </span>
+                    <span title="Calculated from available cash, committed payments and protected buffer">ⓘ</span>
                   </h2>
-                  <strong>
-                    {model.safeAvailable ? money(model.safe) : "Unavailable"}
-                  </strong>
+                  <strong>{model.safeAvailable ? money(model.safe) : "Unavailable"}</strong>
                 </div>
                 {model.safeAvailable && (
-                  <span className="fynvo-ui-status">
-                    {model.safe < 0 ? "At risk" : "On track"}
-                  </span>
+                  <span className="fynvo-ui-status">{model.safe < 0 ? "At risk" : "On track"}</span>
                 )}
               </div>
-              <p>
-                {model.safeAvailable
-                  ? "After upcoming payments and your buffer"
-                  : model.warning}
-              </p>
-              {!model.safeAvailable && model.needsIncomeSetup && (
+              <p>{model.safeAvailable ? "After upcoming payments and your buffer" : model.warning}</p>
+              {!model.safeAvailable && model.safeAction && (
                 <button
                   type="button"
                   className="fynvo-ui-link fynvo-overview-v1240-safe-action"
-                  onClick={() => open("Income")}
+                  onClick={() => performAction(model.safeAction)}
                 >
-                  Review income setup ›
+                  {model.safeAction.label} ›
                 </button>
               )}
-              {!model.safeAvailable &&
-                model.unavailableAction === "accounts" && (
-                  <button
-                    type="button"
-                    className="fynvo-ui-link fynvo-overview-v1240-safe-action"
-                    onClick={() => open("Accounts")}
-                  >
-                    Review accounts ›
-                  </button>
-                )}
               {model.progress !== null && (
                 <div
                   className="fynvo-overview-v1240-progress"
@@ -345,22 +312,9 @@ export default function MobileOverviewV1240({
                 </div>
               )}
               <div className="fynvo-overview-v1240-breakdown">
-                <div>
-                  <strong>{money(model.available)}</strong>
-                  <span>Available cash</span>
-                </div>
-                <div>
-                  <strong>{money(model.committed)}</strong>
-                  <span>
-                    {model.safeAvailable
-                      ? "Committed before next pay"
-                      : "Known commitments"}
-                  </span>
-                </div>
-                <div>
-                  <strong>{money(model.buffer)}</strong>
-                  <span>Buffer</span>
-                </div>
+                <div><strong>{money(model.available)}</strong><span>Available cash</span></div>
+                <div><strong>{money(model.committed)}</strong><span>{model.commitmentLabel}</span></div>
+                <div><strong>{money(model.buffer)}</strong><span>Buffer</span></div>
               </div>
             </section>
 
@@ -374,16 +328,12 @@ export default function MobileOverviewV1240({
                   <p>
                     {model.allocation?.incoming_payday
                       ? `Next pay ${dateLabel(model.allocation.incoming_payday)}`
-                      : "Income setup needed"}
+                      : model.allocationReason?.stage === "income"
+                        ? "Income setup needed"
+                        : "Planning information incomplete"}
                   </p>
                 </div>
-                <button
-                  type="button"
-                  className="fynvo-ui-link"
-                  onClick={() => open("Plan")}
-                >
-                  View funding plan ›
-                </button>
+                <button type="button" className="fynvo-ui-link" onClick={() => open("Plan")}>View funding plan ›</button>
               </div>
               <strong className="fynvo-overview-v1240-plan-value">
                 {model.allocation?.total_recommended_allocation == null
@@ -396,8 +346,18 @@ export default function MobileOverviewV1240({
                     ? `${model.allocationNeedCount} account${model.allocationNeedCount === 1 ? "" : "s"} need funding`
                     : "All accounts are already funded"
                   : model.allocation?.message ||
-                    "Complete account and Income setup to calculate your allocation."}
+                    model.allocationReason?.message ||
+                    "Payday allocation cannot be calculated from the available planning data."}
               </p>
+              {model.allocation?.status !== "ready" && model.allocationAction && (
+                <button
+                  type="button"
+                  className="fynvo-ui-link fynvo-overview-v1240-safe-action"
+                  onClick={() => performAction(model.allocationAction)}
+                >
+                  {model.allocationAction.label} ›
+                </button>
+              )}
             </section>
 
             <section
@@ -414,21 +374,11 @@ export default function MobileOverviewV1240({
                   </p>
                 </div>
                 {model.attentionCount > 0 && (
-                  <button
-                    type="button"
-                    className="fynvo-ui-link"
-                    onClick={() => open("Payments")}
-                  >
-                    View all ›
-                  </button>
+                  <button type="button" className="fynvo-ui-link" onClick={() => open("Payments")}>View all ›</button>
                 )}
               </div>
               {loading && !planning ? (
-                <div
-                  className="fynvo-ui-loading"
-                  role="status"
-                  aria-label="Loading payment attention"
-                />
+                <div className="fynvo-ui-loading" role="status" aria-label="Loading payment attention" />
               ) : model.attention.length ? (
                 <div className="fynvo-overview-v1240-events">
                   {model.attention.map((row, index) => (
@@ -440,36 +390,22 @@ export default function MobileOverviewV1240({
                     >
                       <span className="fynvo-ui-event-icon danger">!</span>
                       <span className="fynvo-ui-event-copy">
-                        <strong>
-                          {row.name || row.merchant || row.payee || "Payment"}
-                        </strong>
-                        <small
-                          className={row.status === "overdue" ? "danger" : ""}
-                        >
-                          {row.attention_reason ||
-                            (row.status === "overdue"
-                              ? "Overdue"
-                              : "Payment needs review")}
+                        <strong>{row.name || row.merchant || row.payee || "Payment"}</strong>
+                        <small className={row.status === "overdue" ? "danger" : ""}>
+                          {row.attention_reason || (row.status === "overdue" ? "Overdue" : "Payment needs review")}
                         </small>
                       </span>
-                      <strong className="fynvo-ui-event-amount">
-                        {money(amountOf(row))}
-                      </strong>
+                      <strong className="fynvo-ui-event-amount">{money(amountOf(row))}</strong>
                       <span className="fynvo-ui-event-chevron">›</span>
                     </button>
                   ))}
                 </div>
               ) : (
-                <p className="fynvo-ui-state">
-                  No payments need your attention right now.
-                </p>
+                <p className="fynvo-ui-state">No payments need your attention right now.</p>
               )}
             </section>
 
-            <section
-              className="fynvo-ui-card fynvo-overview-v1240-section"
-              aria-labelledby="coming-up-title"
-            >
+            <section className="fynvo-ui-card fynvo-overview-v1240-section" aria-labelledby="coming-up-title">
               <div className="fynvo-ui-section-head">
                 <div>
                   <h2 id="coming-up-title">Coming up</h2>
@@ -480,21 +416,11 @@ export default function MobileOverviewV1240({
                   </p>
                 </div>
                 {model.upcoming.length > 0 && (
-                  <button
-                    type="button"
-                    className="fynvo-ui-link"
-                    onClick={() => open("Payments")}
-                  >
-                    View all ›
-                  </button>
+                  <button type="button" className="fynvo-ui-link" onClick={() => open("Payments")}>View all ›</button>
                 )}
               </div>
               {loading && !planning ? (
-                <div
-                  className="fynvo-ui-loading"
-                  role="status"
-                  aria-label="Loading upcoming payments"
-                />
+                <div className="fynvo-ui-loading" role="status" aria-label="Loading upcoming payments" />
               ) : model.upcoming.length ? (
                 <div className="fynvo-overview-v1240-events">
                   {model.upcoming.map((row, index) => (
@@ -504,18 +430,12 @@ export default function MobileOverviewV1240({
                       key={`${row.source_type || "payment"}-${row.id || index}`}
                       onClick={() => open("Payments")}
                     >
-                      <span className="fynvo-ui-event-icon">
-                        {eventIcon(row)}
-                      </span>
+                      <span className="fynvo-ui-event-icon">{eventIcon(row)}</span>
                       <span className="fynvo-ui-event-copy">
-                        <strong>
-                          {row.name || row.merchant || row.payee || "Payment"}
-                        </strong>
+                        <strong>{row.name || row.merchant || row.payee || "Payment"}</strong>
                         <small>{dateLabel(dueOf(row))}</small>
                       </span>
-                      <strong className="fynvo-ui-event-amount">
-                        {money(amountOf(row))}
-                      </strong>
+                      <strong className="fynvo-ui-event-amount">{money(amountOf(row))}</strong>
                       <span className="fynvo-ui-event-chevron">›</span>
                     </button>
                   ))}
@@ -534,36 +454,16 @@ export default function MobileOverviewV1240({
                   <h2 id="plan-title">Your plan</h2>
                   <p>Projected balance after your next pay cycle</p>
                 </div>
-                <button
-                  type="button"
-                  className="fynvo-ui-link"
-                  onClick={() => open("Plan")}
-                >
-                  View plan ›
-                </button>
+                <button type="button" className="fynvo-ui-link" onClick={() => open("Plan")}>View plan ›</button>
               </div>
-              <strong className="fynvo-overview-v1240-plan-value">
-                {money(model.projectedBalance)}
-              </strong>
-              <p
-                className={
-                  model.projectedBalance !== null && model.projectedBalance < 0
-                    ? "danger"
-                    : ""
-                }
-              >
+              <strong className="fynvo-overview-v1240-plan-value">{money(model.projectedBalance)}</strong>
+              <p className={model.projectedBalance !== null && model.projectedBalance < 0 ? "danger" : ""}>
                 {model.planMessage}
               </p>
               {model.pressure && (
                 <div className="fynvo-overview-v1240-plan-detail">
-                  <span>
-                    <strong>{dateLabel(dueOf(model.pressure))}</strong>
-                    <small>Next pressure point</small>
-                  </span>
-                  <span>
-                    <strong>{money(model.projectedBalance)}</strong>
-                    <small>Projected balance</small>
-                  </span>
+                  <span><strong>{dateLabel(dueOf(model.pressure))}</strong><small>Next pressure point</small></span>
+                  <span><strong>{money(model.projectedBalance)}</strong><small>Projected balance</small></span>
                 </div>
               )}
             </section>
@@ -575,95 +475,28 @@ export default function MobileOverviewV1240({
   return (
     <>
       {overview}
-      <nav
-        className="fynvo-mobile-bottom-nav fynvo-overview-v1240-bottom-nav"
-        aria-label="Primary mobile navigation"
-      >
+      <nav className="fynvo-mobile-bottom-nav fynvo-overview-v1240-bottom-nav" aria-label="Primary mobile navigation">
+        <button type="button" className={isOverview ? "active" : ""} onClick={() => open("Overview")}><span aria-hidden="true">⌂</span><small>Overview</small></button>
+        <button type="button" className={activePage === "Payment Centre" ? "active" : ""} onClick={() => open("Payments")}><span aria-hidden="true">▣</span><small>Payments</small></button>
+        <button type="button" className={activePage === "Cash Plan" ? "active" : ""} onClick={() => open("Plan")}><span aria-hidden="true">▤</span><small>Plan</small></button>
         <button
           type="button"
-          className={isOverview ? "active" : ""}
-          onClick={() => open("Overview")}
-        >
-          <span aria-hidden="true">⌂</span>
-          <small>Overview</small>
-        </button>
-        <button
-          type="button"
-          className={activePage === "Payment Centre" ? "active" : ""}
-          onClick={() => open("Payments")}
-        >
-          <span aria-hidden="true">▣</span>
-          <small>Payments</small>
-        </button>
-        <button
-          type="button"
-          className={activePage === "Cash Plan" ? "active" : ""}
-          onClick={() => open("Plan")}
-        >
-          <span aria-hidden="true">▤</span>
-          <small>Plan</small>
-        </button>
-        <button
-          type="button"
-          className={
-            activePage === "Accounts & Cards" || activePage === "Accounts"
-              ? "active"
-              : ""
-          }
+          className={activePage === "Accounts & Cards" || activePage === "Accounts" ? "active" : ""}
           onClick={() => open("Accounts")}
-        >
-          <span aria-hidden="true">▭</span>
-          <small>Accounts</small>
-        </button>
-        <button
-          type="button"
-          aria-expanded={moreOpen}
-          onClick={() => setMoreOpen((value) => !value)}
-        >
-          <span aria-hidden="true">•••</span>
-          <small>More</small>
-        </button>
+        ><span aria-hidden="true">▭</span><small>Accounts</small></button>
+        <button type="button" aria-expanded={moreOpen} onClick={() => setMoreOpen((value) => !value)}><span aria-hidden="true">•••</span><small>More</small></button>
       </nav>
       {moreOpen && (
-        <div
-          className="fynvo-mobile-more-backdrop"
-          onMouseDown={(event) =>
-            event.target === event.currentTarget && setMoreOpen(false)
-          }
-        >
-          <section
-            className="fynvo-mobile-more-sheet"
-            aria-label="More navigation"
-          >
-            <div className="fynvo-mobile-sheet-head">
-              <strong>More</strong>
-              <button
-                type="button"
-                onClick={() => setMoreOpen(false)}
-                aria-label="Close More"
-              >
-                ×
-              </button>
-            </div>
+        <div className="fynvo-mobile-more-backdrop" onMouseDown={(event) => event.target === event.currentTarget && setMoreOpen(false)}>
+          <section className="fynvo-mobile-more-sheet" aria-label="More navigation">
+            <div className="fynvo-mobile-sheet-head"><strong>More</strong><button type="button" onClick={() => setMoreOpen(false)} aria-label="Close More">×</button></div>
             <nav>
-              <button type="button" onClick={() => open("Categories")}>
-                Categories
-              </button>
-              <button type="button" onClick={() => open("CSV Import")}>
-                Import &amp; data
-              </button>
-              <button type="button" onClick={() => open("Review Queue")}>
-                Review queue
-              </button>
-              <button type="button" onClick={() => open("Insights")}>
-                Insights
-              </button>
-              <button type="button" onClick={() => open("Goals")}>
-                Goals
-              </button>
-              <span className="fynvo-mobile-version">
-                Fynvo v{productionVersion || "1.25.0"}
-              </span>
+              <button type="button" onClick={() => open("Categories")}>Categories</button>
+              <button type="button" onClick={() => open("CSV Import")}>Import &amp; data</button>
+              <button type="button" onClick={() => open("Review Queue")}>Review queue</button>
+              <button type="button" onClick={() => open("Insights")}>Insights</button>
+              <button type="button" onClick={() => open("Goals")}>Goals</button>
+              <span className="fynvo-mobile-version">Fynvo v{productionVersion || "1.25.1"}</span>
             </nav>
           </section>
         </div>

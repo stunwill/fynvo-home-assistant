@@ -1,0 +1,70 @@
+from __future__ import annotations
+
+from datetime import date
+
+from sqlalchemy.orm import Session as DbSession
+
+from .models import User
+from .planning_resilience import run_stage
+
+
+def install(base) -> None:
+    """Install v1.25.1 resilience wrappers without creating a second planning engine."""
+    original_income_events = base._income_events
+    original_planned_spending_rows = base._planned_spending_rows
+    original_active_liquid_cash = base._active_liquid_cash
+    original_account_pay_cycle_requirements = base._account_pay_cycle_requirements
+    original_build_pay_cycle_planning = base.build_pay_cycle_planning
+
+    def income_events(db: DbSession, user: User, start: date, end: date):
+        return run_stage("income", user.id, lambda: original_income_events(db, user, start, end))
+
+    def planned_spending_rows(db: DbSession, user: User):
+        return run_stage("planned_spending", user.id, lambda: original_planned_spending_rows(db, user))
+
+    def active_liquid_cash(db: DbSession, user: User):
+        return run_stage("accounts", user.id, lambda: original_active_liquid_cash(db, user))
+
+    def account_pay_cycle_requirements(commitments, db: DbSession, user: User, **kwargs):
+        return run_stage(
+            "funding",
+            user.id,
+            lambda: original_account_pay_cycle_requirements(commitments, db, user, **kwargs),
+        )
+
+    def build_pay_cycle_planning(db: DbSession, user: User, today=None, payment_rows=None):
+        plan = original_build_pay_cycle_planning(db, user, today, payment_rows)
+        allocation = plan.get("payday_allocation")
+        if isinstance(allocation, dict):
+            # planning_status describes whether the planner itself ran. The
+            # allocation's own status/completeness fields describe whether user
+            # setup is sufficient for a complete recommendation. Keeping those
+            # concepts separate prevents "Needs setup" from masquerading as an
+            # API/calculation outage.
+            allocation["planning_status"] = "available"
+        return plan
+
+    base._income_events = income_events
+    base._planned_spending_rows = planned_spending_rows
+    base._active_liquid_cash = active_liquid_cash
+    base._account_pay_cycle_requirements = account_pay_cycle_requirements
+    base.build_pay_cycle_planning = build_pay_cycle_planning
+
+    from . import payment_planning_v1251
+
+    def build_safe_to_spend(db: DbSession, user: User, today=None):
+        result = payment_planning_v1251.build_safe_to_spend(base, db, user, today)
+        if result.get("planning_end") is None:
+            # Preserve the established committed_outgoings contract: it means
+            # commitments inside a known pay-cycle boundary. The broader
+            # generated-horizon value remains useful, but is explicitly partial.
+            result["known_commitments"] = result.get("committed_outgoings")
+            result["committed_outgoings"] = "0.00"
+        else:
+            result["known_commitments"] = result.get("committed_outgoings")
+        return result
+
+    base.build_safe_to_spend = build_safe_to_spend
+    base.build_payment_planning = lambda db, user, today=None: payment_planning_v1251.build_payment_planning(
+        base, db, user, today
+    )

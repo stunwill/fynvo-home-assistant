@@ -7,12 +7,14 @@ const accounts = await read('src/AccountsWorkspaceV1240.jsx');
 const accountsCss = await read('src/accounts-workspace-v1240.css');
 const overview = await read('src/MobileOverviewV1240.jsx');
 const plan = await read('src/PlanWorkspaceV1240.jsx');
+const productionCorrections = await read('src/productionCorrectionsV1251.js');
 
 test('Accounts exposes authoritative funding states and traceable breakdowns', () => {
   for (const label of ['Covered', 'No payments due', 'Needs setup', 'Until next pay', 'Funding breakdown']) assert.match(accounts, new RegExp(label));
   assert.match(accounts, /funding_shortfall/);
   assert.match(accounts, /payments\s+remaining/);
-  assert.match(accounts, /payment-planning\/account-funding/);
+  assert.match(accounts, /PLANNING_ENDPOINTS_V1251\.accountFunding/);
+  assert.match(productionCorrections, /accountFunding:\s*"\/payment-planning\/account-funding\/v1251"/);
   assert.match(accounts, /preferred-buffer/);
   assert.match(accounts, /funding\.commitments/);
 });
