@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 PLANNING_EXCEPTIONS = (SQLAlchemyError, ValueError, KeyError, TypeError, AttributeError)
 
 
-class PlanningStageError(RuntimeError):
+class PlanningStageError(ValueError):
     """Structured, user-safe wrapper for optional pay-cycle planning failures."""
 
     def __init__(self, reason: dict[str, Any]):
