@@ -36,10 +36,20 @@ def install(base) -> None:
         plan = original_build_pay_cycle_planning(db, user, today, payment_rows)
         allocation = plan.get("payday_allocation")
         if isinstance(allocation, dict):
-            status = allocation.get("status")
-            allocation["planning_status"] = (
-                "available" if status == "ready" else "unknown" if status == "needs_setup" else "unavailable"
+            rows = allocation.get("accounts") or []
+            unassigned = allocation.get("unassigned") or {}
+            calculated = (
+                allocation.get("cycle_end_date") is not None
+                and allocation.get("total_recommended_allocation") is not None
+                and not unassigned.get("account_funding_unknown", False)
+                and all(row.get("recommended_transfer") is not None for row in rows if row.get("account_id") is not None)
             )
+            if calculated:
+                allocation["planning_status"] = "available"
+            elif allocation.get("status") == "needs_setup":
+                allocation["planning_status"] = "unknown"
+            else:
+                allocation["planning_status"] = "unavailable"
         return plan
 
     base._income_events = income_events
