@@ -60,6 +60,6 @@ test("liquid account rows retain a funding state when cycle calculation is unava
 
 test("balance review delta is explicit and safe for invalid edits", () => {
   assert.equal(balanceDeltaV1251("2671.00", "2812.42"), 141.42);
-  assert.equal(balanceDeltaV1251("2671.00", ""), 0);
+  assert.equal(balanceDeltaV1251("2671.00", ""), null);
   assert.equal(balanceDeltaV1251("2671.00", "not-money"), null);
 });
