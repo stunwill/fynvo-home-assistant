@@ -21,7 +21,7 @@ test('Plan uses authoritative planning and forecast responses', () => {
   assert.match(corrections, /safeToSpend:\s*"\/payment-planning\/safe-to-spend\/v1251"/);
   assert.match(plan, /forecast\?mode=expected/);
   assert.match(plan, /forecast\?mode=baseline/);
-  for (const label of ['available_cash', 'committed_outgoings', 'protected_buffer', 'income_total', 'expense_total', 'shortfall', 'lowest_balance']) assert.match(plan, new RegExp(label));
+  for (const label of ['available_cash', 'committed_outgoings', 'safe_to_spend', 'income_total', 'expense_total', 'shortfall', 'lowest_balance']) assert.match(plan, new RegExp(label));
 });
 
 test('Plan distinguishes pressure, income, payments and healthy states', () => {
