@@ -14,6 +14,7 @@ def install(base) -> None:
     original_planned_spending_rows = base._planned_spending_rows
     original_active_liquid_cash = base._active_liquid_cash
     original_account_pay_cycle_requirements = base._account_pay_cycle_requirements
+    original_build_pay_cycle_planning = base.build_pay_cycle_planning
 
     def income_events(db: DbSession, user: User, start: date, end: date):
         return run_stage("income", user.id, lambda: original_income_events(db, user, start, end))
@@ -31,16 +32,37 @@ def install(base) -> None:
             lambda: original_account_pay_cycle_requirements(commitments, db, user, **kwargs),
         )
 
+    def build_pay_cycle_planning(db: DbSession, user: User, today=None, payment_rows=None):
+        plan = original_build_pay_cycle_planning(db, user, today, payment_rows)
+        allocation = plan.get("payday_allocation")
+        if isinstance(allocation, dict):
+            status = allocation.get("status")
+            allocation["planning_status"] = (
+                "available" if status == "ready" else "unknown" if status == "needs_setup" else "unavailable"
+            )
+        return plan
+
     base._income_events = income_events
     base._planned_spending_rows = planned_spending_rows
     base._active_liquid_cash = active_liquid_cash
     base._account_pay_cycle_requirements = account_pay_cycle_requirements
+    base.build_pay_cycle_planning = build_pay_cycle_planning
 
     from . import payment_planning_v1251
 
-    base.build_safe_to_spend = lambda db, user, today=None: payment_planning_v1251.build_safe_to_spend(
-        base, db, user, today
-    )
+    def build_safe_to_spend(db: DbSession, user: User, today=None):
+        result = payment_planning_v1251.build_safe_to_spend(base, db, user, today)
+        if result.get("planning_end") is None:
+            # Preserve the established committed_outgoings contract: it means
+            # commitments inside a known pay-cycle boundary. The broader
+            # generated-horizon value remains useful, but is explicitly partial.
+            result["known_commitments"] = result.get("committed_outgoings")
+            result["committed_outgoings"] = "0.00"
+        else:
+            result["known_commitments"] = result.get("committed_outgoings")
+        return result
+
+    base.build_safe_to_spend = build_safe_to_spend
     base.build_payment_planning = lambda db, user, today=None: payment_planning_v1251.build_payment_planning(
         base, db, user, today
     )
