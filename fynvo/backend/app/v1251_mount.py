@@ -38,7 +38,9 @@ def account_funding_v1251(current_user: User = USER, db: DbSession = DB):
     try:
         plan = payment_planning.build_pay_cycle_planning(db, current_user)
     except PLANNING_EXCEPTIONS as exc:
-        return unavailable_account_funding(payment_planning, db, current_user, exc)
+        result = unavailable_account_funding(payment_planning, db, current_user, exc)
+        result["next_cycle"]["planning_status"] = "unavailable"
+        return result
     return {
         "as_of": plan["as_of"],
         "current_cycle": plan.get("account_funding"),
