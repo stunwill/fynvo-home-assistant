@@ -25,7 +25,12 @@ def payment_planning_v1251(current_user: User = USER, db: DbSession = DB):
 
 @router.get("/payment-planning/safe-to-spend/v1251")
 def safe_to_spend_v1251(current_user: User = USER, db: DbSession = DB):
-    return payment_planning.build_safe_to_spend(db, current_user)
+    result = payment_planning.build_safe_to_spend(db, current_user)
+    if result.get("commitment_scope", {}).get("code") == "generated_horizon":
+        # This versioned presentation contract deliberately surfaces reliable
+        # partial commitments while the legacy field keeps its pay-cycle meaning.
+        result["committed_outgoings"] = result.get("known_commitments", "0.00")
+    return result
 
 
 @router.get("/payment-planning/account-funding/v1251")
