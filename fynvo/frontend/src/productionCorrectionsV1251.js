@@ -99,5 +99,5 @@ export function balanceDeltaV1251(previous, next) {
   const left = Number(previous);
   const right = Number(next);
   if (!Number.isFinite(left) || !Number.isFinite(right)) return null;
-  return right - left;
+  return Math.round((right - left) * 100) / 100;
 }
