@@ -138,6 +138,7 @@ def test_v1251_account_funding_returns_useful_unavailable_accounts(monkeypatch, 
     assert data["current_cycle"]["accounts"][0]["current_balance"] == "2671.00"
     assert data["current_cycle"]["accounts"][0]["status"] == "unavailable"
     assert data["next_cycle"]["total_recommended_allocation"] is None
+    assert data["next_cycle"]["planning_status"] == "unavailable"
     assert data["next_cycle"]["reason"]["action"] == "income"
 
 
@@ -150,6 +151,6 @@ def test_unassigned_current_payment_keeps_payday_allocation_explicitly_incomplet
     assert response.status_code == 200
     allocation = response.json()["next_cycle"]
     assert allocation["status"] == "needs_setup"
-    assert allocation["planning_status"] == "unknown"
+    assert allocation["planning_status"] == "available"
     assert allocation["total_recommended_allocation"] is None
     assert "Assign every current-cycle payment" in allocation["message"]
