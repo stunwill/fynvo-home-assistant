@@ -14,9 +14,7 @@ test('Payments derives attention count and totals from the displayed rows', () =
 
 test('The redesigned Payments workspace suppresses all known legacy mobile shells', () => {
   const css = fs.readFileSync(new URL('../src/payment-workspace-v1240.css', import.meta.url), 'utf8');
-  for (const shell of ['payment-centre-page', 'payment-v1161-shell', 'payment-v1182-shell', 'payment-v1183-shell']) {
-    assert.match(css, new RegExp(`main\\.content > \\.${shell}`));
-  }
+  for (const shell of ['payment-centre-page', 'payment-v1161-shell', 'payment-v1182-shell', 'payment-v1183-shell']) assert.match(css, new RegExp(`main\\.content > \\.${shell}`));
 });
 
 test('Activity primary data is not restarted by the parent background refresh', () => {
@@ -53,8 +51,12 @@ test('Safe to Spend exposes a structured unavailable reason and resolution actio
 });
 
 test('Planning summaries make the pay-cycle commitment horizon explicit', () => {
-  assert.match(read('MobileOverviewV1240.jsx'), /Committed before next pay|Known commitments/);
-  assert.match(read('PlanWorkspaceV1240.jsx'), /Committed before next pay/);
+  const overview = read('MobileOverviewV1240.jsx');
+  const plan = read('PlanWorkspaceV1240.jsx');
+  const corrections = read('productionCorrectionsV1251.js');
+  assert.match(overview, /commitmentScopeLabelV1251/);
+  assert.match(corrections, /Committed before next pay|Known commitments/);
+  assert.match(plan, /Committed before next pay/);
 });
 
 test('Corrective responsive protections cover the supported iPhone widths', () => {
