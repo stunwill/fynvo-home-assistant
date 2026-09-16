@@ -72,7 +72,8 @@ def test_missing_income_labels_known_commitments_with_generated_horizon(client):
     assert data["commitment_scope"]["code"] == "generated_horizon"
     assert data["commitment_scope"]["complete"] is False
     assert data["commitment_scope"]["end_date"] == "2027-01-14"
-    assert data["committed_outgoings"] == "200.00"
+    assert data["committed_outgoings"] == "0.00"
+    assert data["known_commitments"] == "200.00"
 
 
 def test_complete_safe_to_spend_labels_commitments_before_next_pay(client):
@@ -86,6 +87,8 @@ def test_complete_safe_to_spend_labels_commitments_before_next_pay(client):
     assert data["commitment_scope"]["code"] == "before_next_pay"
     assert data["commitment_scope"]["complete"] is True
     assert data["commitment_scope"]["end_date"] == "2026-09-20"
+    assert data["committed_outgoings"] == "200.00"
+    assert data["known_commitments"] == "200.00"
     assert data["safe_to_spend"] == "800.00"
 
 
@@ -147,5 +150,6 @@ def test_unassigned_current_payment_keeps_payday_allocation_explicitly_incomplet
     assert response.status_code == 200
     allocation = response.json()["next_cycle"]
     assert allocation["status"] == "needs_setup"
+    assert allocation["planning_status"] == "unknown"
     assert allocation["total_recommended_allocation"] is None
     assert "Assign every current-cycle payment" in allocation["message"]
