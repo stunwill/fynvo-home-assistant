@@ -1,6 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { apiRequest } from "./apiClient.js";
+import {
+  normaliseDateKeyV1251,
+  PLANNING_ENDPOINTS_V1251,
+  planningActionV1251,
+} from "./productionCorrectionsV1251.js";
 
 const HORIZONS = [
   { days: 28, label: "4 weeks" },
@@ -22,10 +27,10 @@ const money = (value) => {
         currency: "AUD",
       }).format(number);
 };
-const dateKey = (value) => (value ? String(value).slice(0, 10) : null);
+const dateKey = (value) => normaliseDateKeyV1251(value);
 const parseDate = (value) => {
   const key = dateKey(value);
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(key || "")) return null;
+  if (!key) return null;
   const [year, month, day] = key.split("-").map(Number);
   const date = new Date(year, month - 1, day);
   return date.getFullYear() === year &&
@@ -320,8 +325,8 @@ export default function PlanWorkspaceV1240({ onNavigate = () => {} }) {
     setLoading(true);
     setError("");
     const results = await Promise.allSettled([
-      apiRequest("/payment-planning"),
-      apiRequest("/payment-planning/safe-to-spend"),
+      apiRequest(PLANNING_ENDPOINTS_V1251.planning),
+      apiRequest(PLANNING_ENDPOINTS_V1251.safeToSpend),
       apiRequest(`/forecast?mode=expected&horizon=${selectedDays}d`),
       apiRequest(`/forecast?mode=baseline&horizon=${selectedDays}d`),
       apiRequest("/forecast?mode=expected&horizon=365d"),
@@ -364,10 +369,25 @@ export default function PlanWorkspaceV1240({ onNavigate = () => {} }) {
   useEffect(() => {
     localStorage.setItem("fynvo.plan.horizon.v1240", String(horizon));
   }, [horizon]);
+  useEffect(() => {
+    const refresh = () => load(horizon);
+    window.addEventListener("fynvo:balances-updated", refresh);
+    return () => window.removeEventListener("fynvo:balances-updated", refresh);
+  }, [horizon]);
   const expected = forecast?.expected || forecast;
   const summary = useMemo(() => forecastSummary(expected), [expected]);
   const safe = safePlan || planning?.safe_to_spend || {};
-  const allocation = planning?.pay_cycle?.payday_allocation || null;
+  const payCycle = planning?.pay_cycle || {};
+  const allocation = payCycle?.payday_allocation || null;
+  const planningReason =
+    allocation?.reason ||
+    payCycle?.completeness?.reason ||
+    planning?.pay_cycle_error ||
+    safe?.unavailable_reason ||
+    null;
+  const allocationAction = planningActionV1251(
+    allocation?.setup_action || planningReason?.action,
+  );
   const calendarEvents = calendarForecast?.events || expected?.events || [];
   const selectedCalendarDate = parseDate(selectedDate)
     ? selectedDate
@@ -398,6 +418,11 @@ export default function PlanWorkspaceV1240({ onNavigate = () => {} }) {
     .slice(0, 5);
   const selectView = (next) => setView(next);
   const navigatePayments = () => onNavigate("Payments");
+  const performPlanningAction = () => {
+    if (!allocationAction) return;
+    if (allocationAction.destination) onNavigate(allocationAction.destination);
+    else load(horizon);
+  };
   return (
     <section className="fynvo-plan-v1240" aria-label="Plan">
       <header className="fynvo-plan-v1240-heading">
@@ -561,15 +586,29 @@ export default function PlanWorkspaceV1240({ onNavigate = () => {} }) {
                     {allocation?.incoming_payday && allocation?.following_payday
                       ? `${dateLabel(allocation.incoming_payday)} to ${dateLabel(allocation.following_payday)}`
                       : allocation?.message ||
+                        planningReason?.message ||
                         "Complete your Income schedule to identify both payday boundaries."}
                   </p>
+                  {allocationAction && allocation?.status !== "ready" && (
+                    <button
+                      type="button"
+                      className="link"
+                      onClick={performPlanningAction}
+                    >
+                      {allocationAction.label} ›
+                    </button>
+                  )}
                 </div>
                 <span
                   className={
                     allocation?.status === "ready" ? "healthy" : "warning"
                   }
                 >
-                  {allocation?.status === "ready" ? "Ready" : "Needs setup"}
+                  {allocation?.status === "ready"
+                    ? "Ready"
+                    : planningReason?.code === "pay_cycle_unavailable"
+                      ? "Unavailable"
+                      : "Needs setup"}
                 </span>
               </section>
               <section className="fynvo-plan-v1240-card fynvo-plan-v1240-allocation-list">
@@ -619,8 +658,9 @@ export default function PlanWorkspaceV1240({ onNavigate = () => {} }) {
                   ))
                 ) : (
                   <p className="fynvo-plan-v1240-state">
-                    Payday Allocation is unavailable until both pay-cycle
-                    boundaries are known.
+                    {allocation?.message ||
+                      planningReason?.message ||
+                      "Payday Allocation is unavailable until both pay-cycle boundaries are known."}
                   </p>
                 )}
                 {allocation?.unassigned?.commitment_count > 0 && (
@@ -760,59 +800,44 @@ export default function PlanWorkspaceV1240({ onNavigate = () => {} }) {
                     No financial events on this date.
                   </p>
                 )}
-                {selectedEvents.length > 0 && (
-                  <button
-                    type="button"
-                    className="fynvo-plan-v1240-date-link"
-                    onClick={navigatePayments}
-                  >
-                    View all payments for this date →
-                  </button>
-                )}
               </section>
             </>
           )}
         </>
-      )}
-      {!loading && (
-        <button
-          type="button"
-          className="fynvo-plan-v1240-refresh"
-          onClick={() => load(horizon)}
-        >
-          Refresh plan
-        </button>
       )}
     </section>
   );
 }
 
 function SummaryMetrics({ safe, summary, forecast = false }) {
-  const values = forecast
-    ? [
-        { label: "Total income", value: summary.income },
-        { label: "Total expenses", value: summary.expenses },
-        { label: "Buffer", value: finite(safe.protected_buffer) },
-      ]
-    : [
-        { label: "Available cash", value: finite(safe.available_cash) },
-        {
-          label: "Committed before next pay",
-          value: finite(safe.committed_outgoings),
-        },
-        { label: "Buffer", value: finite(safe.protected_buffer) },
-      ];
+  const planningComplete =
+    safe?.safe_to_spend !== null &&
+    safe?.safe_to_spend !== undefined &&
+    !safe?.incomplete;
   return (
-    <section
-      className="fynvo-plan-v1240-metrics"
-      aria-label={forecast ? "Forecast summary" : "Planning summary"}
-    >
-      {values.map((item) => (
-        <div key={item.label}>
-          <strong>{money(item.value)}</strong>
-          <span>{item.label}</span>
-        </div>
-      ))}
+    <section className="fynvo-plan-v1240-metrics">
+      <div>
+        <span>{forecast ? "Starting balance" : "Available cash"}</span>
+        <strong>{money(forecast ? summary.starting : safe?.available_cash)}</strong>
+      </div>
+      <div>
+        <span>{forecast ? "Incoming income" : "Committed before next pay"}</span>
+        <strong>{
+          forecast
+            ? money(summary.income)
+            : money(safe?.committed_outgoings)
+        }</strong>
+      </div>
+      <div>
+        <span>{forecast ? "Lowest balance" : "Safe to spend"}</span>
+        <strong>
+          {forecast
+            ? money(summary.lowest)
+            : planningComplete
+              ? money(safe?.safe_to_spend)
+              : "Unavailable"}
+        </strong>
+      </div>
     </section>
   );
 }
