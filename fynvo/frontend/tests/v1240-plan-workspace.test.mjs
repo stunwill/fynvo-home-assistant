@@ -17,7 +17,7 @@ test('Plan provides Overview, Forecast and Calendar views', () => {
 test('Plan uses authoritative planning and forecast responses', () => {
   assert.match(plan, /PLANNING_ENDPOINTS_V1251\.planning/);
   assert.match(plan, /PLANNING_ENDPOINTS_V1251\.safeToSpend/);
-  assert.match(corrections, /planning:\s*"\/payment-planning"/);
+  assert.match(corrections, /planning:\s*"\/payment-planning\/v1251"/);
   assert.match(corrections, /safeToSpend:\s*"\/payment-planning\/safe-to-spend\/v1251"/);
   assert.match(plan, /forecast\?mode=expected/);
   assert.match(plan, /forecast\?mode=baseline/);
