@@ -14,6 +14,7 @@ from . import (
     intelligence,
     v09,
     v12_mount,
+    v1251_mount,
     v13_cashflow,
 )
 from .auth import (
@@ -109,6 +110,7 @@ app.add_middleware(CORSMiddleware, allow_origins=[], allow_credentials=True, all
 app.include_router(v09.router)
 app.include_router(intelligence.router)
 app.include_router(v12_mount.router, prefix="/api")
+app.include_router(v1251_mount.router, prefix="/api")
 app.include_router(v13_cashflow.router)
 app.include_router(accounts_cards_v1163.router, prefix="/api")
 app.include_router(account_funding.router, prefix="/api")
