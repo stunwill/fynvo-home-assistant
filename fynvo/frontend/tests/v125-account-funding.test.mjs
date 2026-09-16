@@ -10,7 +10,7 @@ const plan = await read('src/PlanWorkspaceV1240.jsx');
 const productionCorrections = await read('src/productionCorrectionsV1251.js');
 
 test('Accounts exposes authoritative funding states and traceable breakdowns', () => {
-  for (const label of ['Covered', 'No payments due', 'Needs setup', 'Until next pay', 'Funding breakdown']) assert.match(accounts, new RegExp(label));
+  for (const label of ['Covered', 'No payments due', 'Setup needed', 'Until next pay', 'Funding breakdown']) assert.match(accounts, new RegExp(label));
   assert.match(accounts, /funding_shortfall/);
   assert.match(accounts, /payments\s+remaining/);
   assert.match(accounts, /PLANNING_ENDPOINTS_V1251\.accountFunding/);
