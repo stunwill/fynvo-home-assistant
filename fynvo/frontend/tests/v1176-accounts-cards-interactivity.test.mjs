@@ -9,26 +9,22 @@ const pkg = JSON.parse(await read('package.json'));
 const mobile1178 = await read('src/mobile-overview-v1178.css');
 const mobile1179 = await read('src/mobile-workspace-v1179.css');
 
-
 test('Accounts and Cards observer does not rewrite unchanged description text', () => {
   assert.match(wrapper, /const expectedDescription = 'Manage your accounts and cards in one place\.'/);
   assert.match(wrapper, /description && description\.textContent !== expectedDescription/);
   assert.doesNotMatch(wrapper, /if \(description\) description\.textContent = 'Manage your accounts and cards in one place\.'/);
 });
 
-
 test('Accounts and Cards portal mount does not churn identical DOM mount state', () => {
   assert.match(wrapper, /setMount\(\(currentMount\) => currentMount === content \? currentMount : content\)/);
 });
 
-
 test('current production shell owns the visible release version', () => {
-  assert.equal(pkg.version, '1.25.0');
-  assert.match(shell, /PRODUCTION_VERSION = '1.25.0'/);
+  assert.equal(pkg.version, '1.25.1');
+  assert.match(shell, /PRODUCTION_VERSION = '1.25.1'/);
   assert.match(shell, /const expectedVersion = `Fynvo v\$\{PRODUCTION_VERSION\}`/);
   assert.match(shell, /footer && footer\.textContent !== expectedVersion/);
 });
-
 
 test('mobile Accounts workspace hides irrelevant global controls and stays compact', () => {
   assert.match(mobile1178, /body\.fynvo-accounts-cards-v1163-active main\.content>\.header-actions\{display:none!important\}/);
