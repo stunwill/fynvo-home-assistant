@@ -43,11 +43,13 @@ test('Calendar validates selected dates before rendering a date heading', () => 
 test('Safe to Spend exposes a structured unavailable reason and resolution action', () => {
   const backend = fs.readFileSync(new URL('../../backend/app/payment_planning.py', import.meta.url), 'utf8');
   const overview = read('MobileOverviewV1240.jsx');
+  const corrections = read('productionCorrectionsV1251.js');
   assert.match(backend, /"unavailable_reason": unavailable_reason/);
   assert.match(backend, /missing_next_income/);
   assert.match(backend, /"action": "income"/);
   assert.match(overview, /unavailable_reason/);
-  assert.match(overview, /Review income setup/);
+  assert.match(overview, /planningActionV1251/);
+  assert.match(corrections, /Review income setup/);
 });
 
 test('Planning summaries make the pay-cycle commitment horizon explicit', () => {
