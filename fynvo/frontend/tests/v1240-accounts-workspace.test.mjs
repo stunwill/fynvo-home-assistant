@@ -41,7 +41,7 @@ test('Accounts mobile treatment protects ingress, values and required widths', (
   assert.match(css, /safe-area-inset-bottom/);
   assert.match(css, /overflow: auto/);
   assert.match(css, /overflow-wrap: anywhere/);
-  for (const width of ['430px', '393px', '374px', '329px']) assert.match(css, new RegExp(`max-width: ${width}`));
+  for (const width of ['430px', '393px', '374px', '329px']) assert.match(css, new RegExp(`max-width:\\s*${width}`));
   assert.match(wrapper, /AccountsWorkspaceV1240/);
   assert.match(wrapper, /mobileAccounts/);
 });
