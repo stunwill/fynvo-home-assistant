@@ -9,7 +9,11 @@ from sqlalchemy.orm import Session as DbSession
 
 from .models import User
 from .money import cents_to_decimal
-from .planning_resilience import PLANNING_EXCEPTIONS, exception_reason, known_commitment_scope
+from .planning_resilience import (
+    PLANNING_EXCEPTIONS,
+    exception_reason,
+    known_commitment_scope,
+)
 
 logger = logging.getLogger(__name__)
 
