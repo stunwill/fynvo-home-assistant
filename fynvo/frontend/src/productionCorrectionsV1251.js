@@ -83,6 +83,15 @@ export function accountFundingFallbackV1251(account, currentCycle) {
 }
 
 export function balanceDeltaV1251(previous, next) {
+  if (
+    previous === null ||
+    previous === undefined ||
+    next === null ||
+    next === undefined ||
+    String(previous).trim() === "" ||
+    String(next).trim() === ""
+  )
+    return null;
   const left = Number(previous);
   const right = Number(next);
   if (!Number.isFinite(left) || !Number.isFinite(right)) return null;
