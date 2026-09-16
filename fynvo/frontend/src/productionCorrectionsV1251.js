@@ -11,6 +11,8 @@ export const LIQUID_ACCOUNT_TYPES_V1251 = new Set([
   "cash",
 ]);
 
+export const SETUP_NEEDED_LABEL_V1251 = "Setup needed";
+
 export function normaliseDateKeyV1251(value) {
   if (!value) return null;
   if (value instanceof Date) {
@@ -57,6 +59,7 @@ export function accountFundingFallbackV1251(account, currentCycle) {
     return {
       account_id: account.id,
       status: "unavailable",
+      title: "Unavailable",
       commitment_count: null,
       target_balance: null,
       cycle_end_date: null,
@@ -70,6 +73,7 @@ export function accountFundingFallbackV1251(account, currentCycle) {
     return {
       account_id: account.id,
       status: "needs_setup",
+      title: SETUP_NEEDED_LABEL_V1251,
       commitment_count: null,
       target_balance: null,
       cycle_end_date: currentCycle.cycle_end_date || null,
