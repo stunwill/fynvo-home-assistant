@@ -4,7 +4,8 @@ import test from 'node:test';
 
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 const accounts = await read('src/AccountsWorkspaceV1240.jsx');
-const transactions = await read('src/TransactionWorkspace.jsx');
+const transactionWrapper = await read('src/TransactionWorkspace.jsx');
+const transactions = await read('src/TransactionWorkspaceCore.jsx');
 const css = await read('src/accounts-workspace-v1240.css');
 const wrapper = await read('src/AppCorrectiveV1163.jsx');
 
@@ -23,6 +24,8 @@ test('Account Detail preserves actual account activity, pending states and recur
 });
 
 test('Activity keeps transaction search, filters and reconciliation workflows', () => {
+  assert.match(accounts, /<TransactionWorkspace/);
+  assert.match(transactionWrapper, /TransactionWorkspaceCore/);
   for (const label of ['Search transactions', 'Reconciliation filter', 'Confirm match', 'Not this payment', 'Remove match', 'Unmatched']) assert.match(transactions, new RegExp(label));
   assert.match(transactions, /accountId = null/);
   assert.match(transactions, /account: accountId == null/);
