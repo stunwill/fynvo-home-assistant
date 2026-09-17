@@ -356,8 +356,7 @@ def schedule_month(year: int, month: int, current_user: User = USER_DEPENDENCY, 
 
 
 @app.get("/api/schedule/year/{year}")
-def schedule_year(year: int, month: int = 0, current_user: User = USER_DEPENDENCY, db: DbSession = DB_DEPENDENCY):
-    del month
+def schedule_year(year: int, current_user: User = USER_DEPENDENCY, db: DbSession = DB_DEPENDENCY):
     return annual_matrix(db, current_user, year)
 
 
@@ -369,35 +368,39 @@ def forecast(horizon: str = "30d", mode: str = "baseline", start: date | None = 
 
 
 @app.get("/api/forecast/drilldown")
-def forecast_details(horizon: str = "30d", current_user: User = USER_DEPENDENCY, db: DbSession = DB_DEPENDENCY):
-    return forecast_drilldown(db, current_user, horizon)
+def forecast_breakdown(period: str = "month", horizon: str = "30d", mode: str = "baseline", current_user: User = USER_DEPENDENCY, db: DbSession = DB_DEPENDENCY):
+    if period not in {"day", "month"}:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="period must be day or month")
+    return forecast_drilldown(db, current_user, period, horizon, mode)
 
 
-@app.get("/api/effective-changes")
-def effective_changes(record_type: str | None = None, record_id: int | None = None, current_user: User = USER_DEPENDENCY, db: DbSession = DB_DEPENDENCY):
-    return list_effective_changes(db, current_user, record_type, record_id)
+@app.post("/api/forecast/scenario")
+def scenario_forecast(payload: dict, current_user: User = USER_DEPENDENCY, db: DbSession = DB_DEPENDENCY):
+    return compare_scenario(db, current_user, payload)
 
 
-@app.post("/api/effective-changes", status_code=status.HTTP_201_CREATED)
-def add_effective_change(payload: dict, current_user: User = USER_DEPENDENCY, db: DbSession = DB_DEPENDENCY):
+@app.get("/api/effective-amount-changes")
+def amount_changes(current_user: User = USER_DEPENDENCY, db: DbSession = DB_DEPENDENCY):
+    return list_effective_changes(db, current_user)
+
+
+@app.post("/api/effective-amount-changes", status_code=status.HTTP_201_CREATED)
+def add_amount_change(payload: dict, current_user: User = USER_DEPENDENCY, db: DbSession = DB_DEPENDENCY):
     return create_effective_change(db, current_user, payload)
 
 
-@app.get("/api/scenarios/compare")
-def scenario_compare(scenario_id: int, horizon: str = "30d", current_user: User = USER_DEPENDENCY, db: DbSession = DB_DEPENDENCY):
-    return compare_scenario(db, current_user, scenario_id, horizon)
+frontend_dist = Path(__file__).resolve().parents[2] / "frontend" / "dist"
+index_file = frontend_dist / "index.html"
+assets_dir = frontend_dist / "assets"
 
-
-frontend_dir = Path(__file__).resolve().parents[2] / "frontend" / "dist"
+if assets_dir.exists():
+    app.mount("/assets", StaticFiles(directory=assets_dir), name="assets")
 
 
 @app.get("/{full_path:path}", response_class=HTMLResponse)
-def serve_frontend(full_path: str):
-    if frontend_dir.exists():
-        requested = frontend_dir / full_path
-        if full_path and requested.is_file():
-            return FileResponse(requested)
-        index = frontend_dir / "index.html"
-        if index.exists():
-            return FileResponse(index)
-    return HTMLResponse("<html><body><h1>Fynvo</h1><p>Frontend build not found. Run npm build.</p></body></html>")
+def frontend(full_path: str):
+    if full_path.startswith("api/"):
+        raise HTTPException(status_code=404, detail="API route not found")
+    if index_file.exists():
+        return FileResponse(index_file)
+    return HTMLResponse("<!doctype html><title>Fynvo</title><main><h1>Fynvo</h1><p>Frontend assets are not built yet.</p></main>", status_code=200)
