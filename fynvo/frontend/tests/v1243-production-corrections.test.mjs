@@ -18,7 +18,7 @@ test('The redesigned Payments workspace suppresses all known legacy mobile shell
 });
 
 test('Activity primary data is not restarted by the parent background refresh', () => {
-  const source = read('TransactionWorkspace.jsx');
+  const source = read('TransactionWorkspaceCore.jsx');
   assert.match(source, /initialRows = null/);
   assert.match(source, /setLoadState\('loaded'\)/);
   assert.match(source, /\[revision, accountId\]/);
