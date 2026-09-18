@@ -954,7 +954,7 @@ export default function AccountsWorkspaceV1240({
               <button type="button" className="fynvo-accounts-v1240-manage" onClick={onAddAccount}>⚙ <span><strong>Manage accounts</strong><small>Add or edit your account records</small></span>›</button>
             </>
           )}
-          {view === "activity" && <section className="fynvo-accounts-v1240-activity"><TransactionWorkspace accounts={activeAccounts} categories={categories} initialRows={transactions} /></section>}
+          {view === "activity" && <section className="fynvo-accounts-v1240-activity"><TransactionWorkspace accounts={activeAccounts} categories={categories} initialRows={transactions} money={money} dateLabel={dateLabel} /></section>}
           {view === "cards" && (
             <section className="fynvo-accounts-v1240-cards">
               <div className="fynvo-accounts-v1240-section-head"><div><h2>Cards</h2><small>View and manage linked cards</small></div><button type="button" className="link" onClick={() => setCardEdit({})}>＋ Add card</button></div>
