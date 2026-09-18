@@ -9,7 +9,7 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy import text
 from sqlalchemy.orm import Session as DbSession
@@ -534,7 +534,7 @@ def run_automatic_sync_once() -> None:
                     pass
             try:
                 _sync_connection(db, user, int(row["id"]), automatic=True)
-            except Exception as exc:
+            except HTTPException as exc:
                 logger.warning("automatic_bank_sync_failed connection_id=%s error=%s", row["id"], type(exc).__name__)
     finally:
         db.close()
