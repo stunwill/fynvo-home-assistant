@@ -12,6 +12,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session as DbSession
 
 from .auth import get_current_user
@@ -19,7 +20,12 @@ from .database import get_db, get_engine, get_session_factory
 from .ledger import account_balance_cents, get_account, signed_amount_cents
 from .models import Account, User
 from .money import cents_to_decimal, parse_money
-from .redbark import REDBARK_PROVIDER_ID, REDBARK_PROVIDER_NAME, RedbarkError, RedbarkProvider
+from .redbark import (
+    REDBARK_PROVIDER_ID,
+    REDBARK_PROVIDER_NAME,
+    RedbarkError,
+    RedbarkProvider,
+)
 from .security import utcnow
 
 logger = logging.getLogger("fynvo.banking")
@@ -381,7 +387,7 @@ def _sync_connection(db: DbSession, user: User, connection_id: int, *, automatic
                     _set_actual_balance(db, account, current, available, now)
                 db.commit()
                 completed_accounts += 1
-            except Exception as account_exc:
+            except (RedbarkError, HTTPException, SQLAlchemyError, ValueError, TypeError, LookupError) as account_exc:
                 db.rollback()
                 failed_accounts += 1
                 db.execute(text("UPDATE external_accounts SET error_state=:error,status=CASE WHEN fynvo_account_id IS NULL THEN status ELSE 'stale' END,updated_at=:now WHERE id=:id"), {"id": external["id"], "error": "Bank data could not be refreshed. Last-known data is still available.", "now": utcnow()})
