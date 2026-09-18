@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 from datetime import date
+from typing import ClassVar
+
+from sqlalchemy import text
 
 from app import banking_v126
 from app.database import get_engine
 from app.redbark import RedbarkProvider
-from sqlalchemy import text
 
 
 def setup_user(client):
@@ -38,7 +40,7 @@ class FakeRedbarkProvider:
 def test_redbark_provider_normalises_official_contract():
     class Response:
         status_code = 200
-        headers = {}
+        headers: ClassVar[dict[str, str]] = {}
         def json(self):
             return {"data": [{"id": "t1", "accountId": "a1", "accountName": "Everyday", "status": "POSTED", "date": "2026-09-17", "datetime": None, "postDate": "2026-09-17", "postDatetime": None, "valueDate": None, "valueDatetime": None, "description": "Coffee", "amount": "-5.50", "direction": "DEBIT", "category": "dining", "customCategory": None, "customCategoryGroup": None, "merchantName": "Cafe", "merchantCategoryCode": "5812"}], "pagination": {"total": 1, "limit": 200, "offset": 0, "hasMore": False}}
 
