@@ -35,7 +35,7 @@ def test_setup_admin_gets_initial_household_membership_and_schema_13(client):
     assert payload["currency"] == "AUD"
 
     with get_engine().connect() as connection:
-        assert connection.execute(text("SELECT MAX(version) FROM schema_version")).scalar() == 14
+        assert connection.execute(text("SELECT MAX(version) FROM schema_version")).scalar() == 15
         membership = connection.execute(text("""
             SELECT hm.role, hm.status, u.username
             FROM household_memberships hm JOIN users u ON u.id=hm.user_id
