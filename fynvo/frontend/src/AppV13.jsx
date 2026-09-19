@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import App from './AppCorrectiveV1163.jsx';
+import BankConnectionsPanel from './BankConnectionsPanel.jsx';
 import HouseholdControlCenter from './HouseholdControlCenter.jsx';
 import LoginPage from './LoginPage.jsx';
 // Keep the historical integration name stable while the v1.24 redesign replaces its implementation.
@@ -13,7 +14,7 @@ const api = (path, options = {}) => nativeFetch(`api${path}`, {
   headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
   ...options,
 });
-const PRODUCTION_VERSION = '1.25.1';
+const PRODUCTION_VERSION = '1.26.0';
 const HOUSEHOLD_SECURITY_TIMEOUT_MS = 3500;
 
 function publishStartup(stage, detail = '') {
@@ -35,6 +36,7 @@ export default function AppV13() {
   const [v11Mode, setV11Mode] = useState(null);
   const [v13CashFlowOpen, setV13CashFlowOpen] = useState(false);
   const [householdOpen, setHouseholdOpen] = useState(false);
+  const [bankConnectionsOpen, setBankConnectionsOpen] = useState(false);
   const [householdSecurity, setHouseholdSecurity] = useState(null);
   const [householdSecurityError, setHouseholdSecurityError] = useState('');
   const [toolsOpen, setToolsOpen] = useState(false);
@@ -111,17 +113,29 @@ export default function AppV13() {
   }, [auth?.authenticated]);
   useEffect(() => {
     const openTools = () => setToolsOpen(true);
+    const openBankConnections = () => setBankConnectionsOpen(true);
     window.addEventListener('fynvo:open-tools', openTools);
-    return () => window.removeEventListener('fynvo:open-tools', openTools);
+    window.addEventListener('fynvo:open-bank-connections', openBankConnections);
+    return () => {
+      window.removeEventListener('fynvo:open-tools', openTools);
+      window.removeEventListener('fynvo:open-bank-connections', openBankConnections);
+    };
   }, []);
 
-  const openTool = (mode) => { setToolsOpen(false); if (mode === 'cash-flow') setV13CashFlowOpen(true); else if (mode === 'household') setHouseholdOpen(true); else setV11Mode(mode); };
-  const toolButtons = <><button type="button" onClick={() => openTool('cash-flow')}>Cash Flow Intelligence</button><button type="button" onClick={() => openTool('household')}>Household</button><button type="button" onClick={() => openTool('coverage')}>Data Coverage</button><button type="button" onClick={() => openTool('splits')}>Split Transaction</button><button type="button" onClick={() => openTool('security')}>Security & MFA</button><button type="button" onClick={() => openTool('export')}>Data Export</button></>;
+  const openTool = (mode) => {
+    setToolsOpen(false);
+    if (mode === 'cash-flow') setV13CashFlowOpen(true);
+    else if (mode === 'household') setHouseholdOpen(true);
+    else if (mode === 'bank-connections') setBankConnectionsOpen(true);
+    else setV11Mode(mode);
+  };
+  const toolButtons = <><button type="button" onClick={() => openTool('bank-connections')}>Settings · Bank connections</button><button type="button" onClick={() => openTool('cash-flow')}>Cash Flow Intelligence</button><button type="button" onClick={() => openTool('household')}>Household</button><button type="button" onClick={() => openTool('coverage')}>Data Coverage</button><button type="button" onClick={() => openTool('splits')}>Split Transaction</button><button type="button" onClick={() => openTool('security')}>Security & MFA</button><button type="button" onClick={() => openTool('export')}>Data Export</button></>;
 
   if (!auth) return <main className="fynvo-auth-page"><section className="fynvo-auth-form-panel"><div className="fynvo-auth-card" role="status">Loading Fynvo…</div></section></main>;
   if (!auth.authenticated) return <LoginPage authState={auth} onStateRefresh={refreshAuth} onAuthenticated={async () => { await refreshAuth(); }}/>;
   if (householdSecurity?.must_change_password) return <HouseholdControlCenter forcePasswordChange onPasswordChanged={async () => { setHouseholdSecurity(null); await refreshAuth(); refreshHouseholdSecurity(); }}/>;
   if (householdOpen) return <HouseholdControlCenter onClose={() => setHouseholdOpen(false)}/>;
+  if (bankConnectionsOpen) return <BankConnectionsPanel onClose={() => setBankConnectionsOpen(false)}/>;
   if (v13CashFlowOpen) return <V13CashFlowPage onClose={() => setV13CashFlowOpen(false)}/>;
   if (v11Mode) return <V11ControlCenter mode={v11Mode} onClose={() => setV11Mode(null)}/>;
 

@@ -1,5 +1,12 @@
 # Fynvo Add-on Changelog
 
+## v1.26.0 - Redbark Open Banking Foundation
+
+- Adds live Redbark Open Banking connection setup, account discovery and explicit mapping to existing or new Fynvo accounts.
+- Synchronises actual bank balances and posted transactions while keeping Safe to Spend, Account Funding, Payday Allocation and forecast balances as separate Fynvo planning calculations.
+- Adds idempotent transaction import, incremental synchronisation, connection health/status and safe disconnect while preserving imported history and manual accounts.
+- Preserves Home Assistant ingress, /data persistence, Accounts Activity and reconciliation behaviour, with schema v15 banking metadata.
+
 ## v1.25.1 - Post-v1.25.0 Production Corrections
 
 - Makes Safe to Spend and Payday Allocation failures specific and actionable instead of collapsing them into generic pay-cycle unavailable messaging.

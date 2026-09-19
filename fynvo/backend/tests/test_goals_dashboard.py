@@ -35,7 +35,7 @@ def test_goal_creation_edit_progress_and_true_fortnightly_required_contribution(
     assert updated.json()["contribution_amount"] == "400.00"
 
     with get_engine().begin() as connection:
-        assert connection.execute(text("SELECT max(version) FROM schema_version")).scalar() == 14
+        assert connection.execute(text("SELECT max(version) FROM schema_version")).scalar() == 15
 
 
 def test_goal_allocations_prevent_double_counting_and_unallocated_savings(client):

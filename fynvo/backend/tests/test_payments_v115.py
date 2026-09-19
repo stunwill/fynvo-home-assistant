@@ -184,4 +184,4 @@ def test_v115_migration_is_additive_and_idempotent(client):
         columns = {row[1] for row in connection.execute(text("PRAGMA table_info(scheduled_payments)")).all()}
         version = connection.execute(text("SELECT MAX(version) FROM schema_version")).scalar()
     assert {"skip_reason", "skip_note", "skipped_at", "skipped_by_user_id"}.issubset(columns)
-    assert int(version) == 14
+    assert int(version) == 15

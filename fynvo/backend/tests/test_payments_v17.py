@@ -244,6 +244,6 @@ def test_payment_migration_is_idempotent_and_preserves_cards(client):
         schema_version = connection.execute(text("SELECT MAX(version) FROM schema_version")).scalar()
         columns = {row[1] for row in connection.execute(text("PRAGMA table_info(recurring_expenses)")).all()}
     assert card_count == 1
-    assert int(schema_version) == 14
+    assert int(schema_version) == 15
     assert "payment_handling" in columns
     assert "auto_payment_grace_days" in columns
