@@ -144,7 +144,7 @@ def test_account_meta_exposes_pre_v1_supported_types(client):
 def test_migration_schema_version_thirteen(client):
     run_migrations()
     with get_engine().begin() as connection:
-        assert connection.execute(text("SELECT max(version) FROM schema_version")).scalar() == 14
+        assert connection.execute(text("SELECT max(version) FROM schema_version")).scalar() == 15
 
 
 def test_home_assistant_spa_routes_and_api_protection(client):
