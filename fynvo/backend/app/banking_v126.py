@@ -471,9 +471,7 @@ def map_account(connection_id: int, external_account_id: int, payload: AccountMa
         db.execute(text("UPDATE external_accounts SET ignored=0,status='discovered',fynvo_account_id=NULL,updated_at=:now WHERE id=:id"), {"id": external_account_id, "now": utcnow()})
     else:
         account_id = payload.fynvo_account_id
-        if payload.action == "create":
-            account_id = external.get("fynvo_account_id") or _create_fynvo_account(db, current_user, external)
-        elif account_id is None:
+        if payload.action == "create" or account_id is None:
             account_id = external.get("fynvo_account_id") or _create_fynvo_account(db, current_user, external)
         account = get_account(db, current_user, int(account_id))
         if not account.is_active or account.archived_at is not None:
