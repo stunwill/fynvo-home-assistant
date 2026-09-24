@@ -73,7 +73,7 @@ def test_configure_discover_map_sync_is_idempotent_and_updates_actual_balance(cl
     account_id = mapped.json()["fynvo_account_id"]
 
     first = client.post(f"/api/bank-connections/{status['connections'][0]['id']}/sync")
-    assert first.status_code == 200
+    assert first.status_code == 200, first.text
     assert first.json()["added"] == 1
     second = client.post(f"/api/bank-connections/{status['connections'][0]['id']}/sync")
     assert second.status_code == 200
