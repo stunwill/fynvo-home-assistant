@@ -1,8 +1,6 @@
 from datetime import timedelta
 
-from app.database import get_engine
 from app.finance import today_local
-from sqlalchemy import text
 
 
 def setup_user(client):
