@@ -9,52 +9,14 @@ def setup_user(client):
     return client.post("/api/auth/setup", json={"username": "stu", "display_name": "Stu", "password": "Password123!"})
 
 
-def test_mock_provider_connect_link_sync_idempotency_and_pending_to_posted(client):
+def test_legacy_mock_provider_routes_are_retired(client):
     setup_user(client)
     providers = client.get("/api/bank-connections/providers")
     assert providers.status_code == 200
-    assert providers.json()["providers"][0]["id"] == "mock_cdr"
+    assert providers.json()["providers"][0]["id"] == "redbark"
 
-    connected = client.post("/api/bank-connections/mock/connect", json={"institution_id": "mock-bank-au"})
-    assert connected.status_code == 201
-    connection = connected.json()
-    assert connection["is_mock"] is True
-    assert len(connection["accounts"]) == 3
-
-    external = connection["accounts"][0]
-    linked = client.post(f"/api/bank-connections/{connection['id']}/accounts/{external['id']}/link", json={})
-    assert linked.status_code == 200
-    assert linked.json()["fynvo_account_id"] is not None
-
-    first_sync = client.post(f"/api/bank-connections/{connection['id']}/sync")
-    assert first_sync.status_code == 200
-    payload = first_sync.json()
-    assert payload["added"] >= 1
-
-    second_sync = client.post(f"/api/bank-connections/{connection['id']}/sync")
-    assert second_sync.status_code == 200
-    assert second_sync.json()["duplicates_ignored"] >= 1
-
-    with get_engine().begin() as connection_db:
-        assert connection_db.execute(text("SELECT max(version) FROM schema_version")).scalar() >= 11
-        tx_count = connection_db.execute(text("SELECT count(*) FROM transactions WHERE source='bank_sync'")).scalar()
-        identity_count = connection_db.execute(text("SELECT count(*) FROM bank_transaction_identities")).scalar()
-        assert tx_count == identity_count
-
-
-def test_disconnect_preserves_historical_transactions(client):
-    setup_user(client)
-    connected = client.post("/api/bank-connections/mock/connect", json={"institution_id": "mock-bank-au"}).json()
-    external = connected["accounts"][0]
-    client.post(f"/api/bank-connections/{connected['id']}/accounts/{external['id']}/link", json={})
-    client.post(f"/api/bank-connections/{connected['id']}/sync")
-    before = len(client.get("/api/transactions").json())
-    disconnected = client.post(f"/api/bank-connections/{connected['id']}/disconnect")
-    assert disconnected.status_code == 200
-    assert disconnected.json()["status"] == "disconnected"
-    after = len(client.get("/api/transactions").json())
-    assert after == before
-
+    legacy = client.post("/api/bank-connections/mock/connect", json={"institution_id": "mock-bank-au"})
+    assert legacy.status_code == 404
 
 def test_dashboard_upcoming_commitments_and_overdue_are_separate(client):
     setup_user(client)
