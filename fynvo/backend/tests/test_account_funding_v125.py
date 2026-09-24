@@ -1,7 +1,7 @@
 from datetime import date
 
 import pytest
-from app import finance
+from app import finance, payment_planning
 from app.database import get_engine
 from sqlalchemy import text
 
@@ -11,6 +11,7 @@ TODAY = date(2026, 9, 15)
 @pytest.fixture(autouse=True)
 def fixed_today(monkeypatch):
     monkeypatch.setattr(finance, "today_local", lambda: TODAY)
+    monkeypatch.setattr(payment_planning, "today_local", lambda: TODAY)
 
 
 def setup(client):

@@ -32,7 +32,7 @@ def setup_user(client):
 def test_budget_migration_schema_version_thirteen(client):
     run_migrations()
     with get_engine().begin() as connection:
-        assert connection.execute(text("SELECT max(version) FROM schema_version")).scalar() == 14
+        assert connection.execute(text("SELECT max(version) FROM schema_version")).scalar() == 15
         tables = connection.execute(text("SELECT name FROM sqlite_master WHERE type='table'")).scalars().all()
     assert "budgets" in tables
     assert "categories" in tables

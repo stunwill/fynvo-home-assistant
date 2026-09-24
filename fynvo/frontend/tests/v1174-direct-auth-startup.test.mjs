@@ -31,7 +31,7 @@ test('standalone login fallback remains available for legacy direct mounting', a
 test('production shell reports the current release without the legacy fetch bridge', async () => {
   const shell = await read('src/AppV13.jsx');
   const pkg = JSON.parse(await read('package.json'));
-  assert.match(shell, /PRODUCTION_VERSION = '1.25.1'/);
+  assert.match(shell, /PRODUCTION_VERSION = '1.26.0'/);
   assert.doesNotMatch(shell, /AUTH_BRIDGE_VERSION/);
-  assert.equal(pkg.version, '1.25.1');
+  assert.equal(pkg.version, '1.26.0');
 });

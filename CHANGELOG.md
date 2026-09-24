@@ -2,6 +2,15 @@
 
 All notable Fynvo changes are documented here. Starting with v0.3.0, every release must include a user-readable changelog entry, Home Assistant-visible release notes and GitHub release notes.
 
+## v1.26.0 - Redbark Open Banking Foundation
+
+- Adds the first live banking-provider integration through Redbark, with secure backend-only credentials, account discovery and explicit mapping to existing or new Fynvo accounts.
+- Synchronises actual current/available balances and posted transactions while keeping forecast balances, Safe-to-Spend, Account Funding and Payday Allocation as separate Fynvo planning calculations.
+- Adds idempotent transaction import, provider transaction identities, incremental overlap, per-account failure handling, stale-data preservation and backend scheduled/manual synchronisation.
+- Adds Settings → Bank connections for connection status, account mapping, manual sync and safe disconnect while preserving imported financial history.
+- Preserves the Accounts → Activity protected transaction workspace and reconciliation flow, including safe currency/date formatter defaults and persisted Activity re-entry.
+- Adds schema v15 banking metadata and keeps manual accounts and existing financial history backward compatible.
+
 ## v1.25.1 - Post-v1.25.0 Production Corrections
 
 - Replaces generic pay-cycle failure messaging with structured, actionable diagnostics for income, balances, funding assignments and transient planning errors while preserving independently known cash and commitment values.

@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session as DbSession
 from . import (
     account_funding,
     accounts_cards_v1163,
+    banking_v126,
     intelligence,
     v09,
     v12_mount,
@@ -102,11 +103,17 @@ USER_DEPENDENCY = Depends(get_current_user)
 async def lifespan(app: FastAPI):
     run_migrations()
     account_funding.ensure_account_funding_schema(get_engine())
-    yield
+    banking_v126.ensure_banking_v126_schema(get_engine())
+    banking_v126.start_automatic_sync()
+    try:
+        yield
+    finally:
+        await banking_v126.stop_automatic_sync()
 
 
 app = FastAPI(title="Fynvo API", version=APP_VERSION, description="Fynvo household cash-flow forecasting API.", lifespan=lifespan)
 app.add_middleware(CORSMiddleware, allow_origins=[], allow_credentials=True, allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"], allow_headers=["Content-Type"])
+app.include_router(banking_v126.router, prefix="/api")
 app.include_router(v09.router)
 app.include_router(intelligence.router)
 app.include_router(v12_mount.router, prefix="/api")

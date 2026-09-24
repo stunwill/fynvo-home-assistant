@@ -267,7 +267,6 @@ v1.router.add_api_route("/v1/acceptance/data-integrity", _data_integrity_v0174, 
 
 from . import (
     auth_v15,
-    banking_v12,
     budget_v14,
     corrective_v0174,
     dashboard_v12,
@@ -308,7 +307,6 @@ v09.router.include_router(v1.router)
 v09.router.include_router(auth_v15.router)
 v09.router.include_router(dashboard_v12.router)
 v09.router.include_router(goals.router)
-v09.router.include_router(banking_v12.router)
 v09.router.include_router(scenarios.router)
 v09.router.include_router(insights_v14.router)
 v09.router.include_router(corrective_v0174.router)

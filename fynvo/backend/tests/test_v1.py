@@ -46,7 +46,7 @@ def test_v1_schema_and_reference_data_seed_are_idempotent(client):
     assert len(second["expense_types"]) == 10
     integrity = client.get("/api/v1/acceptance/data-integrity").json()
     assert integrity == {
-        "schema_version": 14,
+        "schema_version": 15,
         "orphan_cards": 0,
         "orphan_category_references": 0,
         "status": "ok",

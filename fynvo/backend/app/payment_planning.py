@@ -18,6 +18,7 @@ FUNDING_STATUSES = {
     "upcoming",
     "due",
     "due_today",
+    "due_soon",
     "overdue",
     "expected_automatically",
     "auto_payment_unconfirmed",

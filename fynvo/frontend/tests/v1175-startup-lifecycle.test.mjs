@@ -10,7 +10,7 @@ const entry = await read('src/main.jsx');
 const html = await read('index.html');
 
 test('current release retains one authoritative startup auth request owner', () => {
-  assert.match(shell, /PRODUCTION_VERSION = '1.25.1'/);
+  assert.match(shell, /PRODUCTION_VERSION = '1.26.0'/);
   assert.match(shell, /useEffect\(\(\) => \{ refreshAuth\(\); \}, \[\]\)/);
   assert.doesNotMatch(shell, /__fynvoAuthFetchBridgeVersion/);
   assert.doesNotMatch(shell, /globalThis\.fetch\s*=/);
