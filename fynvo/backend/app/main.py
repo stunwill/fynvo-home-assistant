@@ -113,9 +113,6 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Fynvo API", version=APP_VERSION, description="Fynvo household cash-flow forecasting API.", lifespan=lifespan)
 app.add_middleware(CORSMiddleware, allow_origins=[], allow_credentials=True, allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"], allow_headers=["Content-Type"])
-# Register v1.26 banking before the legacy aggregate router so overlapping
-# /api/bank-connections routes resolve to the current implementation.
-app.include_router(banking_v126.router, prefix="/api")
 app.include_router(v09.router)
 app.include_router(intelligence.router)
 app.include_router(v12_mount.router, prefix="/api")
