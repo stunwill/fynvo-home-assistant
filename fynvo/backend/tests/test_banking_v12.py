@@ -14,7 +14,7 @@ def test_legacy_mock_provider_routes_are_retired(client):
     assert providers.json()["providers"][0]["id"] == "redbark"
 
     legacy = client.post("/api/bank-connections/mock/connect", json={"institution_id": "mock-bank-au"})
-    assert legacy.status_code == 404
+    assert legacy.status_code == 405
 
 def test_dashboard_upcoming_commitments_and_overdue_are_separate(client):
     setup_user(client)
