@@ -22,7 +22,7 @@ test('Settings exposes Redbark Bank connections without leaking the saved creden
 
 test('Mobile More navigation exposes Bank connections and opens the existing workspace', () => {
   assert.match(shell, /\.fynvo-mobile-more-sheet nav/);
-  assert.match(shell, /data-fynvo-bank-connections/);
+  assert.match(shell, /fynvoBankConnections/);
   assert.match(shell, /Bank connections/);
   assert.match(shell, /setBankConnectionsOpen\(true\)/);
 });
