@@ -697,6 +697,7 @@ function FundingCard({ funding, onBufferSaved, onOpenPayments }) {
 
 function AccountDetail({
   account,
+  bankAccount,
   accounts,
   cards,
   transactions,
@@ -739,7 +740,8 @@ function AccountDetail({
           {money(account.current_balance ?? account.opening_balance)}
         </strong>
         <span>{isCredit(account) ? "Current balance" : "Available balance"}</span>
-        <small>{freshness(account.balance_updated_at)}</small>
+        <small>{bankAccount ? `Bank balance · ${bankAccount.state === "needs_attention" ? "Connection needs attention · " : ""}${freshness(bankAccount.last_successful_sync || bankAccount.balance_timestamp)}` : "Manual balance"}</small>
+        {bankAccount && <button type="button" onClick={() => window.dispatchEvent(new CustomEvent("fynvo:open-bank-connections"))}>Manage bank connection · {bankAccount.institution_name} {bankAccount.masked_identifier}</button>}
       </div>
       <div className="fynvo-accounts-v1240-actions">
         <button type="button" onClick={onAddTransaction}>＋<small>Add transaction</small></button>
@@ -825,6 +827,8 @@ export default function AccountsWorkspaceV1240({
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [bankActions, setBankActions] = useState([]);
+  const [bankAccounts, setBankAccounts] = useState([]);
   const load = async () => {
     setLoading(true);
     setError("");
@@ -842,13 +846,18 @@ export default function AccountsWorkspaceV1240({
       apiRequest("/recurring-expenses"),
       apiRequest("/payments/transactions?limit=2000"),
       apiRequest(PLANNING_ENDPOINTS_V1251.accountFunding),
+      apiRequest("/bank-connections/redbark/status"),
     ]);
-    const [cardsResult, categoriesResult, recurringResult, transactionsResult, fundingResult] = results;
+    const [cardsResult, categoriesResult, recurringResult, transactionsResult, fundingResult, bankingResult] = results;
     if (cardsResult.status === "fulfilled") setCards(Array.isArray(cardsResult.value) ? cardsResult.value : []);
     if (categoriesResult.status === "fulfilled") setCategories(Array.isArray(categoriesResult.value) ? categoriesResult.value : []);
     if (recurringResult.status === "fulfilled") setRecurring(Array.isArray(recurringResult.value) ? recurringResult.value : []);
     if (transactionsResult.status === "fulfilled") setTransactions(Array.isArray(transactionsResult.value) ? transactionsResult.value : []);
     if (fundingResult.status === "fulfilled") setFunding(fundingResult.value || null);
+    if (bankingResult.status === "fulfilled") {
+      setBankActions(bankingResult.value?.required_actions || []);
+      setBankAccounts((bankingResult.value?.connections || []).flatMap((connection) => connection.accounts || []));
+    }
   };
   useEffect(() => { load(); }, []);
   useEffect(() => {
@@ -877,6 +886,7 @@ export default function AccountsWorkspaceV1240({
       <>
         <AccountDetail
           account={selected}
+          bankAccount={bankAccounts.find((item) => Number(item.fynvo_account_id) === Number(selected.id))}
           accounts={activeAccounts}
           cards={activeCards}
           transactions={transactions}
@@ -915,6 +925,7 @@ export default function AccountsWorkspaceV1240({
       </nav>
       {error && <div className="fynvo-accounts-v1240-error" role="alert">{error}<button type="button" onClick={load}>Retry</button></div>}
       {success && <p className="fynvo-accounts-v1240-success" role="status">{success}</p>}
+      {bankActions.length > 0 && view === "accounts" && <section className="fynvo-accounts-v1240-card" aria-label="Bank account actions"><h2>Bank accounts needing attention</h2>{bankActions.map((action) => <div className="fynvo-bank-action" key={action.id}><div><strong>{action.heading}</strong><p>{action.institution} {action.name} {action.masked_identifier}</p></div><button type="button" onClick={() => window.dispatchEvent(new CustomEvent("fynvo:open-bank-connections", { detail: { externalAccountId: action.external_account_id } }))}>{action.action_label}</button></div>)}</section>}
       {loading ? (
         <div className="fynvo-accounts-v1240-loading" role="status" aria-label="Loading Accounts"><span /><span /><span /></div>
       ) : (
