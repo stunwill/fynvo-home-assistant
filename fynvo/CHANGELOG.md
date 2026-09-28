@@ -1,5 +1,11 @@
 # Fynvo Add-on Changelog
 
+## v1.28.0 - Bank Activity Reconciliation
+
+- Presents explainable bank-payment matches in Activity and Review Queue; requires confirmation before a scheduled payment becomes paid.
+- Keeps rejected pair decisions, learned merchant aliases and category suggestions reversible and separate from provider categories.
+- Guards pending, transfers and duplicate reconciliation; keeps historical transactions and Home Assistant backend sync intact with schema v17.
+
 ## v1.27.0 - Bank Account Lifecycle
 
 - Adds account setup and ignored-account management to Bank connections and required actions to Accounts.

@@ -106,6 +106,16 @@ Overview summary information is intended to lead to the authoritative detail wor
 
 The global date range is preserved during these in-app navigation changes where the destination uses the same relative scope.
 
+## Bank activity and payment review
+
+After you map a Redbark bank account to a Fynvo account, the add-on imports posted transactions in the background. The bank's original category is kept as secondary information; it never silently becomes a Fynvo category. Manual transactions continue to work, and an ignored or unmapped bank account cannot feed Activity or planning. Redbark credentials remain in backend-only `/data` storage, not browser state or transaction metadata.
+
+Activity offers account, period, category, source and reconciliation filters, including Needs review and Pending. A recent outgoing transaction can suggest a scheduled payment when amount, date, expected account and merchant evidence align. Open the transaction detail to compare the records and see the reasons, then **Confirm match** or **Not this payment**. Strong unambiguous candidates also appear once, by stable transaction/payment identity, in the existing Review Queue. Other possible matches remain in Activity; ordinary uncategorised purchases are not urgent review items. A rejected pairing stays rejected while either record may still match another candidate.
+
+Confirming a match updates Fynvo's existing scheduled-payment state, preserving the original transaction and its provider identity. Account Funding, Safe-to-Spend and Payday Allocation respond through their established payment/planning logic; bank data does not directly adjust those calculations. Confirmed merchant/payee aliases improve later explainable suggestions. In Activity, choosing a Fynvo category for an imported merchant remembers a reversible category suggestion; it does not silently categorise future transactions. The alias and category-memory APIs support listing and forgetting these learned relationships.
+
+Redbark currently imports posted transactions only. Pending bank records are not authoritative payment evidence, and a pending transaction present through another import cannot be confirmed until posted. Transfer transactions and credits are excluded from bill-payment suggestions; two sides of a household transfer are not automatically paired. Imported bank activity more than 45 days old remains visible but does not create fresh payment-review suggestions. Disconnecting Redbark stops future synchronisation without deleting transactions, confirmed matches, categories, aliases or historical financial data. Fynvo does not initiate bank payments or transfers and has no bank write access.
+
 ## Home Assistant installation
 
 Add this repository to Home Assistant:

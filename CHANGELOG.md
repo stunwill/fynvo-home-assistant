@@ -2,6 +2,13 @@
 
 All notable Fynvo changes are documented here. Starting with v0.3.0, every release must include a user-readable changelog entry, Home Assistant-visible release notes and GitHub release notes.
 
+## v1.28.0 - Bank Activity Reconciliation
+
+- Makes posted bank transactions explainable payment-match evidence in Activity and the existing Review Queue; only explicit confirmation changes a scheduled payment to paid.
+- Retains deterministic, account-aware candidate matching, rejected-pair decisions and confirmed merchant aliases; protects pending, transfer, duplicate and already-completed transactions against unsafe matches.
+- Separates provider categories from Fynvo categories, suggests categories from confirmed merchant history without silently applying them, and provides reversible memory and alias endpoints.
+- Limits new bank-sync review suggestions to the most recent 45 days; old imported activity remains visible. Adds schema v17, mobile review containment and integration regressions while keeping actual balances and planning calculations untouched.
+
 ## v1.27.0 - Bank Account Lifecycle
 
 - Adds deterministic bank-account actions in Accounts, explicit link/create/ignore confirmation, and connected/ignored/attention management.
