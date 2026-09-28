@@ -1,21 +1,17 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { apiRequest } from './apiClient.js';
 import './bank-connections-v126.css';
 
-const friendlyError = (error) => error?.message || 'Bank connection could not be updated.';
-
+const errorText = (error) => error?.message || 'Bank connection could not be updated.';
+const money = (value) => value == null ? 'Balance unavailable' : new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(Number(value));
 const freshness = (value) => {
   if (!value) return 'Never synced';
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return 'Last sync time unavailable';
-  const minutes = Math.max(0, Math.round((Date.now() - parsed.getTime()) / 60000));
-  if (minutes < 2) return 'Updated just now';
-  if (minutes < 60) return `Updated ${minutes} min ago`;
-  const hours = Math.round(minutes / 60);
-  if (hours < 24) return `Updated ${hours} hr${hours === 1 ? '' : 's'} ago`;
-  const days = Math.round(hours / 24);
-  return `Updated ${days} day${days === 1 ? '' : 's'} ago`;
+  const time = new Date(value).getTime();
+  if (!Number.isFinite(time)) return 'Sync time unavailable';
+  const minutes = Math.max(0, Math.round((Date.now() - time) / 60000));
+  return minutes < 2 ? 'Updated just now' : minutes < 60 ? `Updated ${minutes} min ago` : `Updated ${Math.round(minutes / 60)} hr ago`;
 };
+const eligible = (account) => account.is_active !== false && !account.archived_at && ['transaction', 'savings', 'offset', 'credit_card', 'mortgage', 'personal_loan', 'car_loan', 'line_of_credit'].includes(account.account_type);
 
 export default function BankConnectionsPanel({ onClose }) {
   const [state, setState] = useState(null);
@@ -24,128 +20,88 @@ export default function BankConnectionsPanel({ onClose }) {
   const [busy, setBusy] = useState('');
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [setup, setSetup] = useState(null);
+  const [choice, setChoice] = useState('link');
+  const [accountId, setAccountId] = useState('');
+  const [name, setName] = useState('');
+  const [accountType, setAccountType] = useState('transaction');
+  const dialog = useRef(null);
+  const trigger = useRef(null);
 
   const load = async () => {
-    setError('');
     try {
-      const [banking, fynvoAccounts] = await Promise.all([
-        apiRequest('/bank-connections/redbark/status'),
-        apiRequest('/accounts'),
-      ]);
+      const [banking, fynvoAccounts] = await Promise.all([apiRequest('/bank-connections/redbark/status'), apiRequest('/accounts')]);
       setState(banking);
-      setAccounts(fynvoAccounts || []);
-    } catch (requestError) {
-      setError(friendlyError(requestError));
-    }
+      setAccounts(Array.isArray(fynvoAccounts) ? fynvoAccounts : []);
+    } catch (failure) { setError(errorText(failure)); }
   };
   useEffect(() => { load(); }, []);
+  useEffect(() => {
+    if (setup) dialog.current?.focus();
+    else trigger.current?.focus();
+  }, [setup]);
+  const externalRows = useMemo(() => (state?.connections || []).flatMap((connection) => (connection.accounts || []).map((account) => ({ ...account, connection }))), [state]);
+  const linkedIds = new Set(externalRows.filter((item) => item.fynvo_account_id).map((item) => Number(item.fynvo_account_id)));
+  const candidates = accounts.filter((item) => eligible(item) && !linkedIds.has(Number(item.id)));
+  const groups = [
+    ['needs_attention', 'Needs attention'], ['unresolved', 'Needs setup'], ['connected', 'Connected accounts'], ['ignored', 'Ignored accounts'],
+  ];
 
-  const mappedCount = useMemo(() => (state?.connections || []).flatMap((item) => item.accounts || []).filter((item) => item.fynvo_account_id).length, [state]);
-
+  const execute = async (key, request, success) => {
+    setBusy(key); setError(''); setMessage('');
+    try {
+      await request();
+      await load();
+      if (success) setMessage(success);
+      window.dispatchEvent(new CustomEvent('fynvo:balances-updated'));
+      return true;
+    } catch (failure) { setError(errorText(failure)); return false; }
+    finally { setBusy(''); }
+  };
+  const mapping = async (item, payload) => {
+    const saved = await execute(`map:${item.id}`, () => apiRequest(`/bank-connections/${item.connection.id}/accounts/${item.id}/mapping`, { method: 'POST', body: JSON.stringify(payload) }), 'Bank account updated.');
+    if (saved && ['link', 'create'].includes(payload.action)) await sync(item.connection);
+    return saved;
+  };
+  const begin = (item, event, initialChoice = 'link') => {
+    trigger.current = event.currentTarget;
+    setError(''); setSetup(item); setChoice(initialChoice); setAccountId(''); setName(item.name || ''); setAccountType(item.account_type || 'transaction');
+  };
+  const closeSetup = () => setSetup(null);
+  const confirm = async (event) => {
+    event.preventDefault();
+    if (choice === 'link' && !accountId) { setError('Choose a Fynvo account.'); return; }
+    const payload = choice === 'link' ? { action: 'link', fynvo_account_id: Number(accountId) } : choice === 'create' ? { action: 'create', name: name.trim(), account_type: accountType } : { action: 'ignore' };
+    if (await mapping(setup, payload)) closeSetup();
+  };
   const configure = async (event) => {
     event.preventDefault();
-    setBusy('configure'); setError(''); setMessage('');
-    try {
-      await apiRequest('/bank-connections/redbark/credentials', { method: 'PUT', body: JSON.stringify({ api_key: apiKey }) });
-      setApiKey('');
-      setMessage('Redbark connected. Review the discovered bank accounts below.');
-      await load();
-    } catch (requestError) { setError(friendlyError(requestError)); }
-    finally { setBusy(''); }
+    if (await execute('configure', () => apiRequest('/bank-connections/redbark/credentials', { method: 'PUT', body: JSON.stringify({ api_key: apiKey }) }), 'Redbark connected. Review the accounts needing setup.')) setApiKey('');
   };
-
-  const test = async () => {
-    setBusy('test'); setError(''); setMessage('');
-    try {
-      await apiRequest('/bank-connections/redbark/test', { method: 'POST' });
-      setMessage('Redbark connection is working.');
-    } catch (requestError) { setError(friendlyError(requestError)); }
-    finally { setBusy(''); }
+  const sync = (connection) => execute(`sync:${connection.id}`, () => apiRequest(`/bank-connections/${connection.id}/sync`, { method: 'POST' }), 'Bank accounts refreshed.');
+  const disconnect = (connection) => {
+    if (window.confirm('Disconnect this bank? Existing Fynvo accounts and imported transaction history will be kept.')) execute(`disconnect:${connection.id}`, () => apiRequest(`/bank-connections/${connection.id}/disconnect`, { method: 'POST' }), 'Bank disconnected. Financial history was preserved.');
   };
-
-  const discover = async () => {
-    setBusy('discover'); setError(''); setMessage('');
-    try {
-      await apiRequest('/bank-connections/redbark/discover', { method: 'POST' });
-      setMessage('Bank accounts refreshed.');
-      await load();
-    } catch (requestError) { setError(friendlyError(requestError)); }
-    finally { setBusy(''); }
-  };
-
-  const sync = async (connectionId) => {
-    setBusy(`sync:${connectionId}`); setError(''); setMessage('');
-    try {
-      const result = await apiRequest(`/bank-connections/${connectionId}/sync`, { method: 'POST' });
-      setMessage(result.accounts_failed ? `${result.accounts_synced} account(s) updated; ${result.accounts_failed} need attention.` : 'Bank data is up to date.');
-      await load();
-      window.dispatchEvent(new CustomEvent('fynvo:balances-updated'));
-    } catch (requestError) { setError(friendlyError(requestError)); }
-    finally { setBusy(''); }
-  };
-
-  const mapAccount = async (connectionId, externalId, value) => {
-    setBusy(`map:${externalId}`); setError('');
-    try {
-      const payload = value === 'create' ? { action: 'create' } : value === 'ignore' ? { action: 'ignore' } : value === 'unlink' ? { action: 'unlink' } : { action: 'link', fynvo_account_id: Number(value) };
-      await apiRequest(`/bank-connections/${connectionId}/accounts/${externalId}/mapping`, { method: 'POST', body: JSON.stringify(payload) });
-      await load();
-      window.dispatchEvent(new CustomEvent('fynvo:balances-updated'));
-    } catch (requestError) { setError(friendlyError(requestError)); }
-    finally { setBusy(''); }
-  };
-
-  const disconnect = async (connectionId) => {
-    if (!window.confirm('Disconnect this bank? Existing Fynvo accounts and imported transaction history will be kept.')) return;
-    setBusy(`disconnect:${connectionId}`); setError('');
-    try {
-      await apiRequest(`/bank-connections/${connectionId}/disconnect`, { method: 'POST' });
-      setMessage('Bank disconnected. Existing financial history was preserved.');
-      await load();
-    } catch (requestError) { setError(friendlyError(requestError)); }
-    finally { setBusy(''); }
-  };
-
-  const removeCredentials = async () => {
-    if (!window.confirm('Remove the Redbark API key and stop future bank synchronisation? Existing accounts and transactions will be kept.')) return;
-    setBusy('remove'); setError('');
-    try {
-      await apiRequest('/bank-connections/redbark/credentials', { method: 'DELETE' });
-      setMessage('Redbark credentials removed. Financial history was preserved.');
-      await load();
-    } catch (requestError) { setError(friendlyError(requestError)); }
-    finally { setBusy(''); }
+  const remove = () => {
+    if (window.confirm('Remove the Redbark API key? Fynvo accounts and transaction history will be kept.')) execute('remove', () => apiRequest('/bank-connections/redbark/credentials', { method: 'DELETE' }), 'Redbark removed. Financial history was preserved.');
   };
 
   return <main className="fynvo-bank-settings">
-    <header className="fynvo-bank-settings-head">
-      <div><small>Settings</small><h1>Bank connections</h1><p>Connect live bank balances and posted transactions to Fynvo through Redbark Open Banking.</p></div>
-      <button type="button" onClick={onClose}>Back to Fynvo</button>
-    </header>
+    <header className="fynvo-bank-settings-head"><div><small>Settings</small><h1>Bank connections</h1><p>Choose how each bank account relates to your Fynvo accounts.</p></div><button type="button" onClick={onClose}>Back to Fynvo</button></header>
     <div className="fynvo-bank-settings-content">
-      {error && <div className="fynvo-bank-alert error" role="alert"><strong>Bank connection needs attention</strong><span>{error}</span></div>}
+      {error && <div className="fynvo-bank-alert error" role="alert">{error}</div>}
       {message && <div className="fynvo-bank-alert" role="status">{message}</div>}
       {!state ? <section className="fynvo-bank-card" role="status">Loading bank connections…</section> : <>
-        <section className="fynvo-bank-card">
-          <div className="fynvo-bank-card-head"><div><h2>Redbark Open Banking</h2><p>{state.configured ? `Connected · ${mappedCount} mapped account${mappedCount === 1 ? '' : 's'}` : 'Not configured'}</p></div><span className={`fynvo-bank-state ${state.configured ? 'ok' : ''}`}>{state.configured ? 'Configured' : 'Setup required'}</span></div>
-          <p className="fynvo-bank-note">Your API key stays in Fynvo's backend data directory and is never returned to this page. Redbark currently supplies posted transactions only.</p>
-          <form className="fynvo-bank-credential" onSubmit={configure}>
-            <label><span>{state.configured ? 'Replace API key' : 'Redbark API key'}</span><input type="password" autoComplete="off" value={apiKey} onChange={(event) => setApiKey(event.target.value)} placeholder={state.configured ? 'Enter a new key to replace the saved key' : 'Paste your Redbark API key'} required minLength="8" /></label>
-            <button className="primary" type="submit" disabled={busy || !apiKey}>{busy === 'configure' ? 'Checking…' : state.configured ? 'Replace key' : 'Connect Redbark'}</button>
-          </form>
-          {state.configured && <div className="fynvo-bank-actions"><button type="button" onClick={test} disabled={busy}>{busy === 'test' ? 'Testing…' : 'Test connection'}</button><button type="button" onClick={discover} disabled={busy}>{busy === 'discover' ? 'Refreshing…' : 'Refresh accounts'}</button><button type="button" className="danger" onClick={removeCredentials} disabled={busy}>Remove Redbark</button></div>}
-          <p className="fynvo-bank-small">Automatic sync runs approximately every {state.automatic_sync_minutes || 30} minutes from the Fynvo backend. Fynvo does not need to remain open.</p>
+        <section className="fynvo-bank-card"><div className="fynvo-bank-card-head"><div><h2>Redbark</h2><p>{state.configured ? `${externalRows.filter((item) => item.state === 'connected').length} accounts syncing · ${state.required_actions?.length || 0} need attention` : 'Connect your banking data'}</p></div><span className="fynvo-bank-state">{state.configured ? 'Connected' : 'Setup required'}</span></div>
+          <p className="fynvo-bank-note">Your API key stays on the Fynvo backend. Only linked accounts affect Fynvo balances and Activity.</p>
+          <form className="fynvo-bank-credential" onSubmit={configure}><label><span>{state.configured ? 'Replace API key' : 'Redbark API key'}</span><input type="password" autoComplete="off" minLength="8" required value={apiKey} onChange={(event) => setApiKey(event.target.value)} /></label><button className="primary" disabled={!!busy || !apiKey}>{busy === 'configure' ? 'Checking…' : state.configured ? 'Replace key' : 'Connect Redbark'}</button></form>
+          {state.configured && <div className="fynvo-bank-actions"><button disabled={!!busy} onClick={() => execute('test', () => apiRequest('/bank-connections/redbark/test', { method: 'POST' }), 'Connection is working.')}>Test connection</button><button disabled={!!busy} onClick={() => execute('discover', () => apiRequest('/bank-connections/redbark/discover', { method: 'POST' }), 'Accounts refreshed.')}>Refresh accounts</button><button className="danger" disabled={!!busy} onClick={remove}>Remove Redbark</button></div>}
+          <p className="fynvo-bank-small">Automatic sync runs approximately every {state.automatic_sync_minutes || 30} minutes. Fynvo does not need to remain open. Redbark supplies posted transactions only.</p>
         </section>
-        {(state.connections || []).map((connection) => <section className="fynvo-bank-card" key={connection.id}>
-          <div className="fynvo-bank-card-head"><div><h2>{connection.institution_name}</h2><p>{freshness(connection.last_successful_sync)}</p></div><span className={`fynvo-bank-state ${connection.status === 'connected' ? 'ok' : connection.status === 'partial' ? 'warn' : ''}`}>{connection.status === 'connected' ? 'Connected' : connection.status === 'partial' ? 'Partially updated' : connection.status}</span></div>
-          {connection.error_state && <div className="fynvo-bank-inline-warning" role="status">{connection.error_state}</div>}
-          <div className="fynvo-bank-account-list">{(connection.accounts || []).map((external) => <article className="fynvo-bank-account" key={external.id}>
-            <div className="fynvo-bank-account-main"><strong>{external.name}</strong><span>{[external.institution_name, external.masked_identifier].filter(Boolean).join(' · ')}</span><small>{external.current_balance == null ? 'Balance unavailable' : `Bank balance $${external.current_balance}`} · {freshness(external.last_successful_sync || external.balance_timestamp)}</small>{external.error_state && <small className="error-text">{external.error_state}</small>}</div>
-            <label><span>Fynvo account</span><select value={external.ignored ? 'ignore' : external.fynvo_account_id || ''} disabled={busy === `map:${external.id}`} onChange={(event) => mapAccount(connection.id, external.id, event.target.value)}><option value="">Choose mapping</option><option value="create">Create new Fynvo account</option>{accounts.filter((account) => account.is_active !== false).map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}<option value="ignore">Ignore this bank account</option>{external.fynvo_account_id && <option value="unlink">Unlink from Fynvo</option>}</select></label>
-          </article>)}</div>
-          <div className="fynvo-bank-actions"><button className="primary" type="button" disabled={busy || connection.status === 'disconnected'} onClick={() => sync(connection.id)}>{busy === `sync:${connection.id}` ? 'Syncing…' : 'Sync now'}</button><button type="button" className="danger" disabled={busy || connection.status === 'disconnected'} onClick={() => disconnect(connection.id)}>Disconnect bank</button></div>
-        </section>)}
+        {groups.map(([key, label]) => { const rows = externalRows.filter((item) => item.state === key && item.connection.status !== 'disconnected'); return rows.length ? <section className="fynvo-bank-card" key={key} aria-label={label}><h2>{label}</h2><div className="fynvo-bank-account-list">{rows.map((item) => <article className="fynvo-bank-account" key={item.id}><div className="fynvo-bank-account-main"><strong>{item.fynvo_account_id ? accounts.find((account) => Number(account.id) === Number(item.fynvo_account_id))?.name || item.name : item.name}</strong><span>{[item.institution_name, item.masked_identifier].filter(Boolean).join(' · ')}</span><small>{money(item.current_balance)} · {freshness(item.last_successful_sync || item.balance_timestamp)}</small>{item.error_state && <small className="error-text">{item.error_state}</small>}</div><div className="fynvo-bank-row-actions">{key === 'unresolved' && <button type="button" disabled={!!busy} onClick={(event) => begin(item, event)}>Set up account</button>}{key === 'ignored' && <button type="button" disabled={!!busy} onClick={() => mapping(item, { action: 'restore' })}>Start using in Fynvo</button>}{key === 'connected' && <button type="button" disabled={!!busy} onClick={() => { if (window.confirm('Unlink this bank account? The Fynvo account and historical transactions will be kept.')) mapping(item, { action: 'unlink' }); }}>Unlink from Fynvo</button>}{key === 'needs_attention' && <button type="button" disabled={!!busy} onClick={() => sync(item.connection)}>Review connection</button>}</div></article>)}</div></section> : null; })}
+        {(state.connections || []).filter((connection) => connection.status !== 'disconnected').map((connection) => <section className="fynvo-bank-card" key={connection.id}><div className="fynvo-bank-card-head"><div><h2>{connection.institution_name}</h2><p>{freshness(connection.last_successful_sync)}</p></div><span className="fynvo-bank-state">{connection.status === 'partial' ? 'Partially updated' : connection.status === 'error' ? 'Needs attention' : 'Connected'}</span></div>{connection.error_state && <p role="status">{connection.error_state}</p>}<div className="fynvo-bank-actions"><button disabled={!!busy} onClick={() => sync(connection)}>Sync now</button><button disabled={!!busy} onClick={() => disconnect(connection)}>Disconnect bank</button></div></section>)}
       </>}
     </div>
+    {setup && <div className="fynvo-bank-dialog-backdrop"><section ref={dialog} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="bank-setup-title" className="fynvo-bank-dialog" onKeyDown={(event) => { if (event.key === 'Escape') closeSetup(); if (event.key === 'Tab') { const focusable = [...dialog.current.querySelectorAll('button:not([disabled]), input:not([disabled]), select:not([disabled])')]; const first = focusable[0]; const last = focusable.at(-1); if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); } else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); } } }}><h2 id="bank-setup-title">Set up {setup.name}</h2><p>{setup.institution_name} · {setup.masked_identifier} · {money(setup.current_balance)}</p><form onSubmit={confirm}><fieldset><legend>How would you like to use this bank account?</legend><label><input type="radio" name="choice" checked={choice === 'link'} onChange={() => setChoice('link')} /> Link to existing Fynvo account</label><label><input type="radio" name="choice" checked={choice === 'create'} onChange={() => setChoice('create')} /> Create new Fynvo account</label><label><input type="radio" name="choice" checked={choice === 'ignore'} onChange={() => setChoice('ignore')} /> Ignore this bank account</label></fieldset>{choice === 'link' && <label>Fynvo account<select required value={accountId} onChange={(event) => setAccountId(event.target.value)}><option value="">Choose an account</option>{candidates.map((account) => <option key={account.id} value={account.id}>{account.name} · {account.institution || 'Manual'} · {money(account.current_balance)}</option>)}</select><small>Review the bank balance against the current Fynvo balance before linking.</small></label>}{choice === 'create' && <><label>Account name<input required maxLength="120" value={name} onChange={(event) => setName(event.target.value)} /></label><label>Account type<select value={accountType} onChange={(event) => setAccountType(event.target.value)}>{['transaction', 'savings', 'offset', 'credit_card', 'mortgage', 'personal_loan', 'car_loan', 'line_of_credit'].map((type) => <option key={type} value={type}>{type.replaceAll('_', ' ')}</option>)}</select></label><p>The current bank balance will become the opening Fynvo balance.</p></>}{choice === 'ignore' && <p>This account will not affect balances, Activity or your plan. You can restore it later.</p>}{error && <p role="alert">{error}</p>}<div className="fynvo-bank-actions"><button type="button" onClick={closeSetup}>Cancel</button><button className="primary" type="submit" disabled={!!busy}>{busy ? 'Saving…' : choice === 'ignore' ? 'Ignore account' : choice === 'create' ? 'Create and link account' : 'Confirm link'}</button></div></form></section></div>}
   </main>;
 }

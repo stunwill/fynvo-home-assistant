@@ -2,6 +2,12 @@
 
 All notable Fynvo changes are documented here. Starting with v0.3.0, every release must include a user-readable changelog entry, Home Assistant-visible release notes and GitHub release notes.
 
+## v1.27.0 - Bank Account Lifecycle
+
+- Adds deterministic bank-account actions in Accounts, explicit link/create/ignore confirmation, and connected/ignored/attention management.
+- Discovers new accounts on recurring backend syncs; preserves the last known financial state if a mapped account disappears or fails.
+- Enforces unique active mappings, transaction-safe account creation, and schema v16 lifecycle metadata.
+
 ## v1.26.0 - Redbark Open Banking Foundation
 
 - Adds the first live banking-provider integration through Redbark, with secure backend-only credentials, account discovery and explicit mapping to existing or new Fynvo accounts.
