@@ -152,3 +152,18 @@ def test_legacy_duplicate_mappings_require_review_without_blocking_migration(cli
     assert result["accounts_synced"] == 0
     assert client.post(map_url(connection, second), json={"action": "unlink"}).status_code == 200
     assert client.post(f"/api/bank-connections/{connection['id']}/sync").json()["accounts_synced"] == 1
+
+
+def test_missing_balance_does_not_shift_last_known_actual(client, monkeypatch, tmp_path):
+    state = setup(client, monkeypatch, tmp_path)
+    connection = state["connections"][0]
+    first = connection["accounts"][0]
+    account_id = client.post(map_url(connection, first), json={"action": "create"}).json()["fynvo_account_id"]
+    client.post(f"/api/bank-connections/{connection['id']}/sync")
+    before = next(row["current_balance"] for row in client.get("/api/accounts").json() if row["id"] == account_id)
+    monkeypatch.setattr(Provider, "balances", lambda _self, _ids: {})
+    result = client.post(f"/api/bank-connections/{connection['id']}/sync")
+    assert result.status_code == 200
+    assert result.json()["accounts_failed"] == 1
+    assert next(row["current_balance"] for row in client.get("/api/accounts").json() if row["id"] == account_id) == before
+    assert len(client.get("/api/transactions").json()) == 1

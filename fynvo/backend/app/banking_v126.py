@@ -391,6 +391,9 @@ def _sync_connection(db: DbSession, user: User, connection_id: int, *, automatic
             db.execute(text("UPDATE external_accounts SET last_attempted_sync=:now,error_state=NULL WHERE id=:id"), {"id": external["id"], "now": attempt})
             db.commit()
             try:
+                balance = balances.get(external["provider_account_id"], {})
+                if balance.get("current_balance") in (None, ""):
+                    raise ValueError("Current bank balance unavailable")
                 last_success = external.get("last_successful_sync")
                 from_date = None
                 if last_success:
@@ -402,7 +405,6 @@ def _sync_connection(db: DbSession, user: User, connection_id: int, *, automatic
                     if result == "added": added += 1
                     elif result == "duplicate": duplicates += 1
                     else: ignored += 1
-                balance = balances.get(external["provider_account_id"], {})
                 current = parse_money(str(balance["current_balance"])) if balance.get("current_balance") not in (None, "") else None
                 available = parse_money(str(balance["available_balance"])) if balance.get("available_balance") not in (None, "") else None
                 now = utcnow()
