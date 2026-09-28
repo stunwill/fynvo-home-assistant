@@ -1,6 +1,7 @@
-from datetime import date, timedelta
+from datetime import timedelta
 
 from app.database import get_engine
+from app.finance import today_local
 from sqlalchemy import text
 
 
@@ -34,7 +35,7 @@ def bill_payload(**overrides):
     payload = {
         "name": "Council Rates",
         "amount": "420.00",
-        "due_date": (date.today() + timedelta(days=5)).isoformat(),
+        "due_date": (today_local() + timedelta(days=5)).isoformat(),
         "provider": "MRCC",
         "payee_merchant": "MRCC",
         "bill_type": "Rates",
@@ -79,7 +80,7 @@ def test_bill_crud_mark_paid_and_forecast_resolution(client):
 
     paid = client.post(
         f"/api/bills/{bill['id']}/mark-paid",
-        json={"paid_date": date.today().isoformat(), "paid_amount": "431.25", "version": updated.json()["version"]},
+        json={"paid_date": today_local().isoformat(), "paid_amount": "431.25", "version": updated.json()["version"]},
     )
     assert paid.status_code == 200
     assert paid.json()["status"] == "paid"
@@ -103,7 +104,7 @@ def test_overdue_bill_is_actionable_and_resolves(client):
     setup_user(client)
     overdue = client.post(
         "/api/bills",
-        json=bill_payload(name="Overdue Water", amount="237.00", due_date=(date.today() - timedelta(days=4)).isoformat()),
+        json=bill_payload(name="Overdue Water", amount="237.00", due_date=(today_local() - timedelta(days=4)).isoformat()),
     ).json()
     centre = client.get("/api/payment-centre?date_range=overdue")
     assert centre.status_code == 200
@@ -159,7 +160,7 @@ def test_automatic_bill_confirmation_period_never_marks_paid_without_evidence(cl
         json=bill_payload(
             name="Telstra",
             amount="120.00",
-            due_date=(date.today() - timedelta(days=4)).isoformat(),
+            due_date=(today_local() - timedelta(days=4)).isoformat(),
             payment_handling="automatic",
             payment_method="direct_debit",
             account_id=account["id"],
@@ -181,7 +182,7 @@ def test_payment_centre_search_filters_and_mutually_exclusive_summary(client):
             "name": "Netflix",
             "amount": "29.00",
             "frequency": "monthly",
-            "next_due_date": (date.today() + timedelta(days=3)).isoformat(),
+            "next_due_date": (today_local() + timedelta(days=3)).isoformat(),
             "payment_method": "automatic_card_payment",
             "payment_handling": "automatic",
             "card_id": create_card(client, account["id"])["id"],
@@ -217,7 +218,7 @@ def test_skip_is_idempotency_protected_and_schedule_regeneration_does_not_duplic
             "name": "Gym",
             "amount": "59.00",
             "frequency": "monthly",
-            "next_due_date": (date.today() + timedelta(days=2)).isoformat(),
+            "next_due_date": (today_local() + timedelta(days=2)).isoformat(),
             "payment_method": "manual_payment",
         },
     ).json()
@@ -264,5 +265,5 @@ def test_migration_is_additive_idempotent_and_preserves_schema_contract(client):
     with engine.connect() as connection:
         columns = {row[1] for row in connection.execute(text("PRAGMA table_info(bills)")).all()}
         version = connection.execute(text("SELECT MAX(version) FROM schema_version")).scalar()
-    assert int(version) == 16
+    assert int(version) == 17
     assert {"payment_method", "payment_handling", "card_id", "actual_amount_cents", "version"}.issubset(columns)

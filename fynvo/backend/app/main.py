@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session as DbSession
 from . import (
     account_funding,
     accounts_cards_v1163,
+    bank_activity_v128,
     banking_v126,
     intelligence,
     v09,
@@ -104,6 +105,7 @@ async def lifespan(app: FastAPI):
     run_migrations()
     account_funding.ensure_account_funding_schema(get_engine())
     banking_v126.ensure_banking_v126_schema(get_engine())
+    bank_activity_v128.ensure_bank_activity_schema(get_engine())
     banking_v126.start_automatic_sync()
     try:
         yield

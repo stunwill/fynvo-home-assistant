@@ -425,15 +425,26 @@ def confirm_payment_match(payment_id: int, payload: ConfirmMatchPayload, current
     transaction = db.execute(text("SELECT * FROM transactions WHERE id=:id AND user_id=:uid"), {"id": payload.transaction_id, "uid": current_user.id}).mappings().first()
     if not payment or not transaction:
         raise HTTPException(status_code=404, detail="Scheduled Payment or Transaction not found")
+    if payment["status"] in TERMINAL_STATUSES or payment["matched_transaction_id"] is not None:
+        raise HTTPException(status_code=409, detail="This Scheduled Payment is already completed")
+    if transaction["transaction_type"] != "expense" or transaction.get("transfer_id") is not None:
+        raise HTTPException(status_code=409, detail="Only an outgoing payment transaction can be matched")
+    if transaction.get("status") == "pending":
+        raise HTTPException(status_code=409, detail="Wait until the bank transaction has posted")
+    if transaction.get("reconciliation_status") in {"matched", "duplicate"} or transaction.get("matched_id") is not None:
+        raise HTTPException(status_code=409, detail="Transaction is already reconciled")
+    if payment["account_id"] is not None and int(payment["account_id"]) != int(transaction["account_id"]):
+        raise HTTPException(status_code=409, detail="Transaction belongs to a different payment account")
     already = db.execute(text("SELECT id FROM scheduled_payments WHERE user_id=:uid AND matched_transaction_id=:txid AND id<>:id"), {"uid": current_user.id, "txid": payload.transaction_id, "id": payment_id}).scalar()
     if already:
         raise HTTPException(status_code=409, detail="Transaction is already matched to another Scheduled Payment")
     actual = abs(int(transaction["amount_cents"] or 0))
     tx_date = transaction["transaction_date"]
     now = utcnow()
-    db.execute(text("UPDATE scheduled_payments SET status='paid',actual_date=:actual_date,actual_amount_cents=:actual,matched_transaction_id=:txid,match_confidence=:confidence,confirmation_source='csv_match',updated_at=:now WHERE id=:id"), {"actual_date": tx_date, "actual": actual, "txid": payload.transaction_id, "confidence": payload.confidence or "confirmed", "now": now, "id": payment_id})
+    source = "bank_match" if transaction.get("source") == "bank_sync" else "csv_match"
+    db.execute(text("UPDATE scheduled_payments SET status='paid',actual_date=:actual_date,actual_amount_cents=:actual,matched_transaction_id=:txid,match_confidence=:confidence,confirmation_source=:source,updated_at=:now WHERE id=:id AND user_id=:uid"), {"actual_date": tx_date, "actual": actual, "txid": payload.transaction_id, "confidence": payload.confidence or "confirmed", "source": source, "now": now, "id": payment_id, "uid": current_user.id})
     db.execute(text("UPDATE transactions SET reconciliation_status='matched',matched_type='scheduled_payment',matched_id=:sid,updated_at=:now WHERE id=:txid AND user_id=:uid"), {"sid": payment_id, "now": now, "txid": payload.transaction_id, "uid": current_user.id})
-    db.execute(text("INSERT INTO scheduled_payment_history(user_id,scheduled_payment_id,from_status,to_status,source,note,created_at) VALUES(:uid,:sid,:from_status,'paid','csv_match',:note,:now)"), {"uid": current_user.id, "sid": payment_id, "from_status": payment["status"], "note": f"Matched Transaction #{payload.transaction_id}", "now": now})
+    db.execute(text("INSERT INTO scheduled_payment_history(user_id,scheduled_payment_id,from_status,to_status,source,note,created_at) VALUES(:uid,:sid,:from_status,'paid',:source,:note,:now)"), {"uid": current_user.id, "sid": payment_id, "from_status": payment["status"], "source": source, "note": f"Matched Transaction #{payload.transaction_id}", "now": now})
     merchant_key = " ".join(str(transaction.get("merchant") or transaction.get("description") or "").strip().lower().split())
     if merchant_key:
         db.execute(text("""
@@ -451,6 +462,8 @@ def reject_payment_match(payment_id: int, payload: dict[str, Any], current_user:
     transaction_id = int(payload.get("transaction_id") or 0)
     if not transaction_id:
         raise HTTPException(status_code=400, detail="Transaction is required")
+    if not db.execute(text("SELECT id FROM scheduled_payments WHERE id=:id AND user_id=:uid"), {"id": payment_id, "uid": current_user.id}).first() or not db.execute(text("SELECT id FROM transactions WHERE id=:id AND user_id=:uid"), {"id": transaction_id, "uid": current_user.id}).first():
+        raise HTTPException(status_code=404, detail="Scheduled Payment or Transaction not found")
     db.execute(text("INSERT OR IGNORE INTO scheduled_payment_match_decisions(user_id,transaction_id,scheduled_payment_id,decision,created_at) VALUES(:uid,:tx,:sid,'rejected',:now)"), {"uid": current_user.id, "tx": transaction_id, "sid": payment_id, "now": utcnow()})
     db.commit()
     return {"status": "rejected"}
