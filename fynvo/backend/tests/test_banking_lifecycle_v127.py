@@ -167,3 +167,42 @@ def test_missing_balance_does_not_shift_last_known_actual(client, monkeypatch, t
     assert result.json()["accounts_failed"] == 1
     assert next(row["current_balance"] for row in client.get("/api/accounts").json() if row["id"] == account_id) == before
     assert len(client.get("/api/transactions").json()) == 1
+
+
+def test_partial_account_failure_does_not_block_other_account(client, monkeypatch, tmp_path):
+    state = setup(client, monkeypatch, tmp_path)
+    connection = state["connections"][0]
+    first, second = connection["accounts"]
+    for external in (first, second):
+        assert client.post(map_url(connection, external), json={"action": "create"}).status_code == 200
+    monkeypatch.setattr(Provider, "failed", {"a2"})
+    result = client.post(f"/api/bank-connections/{connection['id']}/sync")
+    assert result.status_code == 200
+    assert result.json()["accounts_synced"] == 1
+    assert result.json()["accounts_failed"] == 1
+    assert len(client.get("/api/transactions").json()) == 1
+    assert len(client.get("/api/bank-connections/redbark/status").json()["required_actions"]) == 1
+    monkeypatch.setattr(Provider, "failed", set())
+    assert client.post(f"/api/bank-connections/{connection['id']}/sync").json()["accounts_synced"] == 2
+    assert len(client.get("/api/transactions").json()) == 2
+    assert client.get("/api/bank-connections/redbark/status").json()["required_actions"] == []
+
+
+def test_provider_wide_failure_keeps_last_known_account_and_surfaces_connection(client, monkeypatch, tmp_path):
+    state = setup(client, monkeypatch, tmp_path)
+    connection = state["connections"][0]
+    first = connection["accounts"][0]
+    account_id = client.post(map_url(connection, first), json={"action": "create"}).json()["fynvo_account_id"]
+    client.post(f"/api/bank-connections/{connection['id']}/sync")
+
+    def unavailable(_self):
+        from app.redbark import RedbarkError
+        raise RedbarkError("Unavailable", status_code=503)
+
+    monkeypatch.setattr(Provider, "accounts", unavailable)
+    assert client.post(f"/api/bank-connections/{connection['id']}/sync").status_code == 502
+    state = client.get("/api/bank-connections/redbark/status").json()
+    assert state["connections"][0]["accounts"][0]["state"] == "connected"
+    assert any(action["id"].startswith("bank-connection:") for action in state["required_actions"])
+    assert next(row["current_balance"] for row in client.get("/api/accounts").json() if row["id"] == account_id) == "100.00"
+    assert len(client.get("/api/transactions").json()) == 1
