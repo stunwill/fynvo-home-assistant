@@ -20,6 +20,13 @@ test('Settings exposes Redbark Bank connections without leaking the saved creden
   assert.doesNotMatch(panel, /credential\.api_key|savedApiKey|localStorage.*api/i);
 });
 
+test('Mobile More navigation exposes Bank connections and opens the existing workspace', () => {
+  assert.match(shell, /\.fynvo-mobile-more-sheet nav/);
+  assert.match(shell, /fynvoBankConnections/);
+  assert.match(shell, /Bank connections/);
+  assert.match(shell, /setBankConnectionsOpen\(true\)/);
+});
+
 test('Bank connections supports explicit account mapping and safe disconnect', () => {
   assert.match(panel, /Create new Fynvo account/);
   assert.match(panel, /Ignore this bank account/);

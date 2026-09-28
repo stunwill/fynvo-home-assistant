@@ -121,6 +121,27 @@ export default function AppV13() {
       window.removeEventListener('fynvo:open-bank-connections', openBankConnections);
     };
   }, []);
+  useEffect(() => {
+    if (!auth?.authenticated) return undefined;
+    const syncMobileBankConnections = () => {
+      const nav = document.querySelector('.fynvo-mobile-more-sheet nav');
+      if (!nav || nav.querySelector('[data-fynvo-bank-connections]')) return;
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.dataset.fynvoBankConnections = 'true';
+      button.textContent = 'Bank connections';
+      button.addEventListener('click', () => {
+        setToolsOpen(false);
+        setBankConnectionsOpen(true);
+      });
+      const version = nav.querySelector('.fynvo-mobile-version');
+      nav.insertBefore(button, version || null);
+    };
+    const observer = new MutationObserver(syncMobileBankConnections);
+    observer.observe(document.body, { childList: true, subtree: true });
+    syncMobileBankConnections();
+    return () => observer.disconnect();
+  }, [auth?.authenticated]);
 
   const openTool = (mode) => {
     setToolsOpen(false);
