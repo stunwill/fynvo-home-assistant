@@ -87,7 +87,7 @@ def test_configure_discover_map_sync_is_idempotent_and_updates_actual_balance(cl
     assert len([row for row in rows if row["source"] == "bank_sync"]) == 1
 
     with get_engine().begin() as connection:
-        assert connection.execute(text("SELECT MAX(version) FROM schema_version")).scalar() >= 15
+        assert connection.execute(text("SELECT MAX(version) FROM schema_version")).scalar() >= 16
         assert connection.execute(text("SELECT COUNT(*) FROM bank_transaction_identities WHERE provider='redbark'")).scalar() == 1
 
 
