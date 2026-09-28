@@ -22,6 +22,7 @@ import './corrective-v1161.css';
 import './corrective-v1162.css';
 import './accounts-cards-v1163.css';
 import './startup-v1172.css';
+import './bank-activity-v128.css';
 import './mobile-v1177.css';
 import './mobile-overview-v1178.css';
 import './mobile-workspace-v1179.css';
