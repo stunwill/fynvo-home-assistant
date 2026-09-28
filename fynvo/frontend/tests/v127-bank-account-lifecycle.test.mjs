@@ -11,6 +11,7 @@ test('bank account setup requires a reviewed choice and confirmation', () => {
   for (const label of ['Needs setup', 'Connected accounts', 'Ignored accounts', 'Needs attention', 'Link to existing Fynvo account', 'Create new Fynvo account', 'Ignore this bank account', 'Confirm link', 'Create and link account']) assert.ok(panel.includes(label), label);
   assert.match(panel, /choice === 'link' && !accountId/);
   assert.match(panel, /fynvo_account_id: Number\(accountId\)/);
+  assert.match(panel, /\['link', 'create'\]\.includes\(payload\.action\)\) await sync\(item\.connection\)/);
   assert.match(panel, /role="dialog" aria-modal="true" aria-labelledby=/);
   assert.match(panel, /event\.key === 'Tab'/);
   assert.match(panel, /trigger\.current\?\.focus\(\)/);

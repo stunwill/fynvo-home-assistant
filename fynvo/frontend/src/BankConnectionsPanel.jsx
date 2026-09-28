@@ -58,7 +58,11 @@ export default function BankConnectionsPanel({ onClose }) {
     } catch (failure) { setError(errorText(failure)); return false; }
     finally { setBusy(''); }
   };
-  const mapping = (item, payload) => execute(`map:${item.id}`, () => apiRequest(`/bank-connections/${item.connection.id}/accounts/${item.id}/mapping`, { method: 'POST', body: JSON.stringify(payload) }), 'Bank account updated.');
+  const mapping = async (item, payload) => {
+    const saved = await execute(`map:${item.id}`, () => apiRequest(`/bank-connections/${item.connection.id}/accounts/${item.id}/mapping`, { method: 'POST', body: JSON.stringify(payload) }), 'Bank account updated.');
+    if (saved && ['link', 'create'].includes(payload.action)) await sync(item.connection);
+    return saved;
+  };
   const begin = (item, event, initialChoice = 'link') => {
     trigger.current = event.currentTarget;
     setError(''); setSetup(item); setChoice(initialChoice); setAccountId(''); setName(item.name || ''); setAccountType(item.account_type || 'transaction');
