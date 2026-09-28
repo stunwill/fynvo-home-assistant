@@ -339,10 +339,10 @@ def _insert_transaction(db: DbSession, user: User, external: dict[str, Any], row
     tx_date = date.fromisoformat(str(row.get("date"))[:10])
     posted = date.fromisoformat(str(row.get("posted_date"))[:10]) if row.get("posted_date") else tx_date
     now = utcnow()
-    db.execute(text("""INSERT INTO transactions(user_id,account_id,transaction_date,posted_date,amount_cents,transaction_type,description,merchant,category,source,status,raw_description,external_id,provider,provider_account_id,provider_transaction_id,reconciliation_state,created_at,updated_at)
-        VALUES(:user_id,:account_id,:date,:posted,:amount,:type,:description,:merchant,:category,'bank_sync','cleared',:raw,:external_id,'redbark',:provider_account_id,:provider_transaction_id,'unmatched',:now,:now)"""), {
+    db.execute(text("""INSERT INTO transactions(user_id,account_id,transaction_date,posted_date,amount_cents,transaction_type,description,merchant,provider_category,source,status,raw_description,external_id,provider,provider_account_id,provider_transaction_id,reconciliation_state,created_at,updated_at)
+        VALUES(:user_id,:account_id,:date,:posted,:amount,:type,:description,:merchant,:provider_category,'bank_sync','cleared',:raw,:external_id,'redbark',:provider_account_id,:provider_transaction_id,'unmatched',:now,:now)"""), {
         "user_id": user.id, "account_id": account.id, "date": tx_date, "posted": posted, "amount": signed, "type": tx_type,
-        "description": row.get("description") or "Bank transaction", "merchant": row.get("merchant"), "category": row.get("category"),
+        "description": row.get("description") or "Bank transaction", "merchant": row.get("merchant"), "provider_category": row.get("category"),
         "raw": row.get("description"), "external_id": provider_transaction_id, "provider_account_id": external["provider_account_id"],
         "provider_transaction_id": provider_transaction_id, "now": now,
     })

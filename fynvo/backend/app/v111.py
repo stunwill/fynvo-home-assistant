@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session as DbSession
 from . import finance
 from . import payments_v17 as legacy
 from .auth import get_current_user
+from .bank_activity_v128 import merchant_key
 from .database import get_db
 from .models import User
 from .money import cents_to_decimal
@@ -245,10 +246,12 @@ def _transaction_response(row: Any) -> dict[str, Any]:
         "amount": cents_to_decimal(data.get("amount_cents") or 0),
         "transaction_type": data.get("transaction_type"), "description": data.get("description"),
         "merchant": data.get("merchant"), "category": data.get("category"), "category_id": data.get("category_id"),
+        "provider_category": data.get("provider_category"),
         "notes": data.get("notes"), "source": data.get("source"), "status": data.get("status"),
         "raw_description": data.get("raw_description"), "import_batch_id": data.get("import_batch_id"),
         "reconciliation_status": data.get("reconciliation_status") or data.get("reconciliation_state") or "unmatched",
         "matched_type": data.get("matched_type"), "matched_id": data.get("matched_id"),
+        "category_suggestion": data.get("category_suggestion"),
     }
 
 
@@ -270,11 +273,62 @@ def reconciliation_transactions(
         ),
         {"uid": current_user.id, "limit": limit},
     ).all()
-    return [_transaction_response(row) for row in rows]
+    memories = {
+        row["merchant_key"]: row for row in db.execute(text("""
+            SELECT m.merchant_key,m.category_id,c.name AS category_name
+            FROM transaction_category_memory m JOIN categories c ON c.id=m.category_id AND c.user_id=m.user_id
+            WHERE m.user_id=:uid AND c.is_active=1
+        """), {"uid": current_user.id}).mappings()
+    }
+    result = []
+    for row in rows:
+        item = _transaction_response(row)
+        if item["source"] == "bank_sync" and not item["category_id"]:
+            memory = memories.get(merchant_key(item))
+            if memory:
+                item["category_suggestion"] = {"category_id": memory["category_id"], "name": memory["category_name"], "reason": "Previously confirmed for this merchant"}
+        result.append(item)
+    return result
 
 
 class TransactionCategoryPayload(BaseModel):
     category_id: int | None = None
+
+
+@router.get("/payments/category-memory")
+def category_memory(current_user: User = USER, db: DbSession = DB):
+    return [dict(row) for row in db.execute(text("""
+        SELECT m.id,m.merchant_key,m.category_id,c.name AS category_name,m.confirmed_count
+        FROM transaction_category_memory m JOIN categories c ON c.id=m.category_id AND c.user_id=m.user_id
+        WHERE m.user_id=:uid ORDER BY m.merchant_key
+    """), {"uid": current_user.id}).mappings()]
+
+
+@router.delete("/payments/category-memory/{memory_id}")
+def forget_category(memory_id: int, current_user: User = USER, db: DbSession = DB):
+    deleted = db.execute(text("DELETE FROM transaction_category_memory WHERE id=:id AND user_id=:uid"), {"id": memory_id, "uid": current_user.id})
+    if not deleted.rowcount:
+        raise HTTPException(status_code=404, detail="Category memory not found")
+    db.commit()
+    return {"forgotten": True}
+
+
+@router.get("/payments/merchant-aliases")
+def merchant_aliases(current_user: User = USER, db: DbSession = DB):
+    return [dict(row) for row in db.execute(text("""
+        SELECT m.id,m.merchant_key,m.account_id,m.confirmed_count,r.name AS payment_name
+        FROM recurring_match_mappings m JOIN recurring_expenses r ON r.id=m.recurring_expense_id AND r.user_id=m.user_id
+        WHERE m.user_id=:uid ORDER BY m.merchant_key
+    """), {"uid": current_user.id}).mappings()]
+
+
+@router.delete("/payments/merchant-aliases/{alias_id}")
+def forget_merchant(alias_id: int, current_user: User = USER, db: DbSession = DB):
+    deleted = db.execute(text("DELETE FROM recurring_match_mappings WHERE id=:id AND user_id=:uid"), {"id": alias_id, "uid": current_user.id})
+    if not deleted.rowcount:
+        raise HTTPException(status_code=404, detail="Merchant alias not found")
+    db.commit()
+    return {"forgotten": True}
 
 
 @router.put("/payments/transactions/{transaction_id}/category")
@@ -285,7 +339,7 @@ def categorise_transaction(
     db: DbSession = DB,
 ):
     tx = db.execute(
-        text("SELECT id FROM transactions WHERE id=:id AND user_id=:uid"),
+        text("SELECT id,source,merchant,description FROM transactions WHERE id=:id AND user_id=:uid"),
         {"id": transaction_id, "uid": current_user.id},
     ).first()
     if not tx:
@@ -315,6 +369,14 @@ def categorise_transaction(
             "id": transaction_id, "uid": current_user.id,
         },
     )
+    key = merchant_key(tx._mapping)
+    if payload.category_id is not None and key and tx.source == "bank_sync":
+        db.execute(text("""
+            INSERT INTO transaction_category_memory(user_id,merchant_key,category_id,confirmed_count,updated_at)
+            VALUES(:uid,:key,:category,1,:now)
+            ON CONFLICT(user_id,merchant_key) DO UPDATE SET
+                category_id=excluded.category_id,confirmed_count=confirmed_count+1,updated_at=excluded.updated_at
+        """), {"uid": current_user.id, "key": key, "category": payload.category_id, "now": utcnow()})
     db.commit()
     row = db.execute(
         text(
@@ -336,6 +398,7 @@ def _match_candidates(date_tolerance_days: int, user: User, db: DbSession) -> li
             """
             SELECT * FROM transactions
             WHERE user_id=:uid AND transaction_type='expense'
+              AND COALESCE(status,'cleared') NOT IN ('pending','duplicate')
               AND COALESCE(reconciliation_status,'unmatched') NOT IN ('matched','ignored','duplicate')
             ORDER BY transaction_date DESC,id DESC
             """
@@ -378,6 +441,8 @@ def _match_candidates(date_tolerance_days: int, user: User, db: DbSession) -> li
         if int(tx["id"]) in ignored:
             continue
         tx_date = _as_date(tx["transaction_date"])
+        if tx.get("source") == "bank_sync" and tx_date < finance.today_local() - timedelta(days=45):
+            continue
         merchant_key = " ".join(str(tx.get("merchant") or tx.get("description") or "").strip().lower().split())
         for payment in scheduled:
             if (int(tx["id"]), int(payment["id"])) in rejected:
@@ -387,7 +452,7 @@ def _match_candidates(date_tolerance_days: int, user: User, db: DbSession) -> li
             if day_delta > date_tolerance_days:
                 continue
             same_account = bool(payment["account_id"] and tx.get("account_id") and int(payment["account_id"]) == int(tx["account_id"]))
-            if payment["account_id"] and tx.get("account_id") and not same_account:
+            if payment["account_id"] and not same_account:
                 continue
             expected = int(payment["expected_amount_cents"] or 0)
             actual = abs(int(tx["amount_cents"] or 0))
@@ -401,7 +466,7 @@ def _match_candidates(date_tolerance_days: int, user: User, db: DbSession) -> li
             )
             payee = " ".join(str(payment.get("payee_merchant") or payment.get("name") or "").strip().lower().split())
             merchant_match = bool(payee and (payee in merchant_key or merchant_key in payee))
-            if variance > allowed and not learned:
+            if variance > allowed:
                 continue
 
             exact_amount = variance == 0
@@ -435,6 +500,7 @@ def _match_candidates(date_tolerance_days: int, user: User, db: DbSession) -> li
                     "expected_date": expected_date, "expected_amount": cents_to_decimal(expected),
                     "variance": cents_to_decimal(actual - expected), "day_delta": day_delta,
                     "confidence": confidence, "score": score, "learned_match": bool(learned),
+                    "account_id": tx.get("account_id"), "source": tx.get("source"),
                     "merchant_match": merchant_match, "account_match": same_account,
                     "amount_match": exact_amount, "evidence": evidence,
                 }
@@ -448,8 +514,10 @@ def _match_candidates(date_tolerance_days: int, user: User, db: DbSession) -> li
             and (item["merchant_match"] or item["learned_match"])
             and tx_counts[item["transaction_id"]] == 1 and payment_counts[item["scheduled_payment_id"]] == 1
         )
-        item["automatic_match_eligible"] = eligible
-        item["review_state"] = "high_confidence" if eligible else "possible_match" if item["confidence"] != "low" else "needs_review"
+        # This is evidence, never permission to mark a payment paid automatically.
+        item["automatic_match_eligible"] = False
+        item["review_state"] = "needs_review" if eligible else "possible_match"
+        item["review_id"] = f"payment-match:{item['transaction_id']}:{item['scheduled_payment_id']}" if eligible else None
     return sorted(
         candidates,
         key=lambda item: ({"high": 0, "medium": 1, "low": 2}[item["confidence"]], item["expected_date"], item["recurring_name"]),
