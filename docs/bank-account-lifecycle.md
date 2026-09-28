@@ -1,0 +1,15 @@
+# Bank account lifecycle in Fynvo 1.27.0
+
+Redbark discovers real bank accounts. Fynvo accounts represent your household's own financial model. A discovered account is never automatically mapped by its name.
+
+Open **Bank connections** from mobile **More** or Settings. An unmatched bank account appears under **Needs setup**, with a single action on the Accounts page. Choose **Set up account**, then:
+
+- **Link to existing Fynvo account** to preserve that account's identity, cards, funding rules, and plan. Review the bank balance and the existing Fynvo balance before confirming. An account already linked elsewhere cannot be selected.
+- **Create new Fynvo account** to review its proposed name and type before saving the account and mapping in one database transaction. Its bank balance becomes the actual opening balance.
+- **Ignore this bank account** to keep it outside Fynvo calculations and Activity. It remains visible under **Ignored accounts** and can be restored using **Start using in Fynvo**.
+
+Manual accounts are valid and keep their own balances. Connected accounts synchronise actual balances and posted transactions; forecast, Safe-to-Spend, Account Funding, and Payday Allocation retain their existing planning rules. Unresolved and ignored accounts do not import transactions or affect calculations.
+
+Fynvo discovers accounts on every background sync, including accounts opened after initial setup. One provider account corresponds to one stable mapping and one action. When a previously mapped account disappears or fails, the last successful balance and transaction history remain available. **Needs attention** shows the issue until a successful refresh. Temporary provider-wide failures do not classify every account as missing.
+
+**Unlink from Fynvo** stops that account's sync, keeps its Fynvo account, planning links, and historical transactions, and returns the bank account to Needs setup. **Disconnect bank** or **Remove Redbark** stops the corresponding provider synchronisation while retaining local financial history. Deleting a Fynvo account remains a separate action with existing safeguards. Redbark credentials remain in the backend data directory and are never returned to the browser.

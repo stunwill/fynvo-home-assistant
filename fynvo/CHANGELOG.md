@@ -1,5 +1,11 @@
 # Fynvo Add-on Changelog
 
+## v1.27.0 - Bank Account Lifecycle
+
+- Adds account setup and ignored-account management to Bank connections and required actions to Accounts.
+- Keeps manual accounts valid, synchronises mapped accounts independently, and retains last-known balances on missing-account failures.
+- Adds schema v16 provider discovery history and unique active mapping safeguards.
+
 ## v1.26.0 - Redbark Open Banking Foundation
 
 - Adds live Redbark Open Banking connection setup, account discovery and explicit mapping to existing or new Fynvo accounts.
