@@ -1,3 +1,6 @@
+from datetime import datetime, timezone
+
+from app import intelligence
 from app.database import get_engine
 from sqlalchemy import text
 
@@ -76,7 +79,10 @@ def test_recurring_expense_income_and_amount_change_suggestions(client):
     assert any(row["name"] == recurring["action_payload"]["merchant"] for row in client.get("/api/recurring-expenses").json())
 
 
-def test_trends_anomalies_and_one_off_exclusion(client):
+def test_trends_anomalies_and_one_off_exclusion(client, monkeypatch):
+    # This historical June/August fixture tests two rolling 56-day windows.
+    # Pin its reference clock so the original trend contract stays meaningful.
+    monkeypatch.setattr(intelligence, "utcnow", lambda: datetime(2026, 9, 1, tzinfo=timezone.utc))
     login(client)
     acc = account(client)
     for week in range(1, 9):
