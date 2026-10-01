@@ -14,7 +14,7 @@ test('bank account setup requires a reviewed choice and confirmation', () => {
   assert.match(panel, /\['link', 'create'\]\.includes\(payload\.action\)\) await sync\(item\.connection\)/);
   assert.match(panel, /role="dialog" aria-modal="true" aria-labelledby=/);
   assert.match(panel, /event\.key === 'Tab'/);
-  assert.match(panel, /trigger\.current\?\.focus\(\)/);
+  assert.match(panel, /trigger\.current\?\.isConnected \? trigger\.current : backButton\.current\)\?\.focus\(\)/);
 });
 
 test('required actions integrate with Accounts and manual accounts remain valid', () => {

@@ -14,7 +14,7 @@ const api = (path, options = {}) => nativeFetch(`api${path}`, {
   headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
   ...options,
 });
-const PRODUCTION_VERSION = '1.28.0';
+const PRODUCTION_VERSION = '1.29.0';
 const HOUSEHOLD_SECURITY_TIMEOUT_MS = 3500;
 
 function publishStartup(stage, detail = '') {
@@ -37,6 +37,7 @@ export default function AppV13() {
   const [v13CashFlowOpen, setV13CashFlowOpen] = useState(false);
   const [householdOpen, setHouseholdOpen] = useState(false);
   const [bankConnectionsOpen, setBankConnectionsOpen] = useState(false);
+  const [bankConnectionsTarget, setBankConnectionsTarget] = useState(null);
   const [householdSecurity, setHouseholdSecurity] = useState(null);
   const [householdSecurityError, setHouseholdSecurityError] = useState('');
   const [toolsOpen, setToolsOpen] = useState(false);
@@ -113,7 +114,7 @@ export default function AppV13() {
   }, [auth?.authenticated]);
   useEffect(() => {
     const openTools = () => setToolsOpen(true);
-    const openBankConnections = () => setBankConnectionsOpen(true);
+    const openBankConnections = (event) => { setBankConnectionsTarget(event.detail?.externalAccountId || null); setBankConnectionsOpen(true); };
     window.addEventListener('fynvo:open-tools', openTools);
     window.addEventListener('fynvo:open-bank-connections', openBankConnections);
     return () => {
@@ -156,7 +157,7 @@ export default function AppV13() {
   if (!auth.authenticated) return <LoginPage authState={auth} onStateRefresh={refreshAuth} onAuthenticated={async () => { await refreshAuth(); }}/>;
   if (householdSecurity?.must_change_password) return <HouseholdControlCenter forcePasswordChange onPasswordChanged={async () => { setHouseholdSecurity(null); await refreshAuth(); refreshHouseholdSecurity(); }}/>;
   if (householdOpen) return <HouseholdControlCenter onClose={() => setHouseholdOpen(false)}/>;
-  if (bankConnectionsOpen) return <BankConnectionsPanel onClose={() => setBankConnectionsOpen(false)}/>;
+  if (bankConnectionsOpen) return <BankConnectionsPanel targetExternalAccountId={bankConnectionsTarget} onClose={() => { setBankConnectionsOpen(false); setBankConnectionsTarget(null); }}/>;
   if (v13CashFlowOpen) return <V13CashFlowPage onClose={() => setV13CashFlowOpen(false)}/>;
   if (v11Mode) return <V11ControlCenter mode={v11Mode} onClose={() => setV11Mode(null)}/>;
 
