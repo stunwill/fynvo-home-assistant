@@ -5,6 +5,7 @@ import json
 import logging
 import os
 import threading
+from contextlib import contextmanager
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -38,8 +39,26 @@ AUTOMATIC_SYNC_INTERVAL_SECONDS = 30 * 60
 INCREMENTAL_OVERLAP_DAYS = 7
 
 _SYNC_GUARD = threading.Lock()
-_SYNC_KEYS: set[tuple[int, int]] = set()
+_ACTIVE_BANKING_USERS: set[int] = set()
 _SCHEDULER_TASK: asyncio.Task | None = None
+
+
+@contextmanager
+def _banking_operation(user_id: int):
+    """Keep discovery, mapping and sync from racing in the add-on process.
+
+    SQLite's unique index and conditional mapping write provide the durable
+    backstop if separate processes ever handle the same account.
+    """
+    with _SYNC_GUARD:
+        if user_id in _ACTIVE_BANKING_USERS:
+            raise HTTPException(status_code=409, detail="A bank connection is being updated. Try again shortly.")
+        _ACTIVE_BANKING_USERS.add(user_id)
+    try:
+        yield
+    finally:
+        with _SYNC_GUARD:
+            _ACTIVE_BANKING_USERS.discard(user_id)
 
 
 class RedbarkCredentialPayload(BaseModel):
@@ -214,7 +233,7 @@ def _connection_response(db: DbSession, row: dict[str, Any]) -> dict[str, Any]:
         "last_successful_sync": str(row["last_successful_sync"]) if row["last_successful_sync"] else None,
         "last_attempted_sync": str(row["last_attempted_sync"]) if row["last_attempted_sync"] else None,
         "error_state": row["error_state"], "is_mock": bool(row["is_mock"]),
-        "accounts": [_external_response(item) for item in accounts],
+        "accounts": [{**_external_response(item), "connection_status": row["status"]} for item in accounts],
     }
 
 
@@ -357,11 +376,11 @@ def _insert_transaction(db: DbSession, user: User, external: dict[str, Any], row
 
 
 def _sync_connection(db: DbSession, user: User, connection_id: int, *, automatic: bool = False) -> dict[str, Any]:
-    key = (user.id, connection_id)
-    with _SYNC_GUARD:
-        if key in _SYNC_KEYS:
-            raise HTTPException(status_code=409, detail="This bank connection is already synchronising")
-        _SYNC_KEYS.add(key)
+    with _banking_operation(user.id):
+        return _sync_connection_unlocked(db, user, connection_id, automatic=automatic)
+
+
+def _sync_connection_unlocked(db: DbSession, user: User, connection_id: int, *, automatic: bool = False) -> dict[str, Any]:
     started = utcnow()
     try:
         connection = _connection(db, user.id, connection_id)
@@ -436,9 +455,6 @@ def _sync_connection(db: DbSession, user: User, connection_id: int, *, automatic
         db.execute(text("UPDATE bank_connections SET status='error',error_state=:error,updated_at=:now WHERE id=:id"), {"id": connection_id, "error": exc.message, "now": utcnow()})
         db.commit()
         raise HTTPException(status_code=502 if exc.status_code >= 500 else exc.status_code, detail=exc.message) from exc
-    finally:
-        with _SYNC_GUARD:
-            _SYNC_KEYS.discard(key)
 
 
 @router.get("/providers")
@@ -458,6 +474,11 @@ def redbark_status(db: DbSession = DB, current_user: User = USER) -> dict[str, A
 
 @router.put("/redbark/credentials")
 def configure_redbark(payload: RedbarkCredentialPayload, db: DbSession = DB, current_user: User = USER) -> dict[str, Any]:
+    with _banking_operation(current_user.id):
+        return _configure_redbark_unlocked(payload, db, current_user)
+
+
+def _configure_redbark_unlocked(payload: RedbarkCredentialPayload, db: DbSession, current_user: User) -> dict[str, Any]:
     ensure_banking_v126_schema()
     provider = RedbarkProvider(payload.api_key)
     try:
@@ -481,6 +502,11 @@ def test_redbark(current_user: User = USER) -> dict[str, Any]:
 
 @router.post("/redbark/discover")
 def discover_redbark(db: DbSession = DB, current_user: User = USER) -> dict[str, Any]:
+    with _banking_operation(current_user.id):
+        return _discover_redbark_unlocked(db, current_user)
+
+
+def _discover_redbark_unlocked(db: DbSession, current_user: User) -> dict[str, Any]:
     ensure_banking_v126_schema()
     try:
         rows = _upsert_connections_and_accounts(db, current_user, _provider())
@@ -491,6 +517,15 @@ def discover_redbark(db: DbSession = DB, current_user: User = USER) -> dict[str,
 
 @router.post("/{connection_id}/accounts/{external_account_id}/mapping")
 def map_account(connection_id: int, external_account_id: int, payload: AccountMappingPayload, db: DbSession = DB, current_user: User = USER) -> dict[str, Any]:
+    with _banking_operation(current_user.id):
+        try:
+            return _map_account_unlocked(connection_id, external_account_id, payload, db, current_user)
+        except SQLAlchemyError as exc:
+            db.rollback()
+            raise HTTPException(status_code=409, detail="Account mapping changed while saving. Refresh and try again.") from exc
+
+
+def _map_account_unlocked(connection_id: int, external_account_id: int, payload: AccountMappingPayload, db: DbSession, current_user: User) -> dict[str, Any]:
     ensure_banking_v126_schema()
     _connection(db, current_user.id, connection_id)
     row = db.execute(text("SELECT * FROM external_accounts WHERE id=:id AND user_id=:user_id AND bank_connection_id=:connection_id AND provider='redbark'"), {"id": external_account_id, "user_id": current_user.id, "connection_id": connection_id}).mappings().first()
@@ -523,7 +558,10 @@ def map_account(connection_id: int, external_account_id: int, payload: AccountMa
         if existing_mapping:
             db.rollback()
             raise HTTPException(status_code=409, detail="That Fynvo account is already linked to another bank account")
-        db.execute(text("UPDATE external_accounts SET ignored=0,status='linked',fynvo_account_id=:account_id,updated_at=:now WHERE id=:id"), {"id": external_account_id, "account_id": account.id, "now": utcnow()})
+        claimed = db.execute(text("UPDATE external_accounts SET ignored=0,status='linked',fynvo_account_id=:account_id,updated_at=:now WHERE id=:id AND user_id=:user_id AND fynvo_account_id IS NULL AND ignored=0"), {"id": external_account_id, "user_id": current_user.id, "account_id": account.id, "now": utcnow()})
+        if claimed.rowcount != 1:
+            db.rollback()
+            raise HTTPException(status_code=409, detail="This bank account was updated elsewhere. Refresh and review its mapping.")
         if external.get("current_balance_cents") is not None:
             _set_actual_balance(db, account, external["current_balance_cents"], external.get("available_balance_cents"), utcnow())
     try:
@@ -543,6 +581,11 @@ def sync_connection(connection_id: int, db: DbSession = DB, current_user: User =
 
 @router.post("/{connection_id}/disconnect")
 def disconnect_connection(connection_id: int, db: DbSession = DB, current_user: User = USER) -> dict[str, Any]:
+    with _banking_operation(current_user.id):
+        return _disconnect_connection_unlocked(connection_id, db, current_user)
+
+
+def _disconnect_connection_unlocked(connection_id: int, db: DbSession, current_user: User) -> dict[str, Any]:
     ensure_banking_v126_schema()
     _connection(db, current_user.id, connection_id)
     now = utcnow()
@@ -554,6 +597,11 @@ def disconnect_connection(connection_id: int, db: DbSession = DB, current_user: 
 
 @router.delete("/redbark/credentials")
 def remove_redbark_credentials(db: DbSession = DB, current_user: User = USER) -> dict[str, Any]:
+    with _banking_operation(current_user.id):
+        return _remove_redbark_credentials_unlocked(db, current_user)
+
+
+def _remove_redbark_credentials_unlocked(db: DbSession, current_user: User) -> dict[str, Any]:
     ensure_banking_v126_schema()
     now = utcnow()
     db.execute(text("UPDATE bank_connections SET status='disconnected',error_state=NULL,updated_at=:now WHERE user_id=:user_id AND provider='redbark'"), {"user_id": current_user.id, "now": now})
