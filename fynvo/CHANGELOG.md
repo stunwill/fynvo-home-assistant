@@ -1,5 +1,11 @@
 # Fynvo Add-on Changelog
 
+## v1.29.0 - Bank Connection Integrity
+
+- Prevents simultaneous bank sync, account mapping and disconnect operations from racing in the add-on process; conflicting mapping claims roll back safely.
+- Opens the relevant setup dialog from Accounts required actions and offers a non-automatic exact metadata match suggestion.
+- Shows accurate disconnected/sync-stopped status without losing last-known balances or transaction history. No migration; schema remains v17.
+
 ## v1.28.0 - Bank Activity Reconciliation
 
 - Presents explainable bank-payment matches in Activity and Review Queue; requires confirmation before a scheduled payment becomes paid.

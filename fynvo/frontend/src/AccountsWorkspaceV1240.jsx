@@ -740,7 +740,7 @@ function AccountDetail({
           {money(account.current_balance ?? account.opening_balance)}
         </strong>
         <span>{isCredit(account) ? "Current balance" : "Available balance"}</span>
-        <small>{bankAccount ? `Bank balance · ${bankAccount.state === "needs_attention" ? "Connection needs attention · " : ""}${freshness(bankAccount.last_successful_sync || bankAccount.balance_timestamp)}` : "Manual balance"}</small>
+        <small>{bankAccount ? `Bank balance · ${bankAccount.connection_status === "disconnected" ? "Sync stopped · " : bankAccount.state === "needs_attention" ? "Connection needs attention · " : ""}${freshness(bankAccount.last_successful_sync || bankAccount.balance_timestamp)}` : "Manual balance"}</small>
         {bankAccount && <button type="button" onClick={() => window.dispatchEvent(new CustomEvent("fynvo:open-bank-connections"))}>Manage bank connection · {bankAccount.institution_name} {bankAccount.masked_identifier}</button>}
       </div>
       <div className="fynvo-accounts-v1240-actions">

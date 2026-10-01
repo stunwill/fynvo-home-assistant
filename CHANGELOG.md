@@ -2,6 +2,14 @@
 
 All notable Fynvo changes are documented here. Starting with v0.3.0, every release must include a user-readable changelog entry, Home Assistant-visible release notes and GitHub release notes.
 
+## v1.29.0 - Bank Connection Integrity
+
+- Coordinates account mapping, provider discovery, credential changes and disconnects with background sync in the add-on process. A conflicting operation asks the user to retry instead of racing the sync.
+- Atomically claims an unresolved provider account when linking or creating a Fynvo account; a competing claim rolls back the newly created account instead of leaving an orphan.
+- Opens the exact unresolved bank account from its Accounts required action and offers an optional, never-preselected mapping suggestion only when account name, institution and type agree.
+- Clarifies Redbark's connection summary, needs-setup count and disconnected status. Account Detail labels a disconnected bank balance as no longer syncing while preserving its last value and historical transactions.
+- Retains schema v17, the existing mapping uniqueness constraints, posted transaction deduplication, planning engines, Accounts → Activity and Home Assistant ingress routes. No database migration is required.
+
 ## v1.28.0 - Bank Activity Reconciliation
 
 - Makes posted bank transactions explainable payment-match evidence in Activity and the existing Review Queue; only explicit confirmation changes a scheduled payment to paid.
