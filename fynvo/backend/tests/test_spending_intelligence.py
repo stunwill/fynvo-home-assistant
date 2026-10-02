@@ -38,7 +38,7 @@ def test_intelligence_schema_rules_and_merchant_normalisation(client):
     merchants = client.get("/api/intelligence/merchants").json()
     assert merchants[0]["merchant"] == "Woolworths"
     with get_engine().connect() as connection:
-        assert connection.execute(text("SELECT max(version) FROM schema_version")).scalar() == 17
+        assert connection.execute(text("SELECT max(version) FROM schema_version")).scalar() == 18
 
 
 def test_category_suggestions_and_dismissal_suppression(client):

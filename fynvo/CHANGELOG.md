@@ -1,5 +1,11 @@
 # Fynvo Add-on Changelog
 
+## v1.30.0 - Household Bank Connection Clarity
+
+- Shows separate bank connections, editable household labels and masked account identities in Bank Connections on mobile and desktop.
+- Preserves truthful discovery/sync/balance timestamps and last-known balances when Redbark reports no balance; transaction import can continue on a partially updated connection.
+- Adds schema v18 provider-configuration relationships and independent connection-health handling, without exposing additional unsupported Redbark credential or Fiskil consent workflows.
+
 ## v1.29.0 - Bank Connection Integrity
 
 - Prevents simultaneous bank sync, account mapping and disconnect operations from racing in the add-on process; conflicting mapping claims roll back safely.

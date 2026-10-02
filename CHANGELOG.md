@@ -2,6 +2,13 @@
 
 All notable Fynvo changes are documented here. Starting with v0.3.0, every release must include a user-readable changelog entry, Home Assistant-visible release notes and GitHub release notes.
 
+## v1.30.0 - Household Bank Connection Clarity
+
+- Groups discovered accounts beneath their stable Redbark connection, including separate connections to the same institution and identically named accounts distinguished by masked identifiers.
+- Adds editable connection labels and optional active-household-member context without changing provider IDs or Fynvo account ownership. Introduces additive provider-configuration references while retaining the verified single-credential setup workflow.
+- Separates account discovery, connection sync, transaction refresh and bank balance freshness. A missing balance no longer receives a false update time or silently becomes a new account's $0 opening balance; users supply an explicit provisional starting balance when needed.
+- Isolates a failed connection's health from another connection and preserves last-known actual balances, transaction history, manual accounts, required-action identities and the existing planning engines. Adds schema v18 and regressions for multi-connection routing.
+
 ## v1.29.0 - Bank Connection Integrity
 
 - Coordinates account mapping, provider discovery, credential changes and disconnects with background sync in the add-on process. A conflicting operation asks the user to retry instead of racing the sync.

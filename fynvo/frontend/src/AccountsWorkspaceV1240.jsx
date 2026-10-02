@@ -740,8 +740,8 @@ function AccountDetail({
           {money(account.current_balance ?? account.opening_balance)}
         </strong>
         <span>{isCredit(account) ? "Current balance" : "Available balance"}</span>
-        <small>{bankAccount ? `Bank balance · ${bankAccount.connection_status === "disconnected" ? "Sync stopped · " : bankAccount.state === "needs_attention" ? "Connection needs attention · " : ""}${freshness(bankAccount.last_successful_sync || bankAccount.balance_timestamp)}` : "Manual balance"}</small>
-        {bankAccount && <button type="button" onClick={() => window.dispatchEvent(new CustomEvent("fynvo:open-bank-connections"))}>Manage bank connection · {bankAccount.institution_name} {bankAccount.masked_identifier}</button>}
+        <small>{bankAccount ? `Bank balance · ${bankAccount.connection_status === "disconnected" ? "Sync stopped · " : bankAccount.state === "needs_attention" ? "Connection needs attention · " : ""}${bankAccount.balance_timestamp ? freshness(bankAccount.balance_timestamp) : "Balance unavailable"}` : "Manual balance"}</small>
+        {bankAccount && <button type="button" onClick={() => window.dispatchEvent(new CustomEvent("fynvo:open-bank-connections"))}>Manage bank connection · {bankAccount.connection_label || bankAccount.institution_name} · {bankAccount.masked_identifier}</button>}
       </div>
       <div className="fynvo-accounts-v1240-actions">
         <button type="button" onClick={onAddTransaction}>＋<small>Add transaction</small></button>
@@ -856,7 +856,7 @@ export default function AccountsWorkspaceV1240({
     if (fundingResult.status === "fulfilled") setFunding(fundingResult.value || null);
     if (bankingResult.status === "fulfilled") {
       setBankActions(bankingResult.value?.required_actions || []);
-      setBankAccounts((bankingResult.value?.connections || []).flatMap((connection) => connection.accounts || []));
+      setBankAccounts((bankingResult.value?.connections || []).flatMap((connection) => (connection.accounts || []).map((account) => ({ ...account, connection_label: connection.display_label }))));
     }
   };
   useEffect(() => { load(); }, []);
