@@ -34,7 +34,7 @@ logger = logging.getLogger("fynvo.banking")
 router = APIRouter(prefix="/bank-connections", tags=["banking"])
 DB = Depends(get_db)
 USER = Depends(get_current_user)
-BANKING_SCHEMA_VERSION = 16
+BANKING_SCHEMA_VERSION = 18
 AUTOMATIC_SYNC_INTERVAL_SECONDS = 30 * 60
 INCREMENTAL_OVERLAP_DAYS = 7
 
@@ -70,6 +70,12 @@ class AccountMappingPayload(BaseModel):
     fynvo_account_id: int | None = None
     name: str | None = Field(default=None, min_length=1, max_length=120)
     account_type: str | None = None
+    opening_balance: str | None = None
+
+
+class ConnectionContextPayload(BaseModel):
+    label: str | None = Field(default=None, max_length=80)
+    owner_user_id: int | None = None
 
 
 def _secret_path() -> Path:
@@ -118,6 +124,14 @@ def ensure_banking_v126_schema(engine=None) -> None:
     engine = engine or get_engine()
     with engine.begin() as connection:
         connection.execute(text("""
+            CREATE TABLE IF NOT EXISTS banking_provider_configurations (
+                id INTEGER PRIMARY KEY, user_id INTEGER NOT NULL, provider VARCHAR(80) NOT NULL,
+                label VARCHAR(80) NOT NULL, credential_ref VARCHAR(180) NOT NULL,
+                created_at DATETIME NOT NULL, updated_at DATETIME NOT NULL,
+                FOREIGN KEY(user_id) REFERENCES users(id), UNIQUE(user_id, provider, credential_ref)
+            )
+        """))
+        connection.execute(text("""
             CREATE TABLE IF NOT EXISTS bank_connections (
                 id INTEGER PRIMARY KEY, user_id INTEGER NOT NULL, provider VARCHAR(80) NOT NULL,
                 provider_connection_id VARCHAR(180) NOT NULL, institution_id VARCHAR(180) NOT NULL,
@@ -162,6 +176,28 @@ def ensure_banking_v126_schema(engine=None) -> None:
             )
         """))
         columns = lambda table: {row["name"] for row in connection.execute(text(f"PRAGMA table_info({table})")).mappings()}
+        connection_columns = columns("bank_connections")
+        for definition in (
+            "provider_configuration_id INTEGER REFERENCES banking_provider_configurations(id)",
+            "display_label VARCHAR(80)",
+            "owner_user_id INTEGER REFERENCES users(id)",
+            "last_successful_discovery DATETIME",
+        ):
+            if definition.split()[0] not in connection_columns:
+                connection.execute(text(f"ALTER TABLE bank_connections ADD COLUMN {definition}"))
+        now = utcnow()
+        connection.execute(text("""
+            INSERT OR IGNORE INTO banking_provider_configurations(user_id,provider,label,credential_ref,created_at,updated_at)
+            SELECT DISTINCT user_id,'redbark','Redbark','redbark',:now,:now
+            FROM bank_connections WHERE provider='redbark'
+        """), {"now": now})
+        connection.execute(text("""
+            UPDATE bank_connections SET provider_configuration_id=(
+                SELECT id FROM banking_provider_configurations pc
+                WHERE pc.user_id=bank_connections.user_id AND pc.provider='redbark' AND pc.credential_ref='redbark'
+            ) WHERE provider='redbark' AND provider_configuration_id IS NULL
+        """))
+        connection.execute(text("CREATE INDEX IF NOT EXISTS idx_bank_connections_config ON bank_connections(provider_configuration_id,provider_connection_id)"))
         account_columns = columns("accounts")
         for definition in (
             "connection_status VARCHAR(40)",
@@ -198,6 +234,7 @@ def ensure_banking_v126_schema(engine=None) -> None:
             if column not in external_columns:
                 connection.execute(text(f"ALTER TABLE external_accounts ADD COLUMN {definition}"))
                 external_columns.add(column)
+        connection.execute(text("UPDATE external_accounts SET balance_timestamp=NULL WHERE current_balance_cents IS NULL AND last_successful_sync IS NULL"))
         connection.execute(text("CREATE INDEX IF NOT EXISTS idx_external_accounts_mapping ON external_accounts(user_id, provider, fynvo_account_id)"))
         duplicate_mappings = connection.execute(text("SELECT user_id, fynvo_account_id FROM external_accounts WHERE fynvo_account_id IS NOT NULL AND ignored=0 GROUP BY user_id, fynvo_account_id HAVING COUNT(*) > 1")).mappings().all()
         if duplicate_mappings:
@@ -205,7 +242,8 @@ def ensure_banking_v126_schema(engine=None) -> None:
                 connection.execute(text("UPDATE external_accounts SET status='stale',error_state='More than one bank account is linked here. Unlink duplicate mappings before syncing.' WHERE user_id=:user_id AND fynvo_account_id=:account_id"), {"user_id": duplicate["user_id"], "account_id": duplicate["fynvo_account_id"]})
         else:
             connection.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS idx_external_accounts_active_mapping ON external_accounts(user_id, fynvo_account_id) WHERE fynvo_account_id IS NOT NULL AND ignored=0"))
-        connection.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS idx_bank_tx_provider_id ON bank_transaction_identities(user_id, provider, provider_transaction_id) WHERE provider_transaction_id IS NOT NULL AND provider_transaction_id != ''"))
+        connection.execute(text("DROP INDEX IF EXISTS idx_bank_tx_provider_id"))
+        connection.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS idx_bank_tx_account_provider_id ON bank_transaction_identities(user_id, external_account_id, provider_transaction_id) WHERE provider_transaction_id IS NOT NULL AND provider_transaction_id != ''"))
         current = connection.execute(text("SELECT MAX(version) FROM schema_version")).scalar()
         if current is None:
             connection.execute(text("INSERT INTO schema_version(version) VALUES (:version)"), {"version": BANKING_SCHEMA_VERSION})
@@ -225,11 +263,14 @@ def _account_type(value: str | None) -> str:
 
 def _connection_response(db: DbSession, row: dict[str, Any]) -> dict[str, Any]:
     accounts = db.execute(text("SELECT * FROM external_accounts WHERE bank_connection_id=:id ORDER BY account_name"), {"id": row["id"]}).mappings().all()
+    owner = db.execute(text("SELECT display_name FROM users WHERE id=:id"), {"id": row.get("owner_user_id")}).scalar() if row.get("owner_user_id") else None
     return {
         "id": row["id"], "provider": row["provider"], "provider_label": REDBARK_PROVIDER_NAME,
         "institution_id": row["institution_id"], "institution_name": row["institution_name"],
+        "display_label": row.get("display_label"), "owner_user_id": row.get("owner_user_id"), "owner_name": owner,
         "status": row["status"], "consent_status": row["consent_status"],
         "connected_at": str(row["connected_at"]),
+        "last_successful_discovery": str(row["last_successful_discovery"]) if row.get("last_successful_discovery") else None,
         "last_successful_sync": str(row["last_successful_sync"]) if row["last_successful_sync"] else None,
         "last_attempted_sync": str(row["last_attempted_sync"]) if row["last_attempted_sync"] else None,
         "error_state": row["error_state"], "is_mock": bool(row["is_mock"]),
@@ -268,21 +309,36 @@ def _provider() -> RedbarkProvider:
     return RedbarkProvider(key)
 
 
+def _default_configuration(db: DbSession, user_id: int) -> int:
+    now = utcnow()
+    db.execute(text("""INSERT OR IGNORE INTO banking_provider_configurations
+        (user_id,provider,label,credential_ref,created_at,updated_at)
+        VALUES (:user_id,'redbark','Redbark','redbark',:now,:now)"""), {"user_id": user_id, "now": now})
+    return int(db.execute(text("""SELECT id FROM banking_provider_configurations
+        WHERE user_id=:user_id AND provider='redbark' AND credential_ref='redbark'"""), {"user_id": user_id}).scalar())
+
+
 def _upsert_connections_and_accounts(db: DbSession, user: User, provider: RedbarkProvider) -> list[dict[str, Any]]:
     now = utcnow()
     remote_connections = provider.connections()
     remote_accounts = provider.accounts()
-    balances = provider.balances([item["provider_account_id"] for item in remote_accounts])
+    # Account discovery is useful even when the balance endpoint is unavailable.
+    try:
+        balances = provider.balances([item["provider_account_id"] for item in remote_accounts])
+    except RedbarkError:
+        balances = {}
+        logger.warning("bank_balance_discovery_unavailable provider=redbark")
+    config_id = _default_configuration(db, user.id)
     connection_ids: dict[str, int] = {}
     for remote in remote_connections:
         existing = db.execute(text("SELECT id FROM bank_connections WHERE user_id=:user_id AND provider='redbark' AND provider_connection_id=:remote_id"), {"user_id": user.id, "remote_id": remote["id"]}).scalar()
         values = {"user_id": user.id, "remote_id": remote["id"], "institution_id": remote["institution_id"] or remote["id"], "institution_name": remote["institution_name"], "status": remote["status"] or "connected", "now": now}
         if existing:
             connection_id = int(existing)
-            db.execute(text("UPDATE bank_connections SET institution_id=:institution_id,institution_name=:institution_name,status=:status,consent_status='provider_managed',error_state=NULL,is_mock=0,updated_at=:now WHERE id=:id"), {**values, "id": connection_id})
+            db.execute(text("UPDATE bank_connections SET provider_configuration_id=:config_id,institution_id=:institution_id,institution_name=:institution_name,status=CASE WHEN status IN ('disconnected','partial','error') THEN status ELSE :status END,consent_status='provider_managed',error_state=CASE WHEN error_state='This bank connection was not returned by Redbark. Last-known data is available.' THEN NULL ELSE error_state END,last_successful_discovery=:now,is_mock=0,updated_at=:now WHERE id=:id"), {**values, "config_id": config_id, "id": connection_id})
         else:
-            db.execute(text("""INSERT INTO bank_connections(user_id,provider,provider_connection_id,institution_id,institution_name,status,consent_status,connected_at,is_mock,created_at,updated_at)
-                VALUES(:user_id,'redbark',:remote_id,:institution_id,:institution_name,:status,'provider_managed',:now,0,:now,:now)"""), values)
+            db.execute(text("""INSERT INTO bank_connections(user_id,provider,provider_configuration_id,provider_connection_id,institution_id,institution_name,status,consent_status,connected_at,last_successful_discovery,is_mock,created_at,updated_at)
+                VALUES(:user_id,'redbark',:config_id,:remote_id,:institution_id,:institution_name,:status,'provider_managed',:now,:now,0,:now,:now)"""), {**values, "config_id": config_id})
             connection_id = int(db.execute(text("SELECT last_insert_rowid()")).scalar())
         connection_ids[remote["id"]] = connection_id
     for remote in remote_accounts:
@@ -295,16 +351,19 @@ def _upsert_connections_and_accounts(db: DbSession, user: User, provider: Redbar
         existing = db.execute(text("SELECT id FROM external_accounts WHERE user_id=:user_id AND provider='redbark' AND provider_account_id=:provider_account_id"), {"user_id": user.id, "provider_account_id": remote["provider_account_id"]}).scalar()
         values = {"user_id": user.id, "connection_id": connection_id, "provider_account_id": remote["provider_account_id"], "institution": remote["institution"], "name": remote["name"], "account_type": _account_type(remote["account_type"]), "masked": remote["masked_identifier"], "current": current, "available": available, "now": now}
         if existing:
-            db.execute(text("""UPDATE external_accounts SET bank_connection_id=:connection_id,institution_name=:institution,account_name=:name,account_type=:account_type,masked_identifier=:masked,current_balance_cents=COALESCE(:current,current_balance_cents),available_balance_cents=COALESCE(:available,available_balance_cents),balance_timestamp=CASE WHEN :current IS NOT NULL THEN :now ELSE balance_timestamp END,last_seen_at=:now,status=CASE WHEN ignored=1 THEN 'ignored' WHEN fynvo_account_id IS NULL THEN 'discovered' ELSE 'linked' END,error_state=NULL,updated_at=:now WHERE id=:id"""), {**values, "id": int(existing)})
+            db.execute(text("""UPDATE external_accounts SET bank_connection_id=:connection_id,institution_name=:institution,account_name=:name,account_type=:account_type,masked_identifier=:masked,current_balance_cents=CASE WHEN fynvo_account_id IS NULL THEN COALESCE(:current,current_balance_cents) ELSE current_balance_cents END,available_balance_cents=CASE WHEN fynvo_account_id IS NULL THEN COALESCE(:available,available_balance_cents) ELSE available_balance_cents END,balance_timestamp=CASE WHEN fynvo_account_id IS NULL AND :current IS NOT NULL THEN :now ELSE balance_timestamp END,last_seen_at=:now,status=CASE WHEN ignored=1 THEN 'ignored' WHEN fynvo_account_id IS NULL THEN 'discovered' WHEN status IN ('stale','missing') THEN status ELSE 'linked' END,error_state=CASE WHEN status IN ('stale','missing') THEN error_state ELSE NULL END,updated_at=:now WHERE id=:id"""), {**values, "id": int(existing)})
         else:
             db.execute(text("""INSERT INTO external_accounts(user_id,bank_connection_id,provider,provider_account_id,institution_name,account_name,account_type,masked_identifier,current_balance_cents,available_balance_cents,balance_timestamp,last_seen_at,status,ignored,created_at,updated_at)
-                VALUES(:user_id,:connection_id,'redbark',:provider_account_id,:institution,:name,:account_type,:masked,:current,:available,:now,:now,'discovered',0,:now,:now)"""), values)
+                VALUES(:user_id,:connection_id,'redbark',:provider_account_id,:institution,:name,:account_type,:masked,:current,:available,CASE WHEN :current IS NOT NULL THEN :now ELSE NULL END,:now,'discovered',0,:now,:now)"""), values)
     # Only a successfully completed provider discovery can establish that an account is absent.
     seen = {item["provider_account_id"] for item in remote_accounts}
-    for row in db.execute(text("SELECT id,provider_account_id FROM external_accounts WHERE user_id=:user_id AND provider='redbark' AND fynvo_account_id IS NOT NULL AND ignored=0"), {"user_id": user.id}).mappings():
-        if row["provider_account_id"] not in seen:
+    for row in db.execute(text("SELECT id,provider_account_id,bank_connection_id FROM external_accounts WHERE user_id=:user_id AND provider='redbark' AND fynvo_account_id IS NOT NULL AND ignored=0"), {"user_id": user.id}).mappings():
+        if row["bank_connection_id"] in connection_ids.values() and row["provider_account_id"] not in seen:
             db.execute(text("UPDATE external_accounts SET status='missing',error_state='Bank account was not returned by the provider. Last-known data is available.',updated_at=:now WHERE id=:id"), {"id": row["id"], "now": now})
             db.execute(text("UPDATE accounts SET connection_status='missing' WHERE id=(SELECT fynvo_account_id FROM external_accounts WHERE id=:id) AND user_id=:user_id"), {"id": row["id"], "user_id": user.id})
+    for row in db.execute(text("SELECT id FROM bank_connections WHERE user_id=:user_id AND provider_configuration_id=:config_id AND status!='disconnected'"), {"user_id": user.id, "config_id": config_id}).mappings():
+        if row["id"] not in connection_ids.values():
+            db.execute(text("UPDATE bank_connections SET status='error',error_state='This bank connection was not returned by Redbark. Last-known data is available.',updated_at=:now WHERE id=:id"), {"id": row["id"], "now": now})
     db.commit()
     rows = db.execute(text("SELECT * FROM bank_connections WHERE user_id=:user_id AND provider='redbark' ORDER BY institution_name"), {"user_id": user.id}).mappings().all()
     return [_connection_response(db, dict(row)) for row in rows]
@@ -312,11 +371,17 @@ def _upsert_connections_and_accounts(db: DbSession, user: User, provider: Redbar
 
 def _create_fynvo_account(db: DbSession, user: User, external: dict[str, Any], payload: AccountMappingPayload) -> int:
     now = utcnow()
+    bank_balance = external["current_balance_cents"]
+    try:
+        starting_balance = bank_balance if bank_balance is not None else parse_money(payload.opening_balance)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail="Enter a valid starting balance") from exc
     db.execute(text("""INSERT INTO accounts(user_id,name,account_type,institution,opening_balance_cents,minimum_balance_cents,balance_updated_at,balance_update_source,description,account_suffix,icon,is_active,connection_status,available_balance_cents,balance_timestamp,bank_provider,created_at,updated_at)
-        VALUES(:user_id,:name,:account_type,:institution,:balance,0,:now,'redbark','Connected through Redbark Open Banking.',:suffix,'bank',1,'connected',:available,:now,'redbark',:now,:now)"""), {
+        VALUES(:user_id,:name,:account_type,:institution,:balance,0,:balance_time,:source,'Connected through Redbark Open Banking.',:suffix,'bank',1,'connected',:available,:balance_time,'redbark',:now,:now)"""), {
         "user_id": user.id, "name": payload.name or external["account_name"], "account_type": _account_type(payload.account_type or external["account_type"]),
-        "institution": external["institution_name"], "balance": int(external["current_balance_cents"] or 0),
-        "available": external["available_balance_cents"], "suffix": str(external["masked_identifier"] or "")[-4:], "now": now,
+        "institution": external["institution_name"], "balance": starting_balance, "source": "redbark" if bank_balance is not None else "manual",
+        "available": external["available_balance_cents"], "suffix": str(external["masked_identifier"] or "")[-4:],
+        "balance_time": now if external["current_balance_cents"] is not None else None, "now": now,
     })
     return int(db.execute(text("SELECT last_insert_rowid()")).scalar())
 
@@ -325,14 +390,16 @@ def _set_actual_balance(db: DbSession, account: Account, current_balance: int | 
     if current_balance is not None:
         transaction_total = account_balance_cents(db, account) - int(account.opening_balance_cents or 0)
         account.opening_balance_cents = current_balance - transaction_total
-    account.balance_updated_at = timestamp
+    if current_balance is not None:
+        account.balance_updated_at = timestamp
     account.balance_update_source = "redbark"
     account.connection_status = "connected"  # type: ignore[attr-defined]
     account.available_balance_cents = available_balance  # type: ignore[attr-defined]
-    account.balance_timestamp = timestamp  # type: ignore[attr-defined]
+    if current_balance is not None:
+        account.balance_timestamp = timestamp  # type: ignore[attr-defined]
     account.bank_provider = "redbark"  # type: ignore[attr-defined]
     account.updated_at = timestamp
-    db.execute(text("UPDATE accounts SET connection_status='connected',available_balance_cents=:available,balance_timestamp=:now,bank_provider='redbark' WHERE id=:id AND user_id=:user_id"), {"available": available_balance, "now": timestamp, "id": account.id, "user_id": account.user_id})
+    db.execute(text("UPDATE accounts SET connection_status='connected',available_balance_cents=COALESCE(:available,available_balance_cents),balance_timestamp=CASE WHEN :current IS NOT NULL THEN :now ELSE balance_timestamp END,bank_provider='redbark' WHERE id=:id AND user_id=:user_id"), {"available": available_balance, "current": current_balance, "now": timestamp, "id": account.id, "user_id": account.user_id})
 
 
 def _insert_transaction(db: DbSession, user: User, external: dict[str, Any], row: dict[str, Any]) -> str:
@@ -341,7 +408,9 @@ def _insert_transaction(db: DbSession, user: User, external: dict[str, Any], row
     provider_transaction_id = str(row.get("id") or "")
     if not provider_transaction_id:
         return "ignored"
-    existing = db.execute(text("SELECT transaction_id FROM bank_transaction_identities WHERE user_id=:user_id AND provider='redbark' AND provider_transaction_id=:provider_transaction_id"), {"user_id": user.id, "provider_transaction_id": provider_transaction_id}).scalar()
+    if row.get("account_id") and str(row["account_id"]) != str(external["provider_account_id"]):
+        raise ValueError("Bank transaction did not belong to the requested account")
+    existing = db.execute(text("SELECT transaction_id FROM bank_transaction_identities WHERE user_id=:user_id AND external_account_id=:external_account_id AND provider='redbark' AND provider_transaction_id=:provider_transaction_id"), {"user_id": user.id, "external_account_id": external["id"], "provider_transaction_id": provider_transaction_id}).scalar()
     if existing:
         return "duplicate"
     account = get_account(db, user, int(external["fynvo_account_id"]))
@@ -390,6 +459,8 @@ def _sync_connection_unlocked(db: DbSession, user: User, connection_id: int, *, 
         db.execute(text("UPDATE bank_connections SET status='syncing',last_attempted_sync=:now,updated_at=:now WHERE id=:id"), {"id": connection_id, "now": started})
         db.commit()
         _upsert_connections_and_accounts(db, user, provider)
+        if _connection(db, user.id, connection_id)["error_state"] == "This bank connection was not returned by Redbark. Last-known data is available.":
+            raise HTTPException(status_code=409, detail="This bank connection is no longer available in Redbark. Last-known financial data is preserved.")
         remote_accounts = {item["provider_account_id"]: item for item in provider.accounts() if item["connection_id"] == connection["provider_connection_id"]}
         balances = provider.balances(list(remote_accounts))
         external_rows = db.execute(text("SELECT * FROM external_accounts WHERE user_id=:user_id AND bank_connection_id=:connection_id AND ignored=0 AND fynvo_account_id IS NOT NULL"), {"user_id": user.id, "connection_id": connection_id}).mappings().all()
@@ -411,8 +482,6 @@ def _sync_connection_unlocked(db: DbSession, user: User, connection_id: int, *, 
             db.commit()
             try:
                 balance = balances.get(external["provider_account_id"], {})
-                if balance.get("current_balance") in (None, ""):
-                    raise ValueError("Current bank balance unavailable")
                 last_success = external.get("last_successful_sync")
                 from_date = None
                 if last_success:
@@ -427,6 +496,12 @@ def _sync_connection_unlocked(db: DbSession, user: User, connection_id: int, *, 
                 current = parse_money(str(balance["current_balance"])) if balance.get("current_balance") not in (None, "") else None
                 available = parse_money(str(balance["available_balance"])) if balance.get("available_balance") not in (None, "") else None
                 now = utcnow()
+                if current is None:
+                    db.execute(text("UPDATE external_accounts SET last_transaction_sync=:now,last_successful_sync=:now,status='stale',error_state='Bank balance unavailable. Check whether this account is enabled for sync in Redbark; last-known balance is preserved.',updated_at=:now WHERE id=:id"), {"id": external["id"], "now": now})
+                    db.execute(text("UPDATE accounts SET connection_status='stale' WHERE id=:id AND user_id=:user_id"), {"id": external["fynvo_account_id"], "user_id": user.id})
+                    db.commit()
+                    failed_accounts += 1
+                    continue
                 db.execute(text("UPDATE external_accounts SET current_balance_cents=COALESCE(:current,current_balance_cents),available_balance_cents=COALESCE(:available,available_balance_cents),balance_timestamp=CASE WHEN :current IS NOT NULL THEN :now ELSE balance_timestamp END,last_transaction_sync=:now,last_successful_sync=:now,error_state=NULL,status='linked',updated_at=:now WHERE id=:id"), {"id": external["id"], "current": current, "available": available, "now": now})
                 if external.get("fynvo_account_id"):
                     account = get_account(db, user, int(external["fynvo_account_id"]))
@@ -469,7 +544,37 @@ def redbark_status(db: DbSession = DB, current_user: User = USER) -> dict[str, A
     connections = [_connection_response(db, dict(row)) for row in rows]
     actions = [{"id": f"bank-account:{account['id']}", "connection_id": connection["id"], "external_account_id": account["id"], "state": account["state"], "heading": "Bank account needs attention" if account["state"] == "unresolved" else "Bank connection needs attention", "name": account["name"], "institution": account["institution_name"], "masked_identifier": account["masked_identifier"], "action_label": "Set up account" if account["state"] == "unresolved" else "Review connection"} for connection in connections for account in connection["accounts"] if account["state"] in {"unresolved", "needs_attention"} and connection["status"] != "disconnected"]
     actions.extend({"id": f"bank-connection:{connection['id']}", "connection_id": connection["id"], "external_account_id": None, "state": "needs_attention", "heading": "Bank connection needs attention", "name": connection["institution_name"], "institution": "Redbark", "masked_identifier": None, "action_label": "Review connection"} for connection in connections if connection["status"] == "error" and any(account["fynvo_account_id"] for account in connection["accounts"]))
-    return {"provider": "redbark", "configured": bool(_redbark_key()), "connections": connections, "required_actions": actions, "automatic_sync_minutes": 30, "pending_transactions_supported": False}
+    members = db.execute(text("""SELECT DISTINCT u.id, u.display_name FROM users u
+        JOIN household_memberships hm ON hm.user_id=u.id
+        JOIN household_memberships actor ON actor.household_id=hm.household_id
+        WHERE actor.user_id=:user_id AND actor.status='active' AND hm.status='active' AND u.is_active=1
+        ORDER BY u.display_name"""), {"user_id": current_user.id}).mappings().all()
+    account_owners = db.execute(text("""SELECT ro.record_id AS account_id, u.display_name AS owner_name
+        FROM record_ownership ro JOIN accounts a ON a.id=ro.record_id
+        JOIN users u ON u.id=ro.owner_user_id
+        WHERE ro.record_type='account' AND a.user_id=:user_id"""), {"user_id": current_user.id}).mappings().all()
+    return {"provider": "redbark", "configured": bool(_redbark_key()), "connections": connections, "required_actions": actions,
+            "household_members": [dict(row) for row in members], "account_owners": {str(row["account_id"]): row["owner_name"] for row in account_owners},
+            "automatic_sync_minutes": 30, "pending_transactions_supported": False}
+
+
+@router.patch("/{connection_id}/context")
+def update_connection_context(connection_id: int, payload: ConnectionContextPayload, db: DbSession = DB, current_user: User = USER) -> dict[str, Any]:
+    with _banking_operation(current_user.id):
+        ensure_banking_v126_schema()
+        _connection(db, current_user.id, connection_id)
+        if payload.owner_user_id is not None:
+            eligible = db.execute(text("""SELECT 1 FROM household_memberships hm
+                JOIN household_memberships actor ON actor.household_id=hm.household_id
+                WHERE actor.user_id=:actor AND actor.status='active' AND hm.user_id=:owner AND hm.status='active'"""),
+                {"actor": current_user.id, "owner": payload.owner_user_id}).scalar()
+            if not eligible:
+                raise HTTPException(status_code=422, detail="Choose an active household member")
+        db.execute(text("UPDATE bank_connections SET display_label=:label,owner_user_id=:owner,updated_at=:now WHERE id=:id AND user_id=:user_id"),
+            {"label": payload.label.strip() if payload.label else None, "owner": payload.owner_user_id,
+             "now": utcnow(), "id": connection_id, "user_id": current_user.id})
+        db.commit()
+        return _connection_response(db, _connection(db, current_user.id, connection_id))
 
 
 @router.put("/redbark/credentials")
@@ -527,7 +632,7 @@ def map_account(connection_id: int, external_account_id: int, payload: AccountMa
 
 def _map_account_unlocked(connection_id: int, external_account_id: int, payload: AccountMappingPayload, db: DbSession, current_user: User) -> dict[str, Any]:
     ensure_banking_v126_schema()
-    _connection(db, current_user.id, connection_id)
+    connection = _connection(db, current_user.id, connection_id)
     row = db.execute(text("SELECT * FROM external_accounts WHERE id=:id AND user_id=:user_id AND bank_connection_id=:connection_id AND provider='redbark'"), {"id": external_account_id, "user_id": current_user.id, "connection_id": connection_id}).mappings().first()
     if not row:
         raise HTTPException(status_code=404, detail="Discovered bank account not found")
@@ -549,7 +654,12 @@ def _map_account_unlocked(connection_id: int, external_account_id: int, payload:
             raise HTTPException(status_code=422, detail="Choose a Fynvo account")
         if payload.action == "create" and payload.account_type and payload.account_type not in {"transaction", "savings", "offset", "credit_card", "mortgage", "personal_loan", "car_loan", "line_of_credit"}:
             raise HTTPException(status_code=422, detail="Choose a supported bank account type")
+        if payload.action == "create" and external["current_balance_cents"] is None and payload.opening_balance is None:
+            raise HTTPException(status_code=422, detail="Bank balance unavailable. Enter a manual starting balance to create this account.")
         account_id = payload.fynvo_account_id if payload.action == "link" else _create_fynvo_account(db, current_user, external, payload)
+        if payload.action == "create" and connection.get("owner_user_id"):
+            db.execute(text("UPDATE record_ownership SET owner_user_id=:owner,updated_by_user_id=:actor,updated_at=:now WHERE record_type='account' AND record_id=:id"),
+                {"owner": connection["owner_user_id"], "actor": current_user.id, "now": utcnow(), "id": account_id})
         account = get_account(db, current_user, int(account_id))
         if not account.is_active or account.archived_at is not None or account.account_type not in {"transaction", "savings", "offset", "credit_card", "mortgage", "personal_loan", "car_loan", "line_of_credit"}:
             db.rollback()
@@ -640,7 +750,8 @@ def run_automatic_sync_once() -> None:
                     pass
             try:
                 _sync_connection(db, user, int(row["id"]), automatic=True)
-            except HTTPException as exc:
+            except (HTTPException, RedbarkError, SQLAlchemyError) as exc:
+                db.rollback()
                 logger.warning("automatic_bank_sync_failed connection_id=%s error=%s", row["id"], type(exc).__name__)
     finally:
         db.close()
