@@ -27,6 +27,18 @@ The current Redbark API exposes:
 - `GET /v1/balances?accountIds=...`
 - `GET /v1/transactions?connectionId=...`
 
+### Household connections and ownership
+
+A provider configuration (credential), a bank connection (consent), a discovered bank account, and a Fynvo planning account are separate records. One Redbark key may return multiple connections; Fynvo keeps two connections to ING separate by stable connection IDs, and identically named Orange Everyday accounts separate by stable account IDs. Institution names, account names, owner labels and masked suffixes are not identity keys.
+
+Connections can have an editable household label and optional owner chosen from active household members. This describes the connection; it does not transfer bank consent, change provider identity, change an already-linked Fynvo account's household ownership or grant new access. A newly created Fynvo account inherits the connection's chosen household owner; an existing account keeps its own owner when linked. Household account ownership remains managed under Household settings. Manual Fynvo accounts remain valid without a bank mapping or warning.
+
+The database separates provider configuration from its connections so additional credential identities can be represented in future. **Fynvo currently supports one configured Redbark API key per installation.** Redbark's published developer material describes a key accessing the signed-in customer's own linked connections, but does not verify that a second household member can establish another same-bank consent under that key. Fynvo therefore does not present an unverified second-key or second-consent flow. A generic Fiskil authorisation failure does not establish a Fynvo defect. Check the consent in Redbark and contact Redbark/Fiskil support for a second customer's failed authorisation.
+
+Redbark's dashboard may show **Add to sync** for discovered accounts. The documented Fynvo adapter has read-only connections, accounts, balances and transactions operations; it has no verified account-activation call. If balances are unavailable, check Redbark's account sync/destination setup. Fynvo never turns an absent bank balance into a reported $0 or a false update time. A new mapped Fynvo account requires an explicit manual starting balance if Redbark supplies none; a later successful bank sync replaces that provisional balance.
+
+The connection reports its last successful account discovery and its last successful sync separately. Account rows date the bank balance only when that balance was actually received; a transaction refresh does not imply a fresh balance. Mapped transactions can import while balances are unavailable, and the partial connection health remains visible. A failure for one connection does not erase another's health or block its next background sync. Historical balances and transactions survive disconnection.
+
 Accounts and transactions are paginated using limit/offset pagination. Fynvo requests up to 200 records per page and follows `hasMore` until the available result set has been processed.
 
 Redbark currently documents a 30 authenticated requests-per-minute rate limit. Fynvo keeps scheduled syncs conservative and handles `429` responses without discarding last-known banking data.

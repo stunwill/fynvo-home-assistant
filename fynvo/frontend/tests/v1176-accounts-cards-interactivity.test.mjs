@@ -20,8 +20,8 @@ test('Accounts and Cards portal mount does not churn identical DOM mount state',
 });
 
 test('current production shell owns the visible release version', () => {
-  assert.equal(pkg.version, '1.29.0');
-  assert.match(shell, /PRODUCTION_VERSION = '1.29.0'/);
+  assert.equal(pkg.version, '1.30.0');
+  assert.match(shell, /PRODUCTION_VERSION = '1.30.0'/);
   assert.match(shell, /const expectedVersion = `Fynvo v\$\{PRODUCTION_VERSION\}`/);
   assert.match(shell, /footer && footer\.textContent !== expectedVersion/);
 });
