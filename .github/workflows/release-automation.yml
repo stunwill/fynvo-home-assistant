@@ -1,6 +1,11 @@
 name: Release Fynvo
 
 on:
+  workflow_run:
+    workflows:
+      - CI
+    types:
+      - completed
   workflow_dispatch:
     inputs:
       version:
@@ -24,25 +29,73 @@ concurrency:
 jobs:
   prepare:
     name: Validate release metadata
+    if: >-
+      ${{
+        github.event_name == 'workflow_dispatch' ||
+        (
+          github.event_name == 'workflow_run' &&
+          github.event.workflow_run.conclusion == 'success' &&
+          github.event.workflow_run.event == 'push' &&
+          github.event.workflow_run.head_branch == 'main'
+        )
+      }}
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.version.outputs.version }}
       tag: ${{ steps.version.outputs.tag }}
-      tag_exists: ${{ steps.version.outputs.tag_exists }}
-      source_ref: ${{ steps.version.outputs.source_ref }}
+      release_required: ${{ steps.version.outputs.release_required }}
+      source_ref: ${{ steps.source.outputs.source_ref }}
+      source_sha: ${{ steps.source.outputs.source_sha || steps.manual_sha.outputs.source_sha }}
+      trigger: ${{ steps.source.outputs.trigger }}
     steps:
+      - name: Resolve release source
+        id: source
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          AUTO_SHA: ${{ github.event.workflow_run.head_sha }}
+          AUTO_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          AUTO_EVENT: ${{ github.event.workflow_run.event }}
+          REQUESTED_SOURCE_REF: ${{ inputs.source_ref || 'main' }}
+        run: |
+          set -euo pipefail
+          if [[ "$EVENT_NAME" == "workflow_run" ]]; then
+            if [[ "$AUTO_EVENT" != "push" || "$AUTO_BRANCH" != "main" || -z "$AUTO_SHA" ]]; then
+              echo "Automatic releases are only allowed for successful CI push runs on main." >&2
+              exit 1
+            fi
+            SOURCE_REF="$AUTO_SHA"
+            SOURCE_SHA="$AUTO_SHA"
+            TRIGGER="automatic"
+          else
+            SOURCE_REF="$REQUESTED_SOURCE_REF"
+            SOURCE_SHA=""
+            TRIGGER="manual"
+          fi
+          echo "source_ref=$SOURCE_REF" >> "$GITHUB_OUTPUT"
+          echo "source_sha=$SOURCE_SHA" >> "$GITHUB_OUTPUT"
+          echo "trigger=$TRIGGER" >> "$GITHUB_OUTPUT"
+
       - name: Check out release source
         uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.source_ref || 'main' }}
+          ref: ${{ steps.source.outputs.source_ref }}
           fetch-depth: 0
+
+
+      - name: Pin manual source to exact commit
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        id: manual_sha
+        shell: bash
+        run: echo "source_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
       - name: Resolve and validate release version
         id: version
         shell: bash
         env:
+          EVENT_NAME: ${{ github.event_name }}
           REQUESTED_VERSION: ${{ inputs.version }}
-          REQUESTED_SOURCE_REF: ${{ inputs.source_ref || 'main' }}
+          SOURCE_SHA: ${{ steps.source.outputs.source_sha || steps.manual_sha.outputs.source_sha }}
         run: |
           set -euo pipefail
           CONFIG_VERSION="$(python - <<'PY'
@@ -57,28 +110,34 @@ jobs:
             echo "Could not read version from fynvo/config.yaml" >&2
             exit 1
           fi
-          VERSION="$REQUESTED_VERSION"
+          if [[ "$EVENT_NAME" == "workflow_run" ]]; then
+            VERSION="$CONFIG_VERSION"
+          else
+            VERSION="$REQUESTED_VERSION"
+            if [[ "$CONFIG_VERSION" != "$VERSION" ]]; then
+              echo "fynvo/config.yaml advertises $CONFIG_VERSION, not requested $VERSION" >&2
+              exit 1
+            fi
+          fi
           if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
             echo "Version must be semantic X.Y.Z without a v prefix: $VERSION" >&2
             exit 1
           fi
-          if [[ "$CONFIG_VERSION" != "$VERSION" ]]; then
-            echo "fynvo/config.yaml advertises $CONFIG_VERSION, not requested $VERSION" >&2
-            exit 1
-          fi
           TAG="v${VERSION}"
-          TAG_EXISTS=false
+          RELEASE_REQUIRED=true
           if git rev-parse "refs/tags/${TAG}" >/dev/null 2>&1; then
-            TAG_EXISTS=true
-            if ! git merge-base --is-ancestor "${TAG}^{commit}" HEAD; then
-              echo "$TAG exists but is not an ancestor of the requested release source." >&2
+            TAG_COMMIT="$(git rev-list -n 1 "$TAG")"
+            if [[ "$TAG_COMMIT" != "$SOURCE_SHA" ]]; then
+              echo "$TAG already exists at $TAG_COMMIT but requested release source is $SOURCE_SHA." >&2
               exit 1
+            fi
+            if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+              RELEASE_REQUIRED=false
             fi
           fi
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-          echo "tag_exists=$TAG_EXISTS" >> "$GITHUB_OUTPUT"
-          echo "source_ref=$REQUESTED_SOURCE_REF" >> "$GITHUB_OUTPUT"
+          echo "release_required=$RELEASE_REQUIRED" >> "$GITHUB_OUTPUT"
 
       - name: Validate repository release metadata
         env:
@@ -87,36 +146,60 @@ jobs:
           python -m pip install pyyaml
           python scripts/validate_release_metadata.py
 
+      - name: No release required summary
+        if: ${{ steps.version.outputs.release_required == 'false' }}
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          TAG: ${{ steps.version.outputs.tag }}
+          SOURCE_SHA: ${{ steps.source.outputs.source_sha || steps.manual_sha.outputs.source_sha }}
+        run: |
+          {
+            echo "## No release required"
+            echo
+            echo "Current version: \`${VERSION}\`"
+            echo
+            echo "Source commit: \`${SOURCE_SHA}\`"
+            echo
+            echo "Reason: \`${TAG}\` is already published from this exact commit."
+          } >> "$GITHUB_STEP_SUMMARY"
+
   create_tag:
     name: Create release tag
     needs: prepare
+    if: ${{ needs.prepare.outputs.release_required == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - name: Check out release source
         uses: actions/checkout@v4
         with:
-          ref: ${{ needs.prepare.outputs.source_ref }}
+          ref: ${{ needs.prepare.outputs.source_sha }}
           fetch-depth: 0
 
       - name: Create and push release tag when missing
         env:
           VERSION: ${{ needs.prepare.outputs.version }}
           TAG: ${{ needs.prepare.outputs.tag }}
-          TAG_EXISTS: ${{ needs.prepare.outputs.tag_exists }}
+          SOURCE_SHA: ${{ needs.prepare.outputs.source_sha }}
         run: |
           set -euo pipefail
-          if [[ "$TAG_EXISTS" == "true" ]]; then
-            echo "$TAG already exists and is compatible with this source; reusing it."
+          if git rev-parse "refs/tags/${TAG}" >/dev/null 2>&1; then
+            TAG_COMMIT="$(git rev-list -n 1 "$TAG")"
+            if [[ "$TAG_COMMIT" != "$SOURCE_SHA" ]]; then
+              echo "$TAG exists at $TAG_COMMIT but release source is $SOURCE_SHA." >&2
+              exit 1
+            fi
+            echo "$TAG already points to the exact tested source; reusing it."
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git tag -a "$TAG" -m "Fynvo v${VERSION}"
+          git tag -a "$TAG" "$SOURCE_SHA" -m "Fynvo v${VERSION}"
           git push origin "$TAG"
 
   publish_image:
     name: Build and verify Home Assistant image
     needs: [prepare, create_tag]
+    if: ${{ needs.prepare.outputs.release_required == 'true' }}
     uses: ./.github/workflows/release-image.yml
     with:
       release_ref: ${{ needs.prepare.outputs.tag }}
@@ -125,6 +208,7 @@ jobs:
   publish_release:
     name: Publish GitHub release
     needs: [prepare, publish_image]
+    if: ${{ needs.prepare.outputs.release_required == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - name: Verify exact Home Assistant image reference anonymously
@@ -159,8 +243,14 @@ jobs:
         env:
           VERSION: ${{ needs.prepare.outputs.version }}
           TAG: ${{ needs.prepare.outputs.tag }}
-          SOURCE_REF: ${{ needs.prepare.outputs.source_ref }}
+          SOURCE_SHA: ${{ needs.prepare.outputs.source_sha }}
+          TRIGGER: ${{ needs.prepare.outputs.trigger }}
         run: |
+          if [[ "$TRIGGER" == "automatic" ]]; then
+            TRIGGER_LABEL="Automatic after successful main CI"
+          else
+            TRIGGER_LABEL="Manual workflow dispatch"
+          fi
           {
             echo "## Fynvo ${VERSION} released"
             echo
