@@ -265,5 +265,5 @@ def test_migration_is_additive_idempotent_and_preserves_schema_contract(client):
     with engine.connect() as connection:
         columns = {row[1] for row in connection.execute(text("PRAGMA table_info(bills)")).all()}
         version = connection.execute(text("SELECT MAX(version) FROM schema_version")).scalar()
-    assert int(version) == 17
+    assert int(version) == 18
     assert {"payment_method", "payment_handling", "card_id", "actual_amount_cents", "version"}.issubset(columns)
