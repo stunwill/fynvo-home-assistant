@@ -96,13 +96,7 @@ jobs:
           SOURCE_SHA: ${{ steps.source.outputs.source_sha || steps.manual_sha.outputs.source_sha }}
         run: |
           set -euo pipefail
-          CONFIG_VERSION="$(python - <<'PY'
-          import re
-          from pathlib import Path
-          text = Path('fynvo/config.yaml').read_text(encoding='utf-8')
-          match = re.search(r'^version:\\s*["\\']?([^"\\'\\s]+)["\\']?\\s*
-          PY
-          )"
+          CONFIG_VERSION="$(grep -E '^version:[[:space:]]*"?[0-9]+\.[0-9]+\.[0-9]+"?[[:space:]]*$' fynvo/config.yaml | head -n 1 | sed -E 's/^version:[[:space:]]*"?([^"[:space:]]+)"?[[:space:]]*$/\1/')"
           if [[ -z "$CONFIG_VERSION" ]]; then
             echo "Could not read version from fynvo/config.yaml" >&2
             exit 1
