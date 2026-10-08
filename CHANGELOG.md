@@ -2,6 +2,14 @@
 
 All notable Fynvo changes are documented here. Starting with v0.3.0, every release must include a user-readable changelog entry, Home Assistant-visible release notes and GitHub release notes.
 
+## v1.31.0 - Financial Integrity & Account Cash Flow
+
+- Uses one canonical dated cash-event stream for household and Account forecasts, current-cycle funding, Safe-to-Spend and Payday Allocation. Linked Bills replace their original recurring occurrence, including rescheduling and partial payment amounts.
+- Separates observed bank cash from imported history and exposes source, observation time, accessible cash and freshness. Future transactions no longer reduce today's actual balance. Manual balance confirmation preserves transaction history and can refresh an unchanged amount.
+- Shows Account forecasts, lowest balances and funding deadlines in Plan and Accounts. Internal cash transfers conserve household cash; transfers outside eligible cash Accounts reduce it.
+- Protects preferred Account buffers plus the household reserve once. Positive household capacity remains provisional when payment Accounts need transfers or essential inputs require confirmation. Recommendations allocate donor headroom once and do not execute transfers.
+- Adds additive schema v19, a consistent pre-upgrade SQLite backup, Bill occurrence references, immutable balance observations and regression coverage. Existing APIs, Redbark integration, history and Home Assistant ingress remain supported.
+
 ## v1.30.0 - Household Bank Connection Clarity
 
 - Groups discovered accounts beneath their stable Redbark connection, including separate connections to the same institution and identically named accounts distinguished by masked identifiers.

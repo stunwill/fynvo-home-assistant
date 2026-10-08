@@ -156,6 +156,7 @@ def resolve(db, account, today: date | None = None):
         if str(row["transaction_date"])[:10] <= current.isoformat()
         and row["status"] not in {"pending", "cancelled", "duplicate"}
     ]
+    settled_ids = {str(row["id"]) for row in settled}
     ledger = int(account.opening_balance_cents or 0) + sum(
         int(row["amount_cents"]) for row in settled
     )
@@ -207,7 +208,7 @@ def resolve(db, account, today: date | None = None):
                         row["status"],
                     ]:
                         verification = "needs_confirmation"
-                elif row not in settled:
+                elif key not in settled_ids:
                     continue
                 elif row["source"] in {"manual", "transfer"}:
                     amount += int(row["amount_cents"])
