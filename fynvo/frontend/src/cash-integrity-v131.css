@@ -1,0 +1,10 @@
+.fynvo-cash-integrity {
+  padding: 1rem;
+  margin-block: .75rem;
+  border: 1px solid #d3a54b;
+  border-radius: .75rem;
+  background: var(--surface, #fff8e8);
+  color: var(--text, #3d3525);
+  overflow-wrap: anywhere;
+}
+.fynvo-cash-integrity p { margin-block: .5rem 0; }
