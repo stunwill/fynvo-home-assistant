@@ -15,18 +15,29 @@ Account forecasts use book cash; cash decisions use conservative accessible cash
 ## Automated checks
 
 - Unchanged baseline: 256 backend tests passed locally, 293 frontend regressions passed in main CI.
-- Implementation: **276 backend tests passed locally** in the full regression suite, including v19 upgrade preservation, observation immutability, identity/receipt regressions and a 365-day forecast with 10,000 historical transactions.
-- Frontend: 298 regressions passed locally, including rendered notices, escaped Account names and mixed-input suppression.
+- Original implementation CI run 37790461926 independently confirmed 276 backend and 298 frontend tests passing, plus the Home Assistant Docker build.
+- Final review adds 22 backend regressions covering the twelve controlled financial acceptance scenarios, migration failure rollback, same-day income boundaries, late historical entries and incomplete obligations. The full revised suite contains 298 backend tests.
+- Frontend: 301 regressions passed locally, including rendered notices, escaped Account names, mixed-input suppression and failed forecast refresh behavior.
 - Python compilation, application import, Ruff, production Vite build and release metadata validation passed locally.
 - GitHub PR CI must pass backend, frontend and Home Assistant add-on checks, including its Docker image build. Docker is unavailable in the implementation workspace.
 
 The Vite bundle-size warning and Python SQLite/date adapter deprecation warnings predate this candidate's release checks. They do not indicate a failed test, but remain visible in CI logs.
+
+## Independent review corrections
+
+The review reproduced and corrected four defects: today's expected payday could hide today's obligations, an accepted salary receipt could remain the next payday, SQLite DDL could survive a failed migration, and late historical manual income could inflate a confirmed current balance. Regression tests failed before those corrections and pass afterwards.
+
+Active obligations with missing essential dates or amounts now make Safe-to-Spend incomplete. Legacy manual ledger timestamps alone do not certify current cash. Estimated Bill status remains visible, input fingerprints include Cards/categories, and failed Plan refreshes clear obsolete projections instead of retaining them or mixing different snapshots. The v19 occurrence backfill runs only during upgrade, not every startup.
+
+These are synthetic and automated checks. They do not satisfy the installed Home Assistant, live Redbark or user-observed financial acceptance gates below.
 
 ## Migration and restore
 
 Schema v19 is additive: balance observations, indexes, immutable-observation guard and nullable Bill occurrence references. The upgrade backfills only an unambiguous original occurrence and preserves all source records. Existing collisions remain available for review; database guards prevent new active occurrence collisions.
 
 Before the upgrade, SQLite's backup API writes `<database>.pre-v19.sqlite3` atomically through a temporary file. A backup failure blocks the upgrade. The backup is not overwritten on repeated startup. Tests recreate the v18 schema around existing financial records, upgrade twice, inspect the preserved transaction rows and verify the backup's v18 version and integrity.
+
+Schema v19 explicitly starts a SQLite write transaction before DDL. An injected failure after table creation must leave schema v18, omit the new table and preserve Account records; retry then succeeds.
 
 For rollback, stop the candidate before replacing its database with the pre-v19 backup and reinstalling the previously approved image. Preserve the candidate database separately because post-upgrade financial edits would otherwise be lost. The older application must not be allowed to write the upgraded database as a substitute for restoring a matching backup.
 
@@ -44,3 +55,7 @@ The following checks require the real supported device and bank connection and h
 8. Verify a restored v18 backup opens with the prior approved image and preserves pre-upgrade records. Record installed acceptance and reviewer approval before merging or releasing.
 
 Historical forecasts are explicitly incomplete reconstructions when no historical balance observation exists. Date-only projections apply income, transfers, then expenses, and cannot guarantee intraday bank settlement order. Donor recommendations are deliberately conservative: future donor receipts do not become transferable cash before their availability is established.
+
+Live acceptance assumes AUD-denominated accounts; currency conversion is not implemented. Confirm actual monthly due dates against the retained existing short-month recurrence rules. Provider transaction import is posted-only; available balances may already reflect pending holds and must be reconciled against the bank without adding those holds again.
+
+Prepare any test candidate from the exact reviewed PR head with BUILD_VERSION=1.31.0 and the correct BUILD_ARCH/BUILD_FROM. The Dockerfile's inherited default version must not be used for a manual candidate build. Do not dispatch the production image publication workflow as a substitute for an isolated candidate build.
