@@ -1,4 +1,4 @@
-import CashIntegrityNotice, { coherentSpendingResult } from "./CashIntegrityNotice.js";
+import CashIntegrityNotice, { coherentSpendingResult, forecastRefreshResult } from "./CashIntegrityNotice.js";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { apiRequest } from "./apiClient.js";
@@ -349,22 +349,14 @@ export default function PlanWorkspaceV1240({ onNavigate = () => {} }) {
     if (safeResult.status === "fulfilled")
       setSafePlan(coherentSpendingResult(safeResult.value, [expectedResult.value, planningResult.value?.safe_to_spend]));
     else setSafePlan(null);
-    if (expectedResult.status === "fulfilled")
-      setForecast(expectedResult.value || null);
-    else setError("Plan could not load the selected forecast. Try again.");
-    if (baselineResult.status === "fulfilled")
-      setForecast((current) => ({
-        ...(expectedResult.status === "fulfilled"
-          ? expectedResult.value
-          : current),
-        expected:
-          expectedResult.status === "fulfilled"
-            ? expectedResult.value
-            : current,
-        baseline: baselineResult.value,
-      }));
-    if (calendarResult.status === "fulfilled")
-      setCalendarForecast(calendarResult.value || null);
+    if (expectedResult.status === "fulfilled") {
+      const fresh = expectedResult.value;
+      setForecast(forecastRefreshResult(fresh, baselineResult.status === "fulfilled" ? baselineResult.value : null));
+    } else {
+      setForecast(null);
+      setError("Plan could not load the selected forecast. Try again.");
+    }
+    setCalendarForecast(calendarResult.status === "fulfilled" ? calendarResult.value || null : null);
     setLoading(false);
   };
   useEffect(() => {

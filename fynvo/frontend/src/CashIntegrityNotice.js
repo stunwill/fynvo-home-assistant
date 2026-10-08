@@ -7,6 +7,12 @@ export function coherentSpendingResult(safe, peers = []) {
   return { ...safe, safe_to_spend: null, incomplete: true, unavailable_reason: { message: "Your finances changed during refresh. Refresh again to confirm available cash." } };
 }
 
+export function forecastRefreshResult(expected, baseline) {
+  if (!expected) return null;
+  const aligned = baseline && (!expected.input_fingerprint || expected.input_fingerprint === baseline.input_fingerprint);
+  return { ...expected, expected, baseline: aligned ? baseline : null };
+}
+
 export function spendingState(safe = {}) {
   const capacity = safe.transferable_capacity;
   const reason = safe.unavailable_reason?.message;

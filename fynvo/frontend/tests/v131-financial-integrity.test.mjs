@@ -34,3 +34,21 @@ test("mixed calculation inputs suppress a positive spendable headline", async ()
   assert.equal(result.incomplete, true);
   assert.match(result.unavailable_reason.message, /changed during refresh/);
 });
+
+test("failed forecast refresh clears an obsolete chart", async () => {
+  const { forecastRefreshResult } = await import("../src/CashIntegrityNotice.js");
+  assert.equal(forecastRefreshResult(null, { starting_balance: "10000.00" }), null);
+});
+
+test("different snapshots cannot appear as a baseline comparison", async () => {
+  const { forecastRefreshResult } = await import("../src/CashIntegrityNotice.js");
+  const result = forecastRefreshResult({ input_fingerprint: "new", starting_balance: "20.00" }, { input_fingerprint: "old", starting_balance: "10000.00" });
+  assert.equal(result.starting_balance, "20.00");
+  assert.equal(result.baseline, null);
+});
+
+test("matching snapshots retain the forecast comparison", async () => {
+  const { forecastRefreshResult } = await import("../src/CashIntegrityNotice.js");
+  const baseline = { input_fingerprint: "same", starting_balance: "20.00" };
+  assert.equal(forecastRefreshResult({ input_fingerprint: "same" }, baseline).baseline, baseline);
+});
