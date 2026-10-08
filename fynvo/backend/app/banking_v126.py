@@ -18,7 +18,7 @@ from sqlalchemy.orm import Session as DbSession
 
 from .auth import get_current_user
 from .database import get_db, get_engine, get_session_factory
-from .ledger import account_balance_cents, get_account, signed_amount_cents
+from .ledger import get_account, signed_amount_cents
 from .models import Account, User
 from .money import cents_to_decimal, parse_money
 from .redbark import (
@@ -387,11 +387,15 @@ def _create_fynvo_account(db: DbSession, user: User, external: dict[str, Any], p
 
 
 def _set_actual_balance(db: DbSession, account: Account, current_balance: int | None, available_balance: int | None, timestamp: datetime) -> None:
+    from .finance import today_local
     if current_balance is not None:
-        transaction_total = account_balance_cents(db, account) - int(account.opening_balance_cents or 0)
+        transaction_total = db.execute(text("SELECT COALESCE(SUM(amount_cents),0) FROM transactions WHERE user_id=:uid AND account_id=:aid AND transaction_date<=:today AND status NOT IN ('pending','cancelled','duplicate')"), {"uid":account.user_id,"aid":account.id,"today":today_local()}).scalar()
         account.opening_balance_cents = current_balance - transaction_total
     if current_balance is not None:
         account.balance_updated_at = timestamp
+    if current_balance is not None:
+        from .balance_evidence import observe
+        observe(db, account, current_balance, "redbark", available_balance, timestamp)
     account.balance_update_source = "redbark"
     account.connection_status = "connected"  # type: ignore[attr-defined]
     account.available_balance_cents = available_balance  # type: ignore[attr-defined]

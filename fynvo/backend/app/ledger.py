@@ -2,7 +2,7 @@ from datetime import date
 from enum import StrEnum
 
 from fastapi import HTTPException, status
-from sqlalchemy import func, or_, select, text
+from sqlalchemy import or_, select, text
 from sqlalchemy.orm import Session as DbSession
 
 from .models import Account, Transaction, Transfer, User
@@ -101,11 +101,12 @@ def get_account(db: DbSession, user: User, account_id: int) -> Account:
 
 
 def account_balance_cents(db: DbSession, account: Account) -> int:
-    total = db.scalar(select(func.coalesce(func.sum(Transaction.amount_cents), 0)).where(Transaction.account_id == account.id))
-    return account.opening_balance_cents + int(total or 0)
+    from .balance_evidence import resolve
+    return resolve(db, account)["current_cents"]
 
 
 def account_response(db: DbSession, account: Account) -> dict:
+    from .balance_evidence import resolve
     return {
         "id": account.id,
         "name": account.name,
@@ -113,7 +114,7 @@ def account_response(db: DbSession, account: Account) -> dict:
         "account_class": "liability" if account.account_type in LIABILITY_TYPES else "asset",
         "institution": account.institution,
         "opening_balance": cents_to_decimal(account.opening_balance_cents),
-        "current_balance": cents_to_decimal(account_balance_cents(db, account)),
+        **resolve(db, account),
         "preferred_buffer": cents_to_decimal(int(account.minimum_balance_cents or 0)),
         "balance_updated_at": account.balance_updated_at.isoformat() if account.balance_updated_at else None,
         "balance_update_source": account.balance_update_source,
@@ -158,6 +159,9 @@ def create_account(db: DbSession, user: User, payload) -> dict:
     db.add(account)
     db.commit()
     db.refresh(account)
+    from .balance_evidence import observe
+    observe(db, account, int(account.opening_balance_cents), "manual")
+    db.commit()
     return account_response(db, account)
 
 
@@ -177,6 +181,11 @@ def update_account(db: DbSession, user: User, account_id: int, payload) -> dict:
         account.opening_balance_cents = parse_money(payload.opening_balance)
         account.balance_updated_at = utcnow()
         account.balance_update_source = "manual"
+        from .balance_evidence import observe, transactions
+        from .finance import today_local
+        amount = int(account.opening_balance_cents) + sum(int(row["amount_cents"]) for row in transactions(db, account)
+            if str(row["transaction_date"])[:10] <= today_local().isoformat() and row["status"] not in {"pending", "cancelled", "duplicate"})
+        observe(db, account, amount)
     account.updated_at = utcnow()
     updated = account_response(db, account)
     _record_edit(db, user, "accounts", account.id, original, updated)
