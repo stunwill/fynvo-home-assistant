@@ -40,6 +40,9 @@ def ensure_schema(engine):
                 source.backup(target)
             temporary.replace(backup)
     with engine.begin() as connection:
+        # SQLite legacy transaction mode does not begin a transaction for DDL.
+        if not connection.connection.driver_connection.in_transaction:
+            connection.exec_driver_sql("BEGIN IMMEDIATE")
         connection.execute(
             text("""CREATE TABLE IF NOT EXISTS balance_observations (
             id INTEGER PRIMARY KEY, user_id INTEGER NOT NULL, account_id INTEGER NOT NULL,
@@ -66,17 +69,18 @@ def ensure_schema(engine):
                     "ALTER TABLE bills ADD COLUMN scheduled_payment_id INTEGER REFERENCES scheduled_payments(id)"
                 )
             )
-        # Backfill only a unique original occurrence. Never merge/delete evidence.
-        connection.execute(
-            text("""UPDATE bills SET scheduled_payment_id=(
-            SELECT MIN(sp.id) FROM scheduled_payments sp WHERE sp.user_id=bills.user_id
-            AND sp.recurring_expense_id=bills.recurring_expense_id
-            AND COALESCE(sp.occurrence_date,sp.expected_date)=bills.due_date)
-            WHERE scheduled_payment_id IS NULL AND recurring_expense_id IS NOT NULL
-            AND 1=(SELECT COUNT(*) FROM scheduled_payments sp WHERE sp.user_id=bills.user_id
-            AND sp.recurring_expense_id=bills.recurring_expense_id
-            AND COALESCE(sp.occurrence_date,sp.expected_date)=bills.due_date)""")
-        )
+        if version < 19:
+            # Backfill only a unique original occurrence. Never merge/delete evidence.
+            connection.execute(
+                text("""UPDATE bills SET scheduled_payment_id=(
+                SELECT MIN(sp.id) FROM scheduled_payments sp WHERE sp.user_id=bills.user_id
+                AND sp.recurring_expense_id=bills.recurring_expense_id
+                AND COALESCE(sp.occurrence_date,sp.expected_date)=bills.due_date)
+                WHERE scheduled_payment_id IS NULL AND recurring_expense_id IS NOT NULL
+                AND 1=(SELECT COUNT(*) FROM scheduled_payments sp WHERE sp.user_id=bills.user_id
+                AND sp.recurring_expense_id=bills.recurring_expense_id
+                AND COALESCE(sp.occurrence_date,sp.expected_date)=bills.due_date)""")
+            )
         connection.execute(
             text(
                 "CREATE INDEX IF NOT EXISTS idx_bill_occurrence_link ON bills(user_id,scheduled_payment_id)"
@@ -114,7 +118,15 @@ def transactions(db, account):
     )
 
 
-def observe(db, account, amount, source="manual", available=None, observed_at=None):
+def observe(
+    db,
+    account,
+    amount,
+    source="manual",
+    available=None,
+    observed_at=None,
+    basis="current",
+):
     now = observed_at or utcnow()
     from .finance import today_local
 
@@ -140,7 +152,14 @@ def observe(db, account, amount, source="manual", available=None, observed_at=No
             "source": source,
             "observed": now,
             "fetched": utcnow(),
-            "covered": json.dumps(covered, sort_keys=True),
+            "covered": json.dumps(
+                {
+                    "transactions": covered,
+                    "as_of": today_local().isoformat(),
+                    "basis": basis,
+                },
+                sort_keys=True,
+            ),
         },
     )
 
@@ -189,13 +208,16 @@ def resolve(db, account, today: date | None = None):
         observation["observed_at"] if observation else account.balance_updated_at
     )
     amount = ledger
-    verification = "verified" if timestamp else "needs_confirmation"
+    verification = "verified" if observation and timestamp else "needs_confirmation"
     available = None
     if observation:
         amount = int(observation["current_cents"])
         available = observation["available_cents"]
         if source == "manual":
-            covered = json.loads(observation["covered_json"])
+            snapshot = json.loads(observation["covered_json"])
+            covered = snapshot.get("transactions", snapshot)
+            observation_day = snapshot.get("as_of", str(timestamp)[:10])
+            opening_basis = snapshot.get("basis") == "opening"
             ids = {str(row["id"]) for row in rows}
             if set(covered) - ids:
                 verification = "needs_confirmation"
@@ -211,6 +233,12 @@ def resolve(db, account, today: date | None = None):
                 elif key not in settled_ids:
                     continue
                 elif row["source"] in {"manual", "transfer"}:
+                    if (
+                        not opening_basis
+                        and str(row["transaction_date"])[:10] < observation_day
+                    ):
+                        verification = "needs_confirmation"
+                        continue
                     amount += int(row["amount_cents"])
                 else:
                     # Late imported history is not proof of a movement outside an observation.
@@ -230,6 +258,7 @@ def resolve(db, account, today: date | None = None):
             amount = int(external["current_balance_cents"])
             available = external["available_balance_cents"]
             timestamp = external["balance_timestamp"]
+            verification = "verified" if timestamp else "needs_confirmation"
     if timestamp:
         parsed = datetime.fromisoformat(str(timestamp).replace("Z", "+00:00"))
         if parsed.tzinfo is None:

@@ -658,6 +658,9 @@ def build_pay_cycle_planning(
         payment_rows = canonical_payment_rows(db, user)
     planned_rows = _planned_spending_rows(db, user)
     income_events = _income_events(db, user, current, current + timedelta(days=PAY_CYCLE_INCOME_HORIZON_DAYS))
+    from .financial_projection import settled_income_keys
+    settled_keys, _ = settled_income_keys(db, user)
+    income_events = [e for e in income_events if f"income:{e['income_id']}:{e['date']}" not in settled_keys]
     current_cash_cents, liquid_account_count = _active_liquid_cash(db, user)
 
     if not income_events:

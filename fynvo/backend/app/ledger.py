@@ -160,7 +160,7 @@ def create_account(db: DbSession, user: User, payload) -> dict:
     db.commit()
     db.refresh(account)
     from .balance_evidence import observe
-    observe(db, account, int(account.opening_balance_cents), "manual")
+    observe(db, account, int(account.opening_balance_cents), "manual", basis="opening")
     db.commit()
     return account_response(db, account)
 

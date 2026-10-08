@@ -157,6 +157,20 @@ def safe_to_spend(base, db, user, current, pay_cycle, error, legacy):
     )
     if end is None or error:
         return legacy
+    if end <= current:
+        return {
+            **legacy,
+            "safe_to_spend": None,
+            "incomplete": True,
+            "payment_readiness": "needs_information",
+            "planning_status": "incomplete",
+            "unavailable_reason": {
+                "code": "payday_receipt_required",
+                "message": "Confirm today's expected income receipt and current balances before relying on Safe to Spend.",
+                "action": "accounts",
+                "stage": "income",
+            },
+        }
     window = funding_window(db, user, current, end)
     available = sum(window["balances"].values())
     account_buffers = sum(

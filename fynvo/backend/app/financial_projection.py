@@ -24,6 +24,8 @@ def input_fingerprint(db, user):
         return cache[cache_key]
     tables = (
         "accounts",
+        "cards",
+        "categories",
         "transactions",
         "income_sources",
         "recurring_expenses",
@@ -57,60 +59,15 @@ def input_fingerprint(db, user):
     return result
 
 
-def canonical_events(db, user, start, end, mode="baseline", scenario=None):
-    from . import forecast, payments_v114, v13_cashflow
+def settled_income_keys(db, user):
+    """Use the same accepted receipt identities in projections and pay-cycle boundaries."""
     from . import payment_planning as planning
-    from .finance import today_local
 
-    anchor = min(start, today_local())
-    payments_v114.ensure_scheduled_payments(
-        db,
-        user,
-        horizon_days=max(370 + (today_local() - anchor).days, (end - anchor).days + 2),
-        today=anchor,
-    )
-    # Python's SQLite driver does not start a read transaction for SELECT.
-    # Pin the input snapshot only after occurrence materialization has committed.
-    raw_connection = db.connection().connection.driver_connection
-    if not raw_connection.in_transaction:
-        db.execute(text("BEGIN"))
-    scheduled = {
-        int(row["id"]): dict(row)
-        for row in db.execute(
-            text("SELECT * FROM scheduled_payments WHERE user_id=:uid"),
-            {"uid": user.id},
-        ).mappings()
-    }
-    events, issues = [], []
-    for income in planning._income_events(db, user, anchor, end):
-        events.append(
-            {
-                "date": income["date"],
-                "occurrence_date": income["date"],
-                "name": income["name"],
-                "amount_cents": income["amount_cents"],
-                "amount": income["amount"],
-                "direction": "income",
-                "source_type": "income",
-                "source_id": income["income_id"],
-                "account_id": income["account_id"],
-                "confidence": "confirmed",
-                "estimated": False,
-                "financial_layer": "committed",
-                "category": "Income",
-                "event_key": f"income:{income['income_id']}:{income['date']}",
-                "explanation": "Scheduled income",
-            }
-        )
-    for event in events:
-        amount = (scenario or {}).get("amount_changes", {}).get(event["event_key"])
-        if amount is not None:
-            event.update(amount_cents=int(amount), amount=cents_to_decimal(int(amount)))
-    # Only accepted receipt evidence retires an income occurrence; suggestions do not.
+    issues = []
     receipts = (
         db.execute(
             text(
-                "SELECT rl.source_id,t.transaction_date FROM reconciliation_links rl JOIN transactions t ON t.id=rl.transaction_id AND t.user_id=rl.user_id WHERE rl.user_id=:uid AND rl.source_type='income' AND rl.status='matched'"
+                "SELECT rl.source_id,t.transaction_date FROM reconciliation_links rl JOIN transactions t ON t.id=rl.transaction_id AND t.user_id=rl.user_id WHERE rl.user_id=:uid AND rl.source_type='income' AND rl.status='matched' AND t.status NOT IN ('pending','cancelled','duplicate') AND t.amount_cents>0"
             ),
             {"uid": user.id},
         )
@@ -148,6 +105,86 @@ def canonical_events(db, user, start, end, mode="baseline", scenario=None):
                         "source_id": receipt["source_id"],
                     }
                 )
+    return settled_keys, issues
+
+
+def canonical_events(db, user, start, end, mode="baseline", scenario=None):
+    from . import forecast, payments_v114, v13_cashflow
+    from . import payment_planning as planning
+    from .finance import today_local
+
+    anchor = min(start, today_local())
+    payments_v114.ensure_scheduled_payments(
+        db,
+        user,
+        horizon_days=max(370 + (today_local() - anchor).days, (end - anchor).days + 2),
+        today=anchor,
+    )
+    # Python's SQLite driver does not start a read transaction for SELECT.
+    # Pin the input snapshot only after occurrence materialization has committed.
+    raw_connection = db.connection().connection.driver_connection
+    if not raw_connection.in_transaction:
+        db.execute(text("BEGIN"))
+    scheduled = {
+        int(row["id"]): dict(row)
+        for row in db.execute(
+            text("SELECT * FROM scheduled_payments WHERE user_id=:uid"),
+            {"uid": user.id},
+        ).mappings()
+    }
+    events, issues = [], []
+    for row in db.execute(
+        text(
+            "SELECT id FROM recurring_expenses WHERE user_id=:uid AND is_active=1 AND (end_date IS NULL OR end_date>=:anchor) AND (next_due_date IS NULL OR amount_cents IS NULL)"
+        ),
+        {"uid": user.id, "anchor": anchor},
+    ).mappings():
+        issues.append(
+            {
+                "code": "incomplete_obligation",
+                "source_type": "recurring_expense",
+                "source_id": row["id"],
+            }
+        )
+    for row in db.execute(
+        text(
+            "SELECT id FROM planned_spending WHERE user_id=:uid AND archived_at IS NULL AND include_in_forecast=1 AND status IN ('planned','committed') AND (planned_date IS NULL OR estimated_amount_cents IS NULL)"
+        ),
+        {"uid": user.id},
+    ).mappings():
+        issues.append(
+            {
+                "code": "incomplete_obligation",
+                "source_type": "planned_spending",
+                "source_id": row["id"],
+            }
+        )
+    for income in planning._income_events(db, user, anchor, end):
+        events.append(
+            {
+                "date": income["date"],
+                "occurrence_date": income["date"],
+                "name": income["name"],
+                "amount_cents": income["amount_cents"],
+                "amount": income["amount"],
+                "direction": "income",
+                "source_type": "income",
+                "source_id": income["income_id"],
+                "account_id": income["account_id"],
+                "confidence": "confirmed",
+                "estimated": False,
+                "financial_layer": "committed",
+                "category": "Income",
+                "event_key": f"income:{income['income_id']}:{income['date']}",
+                "explanation": "Scheduled income",
+            }
+        )
+    for event in events:
+        amount = (scenario or {}).get("amount_changes", {}).get(event["event_key"])
+        if amount is not None:
+            event.update(amount_cents=int(amount), amount=cents_to_decimal(int(amount)))
+    settled_keys, receipt_issues = settled_income_keys(db, user)
+    issues.extend(receipt_issues)
     events = [e for e in events if e["event_key"] not in settled_keys]
     removed = set((scenario or {}).get("remove_recurring_ids", []))
     payment_rows = planning.canonical_payment_rows(db, user)
@@ -238,6 +275,10 @@ def canonical_events(db, user, start, end, mode="baseline", scenario=None):
                 ),
                 {"id": source_id, "uid": user.id},
             ).scalar()
+        )
+        estimated = estimated or any(
+            label in str(row.get("original_status") or "").lower()
+            for label in ("estimated", "expected")
         )
         events.append(
             {
