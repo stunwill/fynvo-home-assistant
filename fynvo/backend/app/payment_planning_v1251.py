@@ -116,7 +116,7 @@ def build_safe_to_spend(base, db: DbSession, user: User, today: date | None = No
     if pay_cycle_error:
         warnings.append(pay_cycle_error["message"])
 
-    return {
+    result = {
         "as_of": current.isoformat(),
         "planning_start": current.isoformat(),
         "planning_end": end.isoformat() if end else None,
@@ -146,6 +146,9 @@ def build_safe_to_spend(base, db: DbSession, user: User, today: date | None = No
             "automatic_payments_reserved_until_resolved": True,
         },
     }
+
+    from .cash_decisions import safe_to_spend
+    return safe_to_spend(base, db, user, current, pay_cycle, pay_cycle_error, result)
 
 
 def build_payment_planning(base, db: DbSession, user: User, today: date | None = None) -> dict[str, Any]:
