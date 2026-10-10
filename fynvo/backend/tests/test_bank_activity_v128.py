@@ -92,7 +92,7 @@ def test_provider_category_is_not_a_fynvo_category_and_sync_is_idempotent(client
     assert imported[0]["category"] is None and imported[0]["category_id"] is None
     ensure_bank_activity_schema(get_engine())
     with get_engine().connect() as db:
-        assert db.execute(text("SELECT MAX(version) FROM schema_version")).scalar() == 18
+        assert db.execute(text("SELECT MAX(version) FROM schema_version")).scalar() == 19
 
 
 def test_old_bank_history_does_not_flood_review(client):

@@ -427,8 +427,13 @@ def accept_match(link_id: int, current_user: User = USER, db: DbSession = DB):
     link = db.execute(text("SELECT * FROM reconciliation_links WHERE id=:id AND user_id=:user_id"), {"id": link_id, "user_id": current_user.id}).mappings().first()
     if not link:
         raise HTTPException(status_code=404, detail="Reconciliation link not found")
+    existing = db.execute(text("SELECT id FROM reconciliation_links WHERE user_id=:uid AND transaction_id=:tx AND status='matched' AND id<>:id"), {"uid":current_user.id,"tx":link["transaction_id"],"id":link_id}).scalar()
+    if existing:
+        raise HTTPException(status_code=409, detail="Transaction already settles another obligation")
     now = utcnow()
-    db.execute(text("UPDATE reconciliation_links SET status='matched', updated_at=:now WHERE id=:id AND user_id=:user_id"), {"id": link_id, "user_id": current_user.id, "now": now})
+    claimed = db.execute(text("UPDATE reconciliation_links SET status='matched', updated_at=:now WHERE id=:id AND user_id=:user_id AND NOT EXISTS (SELECT 1 FROM reconciliation_links other WHERE other.user_id=:user_id AND other.transaction_id=:tx AND other.status='matched' AND other.id<>:id)"), {"id": link_id, "user_id": current_user.id, "tx": link["transaction_id"], "now": now})
+    if claimed.rowcount != 1:
+        raise HTTPException(status_code=409, detail="Transaction already settles another obligation")
     db.execute(text("UPDATE transactions SET reconciliation_state='matched', updated_at=:now WHERE id=:id AND user_id=:user_id"), {"id": link["transaction_id"], "user_id": current_user.id, "now": now})
     if link["source_type"] == "bill":
         db.execute(text("UPDATE bills SET paid_at=:now, resolved_at=:now, remaining_amount_cents=0, updated_at=:now WHERE id=:id AND user_id=:user_id"), {"id": link["source_id"], "user_id": current_user.id, "now": now})

@@ -1,3 +1,4 @@
+import CashIntegrityNotice, { coherentSpendingResult } from "./CashIntegrityNotice.js";
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { apiRequest } from "./apiClient.js";
@@ -153,8 +154,8 @@ export default function MobileOverviewV1240({
     ])
       .then(([planningResult, safeResult]) => {
         if (cancelled) return;
-        if (planningResult.status === "fulfilled") setPlanning(planningResult.value || null);
-        if (safeResult.status === "fulfilled") setSafeToSpend(safeResult.value || null);
+        setPlanning(planningResult.status === "fulfilled" ? planningResult.value || null : null);
+        setSafeToSpend(safeResult.status === "fulfilled" ? coherentSpendingResult(safeResult.value, [planningResult.value?.safe_to_spend]) : null);
         if (planningResult.status === "rejected" && safeResult.status === "rejected")
           setError("Overview information could not be refreshed.");
       })
@@ -179,11 +180,11 @@ export default function MobileOverviewV1240({
     const available = finite(authoritative.available_cash ?? before.current_available_cash);
     const committed = finite(authoritative.committed_outgoings ?? before.commitments_total);
     const buffer = finite(authoritative.protected_buffer);
-    const safe = finite(authoritative.safe_to_spend ?? before.projected_cash);
+    const safe = finite(authoritative.safe_to_spend);
     const safeAvailable =
       authoritative.safe_to_spend !== undefined &&
       authoritative.safe_to_spend !== null &&
-      !authoritative.incomplete;
+      (!authoritative.incomplete || Number(authoritative.safe_to_spend) < 0);
     const unavailableReason = authoritative.unavailable_reason || authoritative.planning_error || null;
     const safeAction = planningActionV1251(unavailableReason?.action);
     const attention = (Array.isArray(planning?.attention) ? planning.attention : [])
@@ -209,6 +210,7 @@ export default function MobileOverviewV1240({
         ? available + committed + buffer
         : null;
     return {
+      authoritative,
       available,
       committed,
       buffer,
@@ -290,6 +292,7 @@ export default function MobileOverviewV1240({
                 )}
               </div>
               <p>{model.safeAvailable ? "After upcoming payments and your buffer" : model.warning}</p>
+              <CashIntegrityNotice safe={safeToSpend || planning?.safe_to_spend || {}} />
               {!model.safeAvailable && model.safeAction && (
                 <button
                   type="button"

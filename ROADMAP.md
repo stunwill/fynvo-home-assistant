@@ -2,7 +2,18 @@
 
 Fynvo is a household finance and cash-planning application for understanding upcoming commitments, available cash, pay-cycle pressure, spending decisions and near-term financial risk. The roadmap prioritises practical household planning over business accounting, tax, payroll or investment-trading functionality.
 
-The current development baseline is v1.27.0. Payment Centre, recurring-payment lifecycle, 7/14/30-day commitment planning, pay-cycle cash planning, account funding requirements, Payday Allocation, bulk balance updates, available-cash comparisons, transactions, reconciliation, budgets, goals, scenarios, date-oriented financial Calendar, Cash Flow forecasting/impact analysis, CSV import, insights, Overview drill-down navigation, responsive Home Assistant ingress and prebuilt add-on image distribution are already delivered and are not repeated below as new scope.
+The current development baseline is v1.31.0. Payment Centre, recurring-payment lifecycle, 7/14/30-day commitment planning, pay-cycle cash planning, account funding requirements, Payday Allocation, bulk balance updates, available-cash comparisons, transactions, reconciliation, budgets, goals, scenarios, date-oriented financial Calendar, Cash Flow forecasting/impact analysis, CSV import, insights, Overview drill-down navigation, responsive Home Assistant ingress and prebuilt add-on image distribution are already delivered and are not repeated below as new scope.
+
+## v1.31.0 - Financial Integrity & Account Cash Flow
+
+Status: Implemented on the dedicated release branch, pending PR review and installed Home Assistant acceptance
+
+- [x] Canonical occurrence identity, remaining Bill amounts and explicit duplicate prevention.
+- [x] Observed cash, accessible balance caps, freshness and unchanged-value manual confirmation.
+- [x] Chronological Account and household projections with funding deadlines and protected buffers.
+- [x] Consistent cash decisions and provisional capacity when transfers or verified inputs are needed.
+- [x] Overview, Accounts and Plan integration, regression tests and additive migration backup.
+- [ ] Installed Home Assistant ingress, restart, Redbark sync and restored-data acceptance.
 
 ## v1.27.0 - Bank Account Lifecycle
 

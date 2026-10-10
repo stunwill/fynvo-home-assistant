@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import CashIntegrityNotice, { coherentSpendingResult, forecastRefreshResult } from "./CashIntegrityNotice.js";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { apiRequest } from "./apiClient.js";
 import {
@@ -311,6 +312,8 @@ export default function PlanWorkspaceV1240({ onNavigate = () => {} }) {
   const [horizon, setHorizon] = useState(
     () => Number(localStorage.getItem("fynvo.plan.horizon.v1240")) || 28,
   );
+  const loadSequence = useRef(0);
+  const [selectedAccount, setSelectedAccount] = useState("household");
   const [planning, setPlanning] = useState(null);
   const [safePlan, setSafePlan] = useState(null);
   const [forecast, setForecast] = useState(null);
@@ -322,6 +325,7 @@ export default function PlanWorkspaceV1240({ onNavigate = () => {} }) {
   );
   const [selectedDate, setSelectedDate] = useState(() => localDateKey());
   const load = async (selectedDays = horizon) => {
+    const sequence = ++loadSequence.current;
     setLoading(true);
     setError("");
     const results = await Promise.allSettled([
@@ -331,6 +335,7 @@ export default function PlanWorkspaceV1240({ onNavigate = () => {} }) {
       apiRequest(`/forecast?mode=baseline&horizon=${selectedDays}d`),
       apiRequest("/forecast?mode=expected&horizon=365d"),
     ]);
+    if (sequence !== loadSequence.current) return;
     const [
       planningResult,
       safeResult,
@@ -340,28 +345,23 @@ export default function PlanWorkspaceV1240({ onNavigate = () => {} }) {
     ] = results;
     if (planningResult.status === "fulfilled")
       setPlanning(planningResult.value || null);
+    else setPlanning(null);
     if (safeResult.status === "fulfilled")
-      setSafePlan(safeResult.value || null);
-    if (expectedResult.status === "fulfilled")
-      setForecast(expectedResult.value || null);
-    else setError("Plan could not load the selected forecast. Try again.");
-    if (baselineResult.status === "fulfilled")
-      setForecast((current) => ({
-        ...(expectedResult.status === "fulfilled"
-          ? expectedResult.value
-          : current),
-        expected:
-          expectedResult.status === "fulfilled"
-            ? expectedResult.value
-            : current,
-        baseline: baselineResult.value,
-      }));
-    if (calendarResult.status === "fulfilled")
-      setCalendarForecast(calendarResult.value || null);
+      setSafePlan(coherentSpendingResult(safeResult.value, [expectedResult.value, planningResult.value?.safe_to_spend]));
+    else setSafePlan(null);
+    if (expectedResult.status === "fulfilled") {
+      const fresh = expectedResult.value;
+      setForecast(forecastRefreshResult(fresh, baselineResult.status === "fulfilled" ? baselineResult.value : null));
+    } else {
+      setForecast(null);
+      setError("Plan could not load the selected forecast. Try again.");
+    }
+    setCalendarForecast(calendarResult.status === "fulfilled" ? calendarResult.value || null : null);
     setLoading(false);
   };
   useEffect(() => {
     load(horizon);
+    return () => { loadSequence.current += 1; };
   }, [horizon]);
   useEffect(() => {
     localStorage.setItem("fynvo.plan.view.v1240", view);
@@ -375,7 +375,10 @@ export default function PlanWorkspaceV1240({ onNavigate = () => {} }) {
     return () => window.removeEventListener("fynvo:balances-updated", refresh);
   }, [horizon]);
   const expected = forecast?.expected || forecast;
-  const summary = useMemo(() => forecastSummary(expected), [expected]);
+  const selectedProjection = (expected?.accounts || []).find((account) => String(account.account_id) === selectedAccount);
+  const displayedForecast = selectedProjection ? { ...selectedProjection, start_date: expected.start_date, end_date: expected.end_date,
+    lowest_balance: { balance: selectedProjection.lowest_balance, date: selectedProjection.lowest_balance_date } } : expected;
+  const summary = useMemo(() => forecastSummary(displayedForecast), [displayedForecast]);
   const safe = safePlan || planning?.safe_to_spend || {};
   const payCycle = planning?.pay_cycle || {};
   const allocation = payCycle?.payday_allocation || null;
@@ -601,10 +604,10 @@ export default function PlanWorkspaceV1240({ onNavigate = () => {} }) {
                 </div>
                 <span
                   className={
-                    allocation?.status === "ready" ? "healthy" : "warning"
+                    allocation?.status === "ready" && (!allocation.funding_status || allocation.funding_status === "covered") ? "healthy" : "warning"
                   }
                 >
-                  {allocation?.status === "ready"
+                  {allocation?.funding_status === "shortfall" ? "Cash shortfall" : allocation?.funding_status === "needs_transfer" ? "Transfers required" : allocation?.status === "ready"
                     ? "Ready"
                     : planningReason?.code === "pay_cycle_unavailable"
                       ? "Unavailable"
@@ -704,7 +707,12 @@ export default function PlanWorkspaceV1240({ onNavigate = () => {} }) {
                     ))}
                   </select>
                 </div>
-                <BalanceChart forecast={expected} detailed />
+                <label>Account forecast <select aria-label="Account forecast" value={selectedAccount} onChange={(event) => setSelectedAccount(event.target.value)}>
+                  <option value="household">Household cash</option>
+                  {(expected?.accounts || []).map((account) => <option key={account.account_id} value={String(account.account_id)}>{account.account_name}</option>)}
+                </select></label>
+                <BalanceChart forecast={displayedForecast} detailed />
+                {selectedProjection && <p>Protected buffer {money(selectedProjection.preferred_buffer)}. Funding needed {money(selectedProjection.funding_shortfall)}{selectedProjection.first_buffer_breach ? ` by ${dateLabel(selectedProjection.first_buffer_breach)}` : ""}.</p>}
               </section>
               <SummaryMetrics safe={safe} summary={summary} forecast />
               <section className="fynvo-plan-v1240-card">
@@ -813,8 +821,10 @@ function SummaryMetrics({ safe, summary, forecast = false }) {
   const planningComplete =
     safe?.safe_to_spend !== null &&
     safe?.safe_to_spend !== undefined &&
-    !safe?.incomplete;
+    (!safe?.incomplete || Number(safe?.safe_to_spend) < 0);
   return (
+    <>
+    <CashIntegrityNotice safe={safe} />
     <section className="fynvo-plan-v1240-metrics">
       <div>
         <span>{forecast ? "Starting balance" : "Available cash"}</span>
@@ -839,5 +849,6 @@ function SummaryMetrics({ safe, summary, forecast = false }) {
         </strong>
       </div>
     </section>
+    </>
   );
 }

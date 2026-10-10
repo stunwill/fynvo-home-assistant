@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from collections import defaultdict
 from datetime import date, timedelta
 from typing import Any
 
@@ -9,7 +8,6 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session as DbSession
 
 from .finance import add_period, bill_status, today_local
-from .ledger import LIQUID_ASSET_TYPES
 from .models import User
 from .money import cents_to_decimal, parse_money
 from .security import utcnow
@@ -42,21 +40,9 @@ def resolve_horizon(horizon: str | None, start: date | None = None) -> tuple[dat
 
 
 def household_starting_balance(db: DbSession, user: User) -> tuple[int, dict[int, int]]:
-    placeholders = ",".join(f":type_{index}" for index, _ in enumerate(sorted(LIQUID_ASSET_TYPES)))
-    params: dict[str, Any] = {"user_id": user.id}
-    params.update({f"type_{index}": value for index, value in enumerate(sorted(LIQUID_ASSET_TYPES))})
-    rows = db.execute(text(f"SELECT id, opening_balance_cents FROM accounts WHERE user_id=:user_id AND is_active=1 AND archived_at IS NULL AND account_type IN ({placeholders})"), params).all()
-    by_account = {row.id: int(row.opening_balance_cents or 0) for row in rows}
-    if not by_account:
-        return 0, {}
-    account_ids = tuple(by_account)
-    id_placeholders = ",".join(f":account_{index}" for index, _ in enumerate(account_ids))
-    tx_params: dict[str, Any] = {"user_id": user.id}
-    tx_params.update({f"account_{index}": value for index, value in enumerate(account_ids)})
-    tx_rows = db.execute(text(f"SELECT account_id, COALESCE(SUM(amount_cents),0) AS total FROM transactions WHERE user_id=:user_id AND account_id IN ({id_placeholders}) GROUP BY account_id"), tx_params).all()
-    for row in tx_rows:
-        by_account[row.account_id] = by_account.get(row.account_id, 0) + int(row.total or 0)
-    return sum(by_account.values()), by_account
+    from .balance_evidence import eligible_balances
+    balances = {aid: row["current_cents"] for aid, row in eligible_balances(db, user).items()}
+    return sum(balances.values()), balances
 
 
 def _changes(db: DbSession, user: User, record_type: str, record_id: int):
@@ -174,7 +160,7 @@ def _planned_events(db: DbSession, user: User, start: date, end: date) -> list[d
     return [_event(_as_date(row["planned_date"]), row["name"], int(row["estimated_amount_cents"]), "expense", "planned_spending", row["id"], row["category"], row["account_id"], "confirmed", "planned", "Forecast-included Planned Spending") for row in rows if _as_date(row["planned_date"])]
 
 
-def historical_run_rates(db: DbSession, user: User, weeks: int = 8, forecast_start: date | None = None) -> list[dict]:
+def historical_run_rates(db: DbSession, user: User, weeks: int = 8, forecast_start: date | None = None, include_known: bool = False) -> list[dict]:
     start = forecast_start or today_local()
     history_end = start - timedelta(days=start.weekday() + 1)
     history_start = history_end - timedelta(days=(weeks * 7) - 1)
@@ -185,7 +171,7 @@ def historical_run_rates(db: DbSession, user: User, weeks: int = 8, forecast_sta
     rates = []
     for row in rows:
         category = row["category"] or "Uncategorised"
-        if category in known or int(row["count"] or 0) < 3:
+        if (category in known and not include_known) or int(row["count"] or 0) < 3:
             continue
         weekly = abs(round((row["total"] or 0) / weeks))
         if weekly > 0:
@@ -225,35 +211,10 @@ def _apply_scenario(events: list[dict], scenario: dict | None, start: date, end:
 
 
 def generate_forecast(db: DbSession, user: User, horizon: str = "30d", mode: str = "baseline", start: date | None = None, scenario: dict | None = None) -> dict:
+    from .financial_projection import projection
     start_date, end_date, resolved = resolve_horizon(horizon, start)
-    starting_balance, account_balances = household_starting_balance(db, user)
-    recurring = _recurring_events(db, user, start_date, end_date, scenario)
-    if scenario:
-        recurring_events = recurring
-    else:
-        recurring_events = [row for row in recurring if row["source_type"] == "income"] + _authoritative_scheduled_events(db, user, start_date, end_date)
-    events = recurring_events + _bill_events(db, user, start_date, end_date) + _planned_events(db, user, start_date, end_date)
-    if mode == "expected":
-        events += _estimated_events(db, user, start_date, end_date)
-    events = _apply_scenario(events, scenario, start_date, end_date)
-    events.sort(key=lambda r: (r["date"], 0 if r["direction"] == "income" else 1, r["name"]))
-    balance = starting_balance
-    lowest = {"date": start_date.isoformat(), "balance_cents": balance, "balance": cents_to_decimal(balance)}
-    shortfall = None
-    totals = defaultdict(int)
-    timeline = []
-    for row in events:
-        balance += int(row["amount_cents"])
-        row = {**row, "forecast_balance_cents": balance, "forecast_balance": cents_to_decimal(balance)}
-        totals[row["source_type"]] += int(row["amount_cents"])
-        timeline.append(row)
-        if balance < lowest["balance_cents"]:
-            lowest = {"date": row["date"], "balance_cents": balance, "balance": cents_to_decimal(balance), "source": row["name"]}
-        if balance < 0 and shortfall is None:
-            shortfall = {"date": row["date"], "balance_cents": balance, "balance": cents_to_decimal(balance), "nearby_events": timeline[-5:]}
-    income = sum(r["amount_cents"] for r in timeline if r["direction"] == "income")
-    expenses = -sum(r["amount_cents"] for r in timeline if r["direction"] == "expense")
-    return {"mode": mode, "horizon": resolved, "start_date": start_date.isoformat(), "end_date": end_date.isoformat(), "starting_balance": cents_to_decimal(starting_balance), "final_balance": cents_to_decimal(balance), "net_movement": cents_to_decimal(balance - starting_balance), "income_total": cents_to_decimal(income), "expense_total": cents_to_decimal(expenses), "lowest_balance": lowest, "shortfall": shortfall, "account_starting_balances": {str(k): cents_to_decimal(v) for k, v in account_balances.items()}, "events": timeline, "chart_points": [{"date": start_date.isoformat(), "balance": cents_to_decimal(starting_balance), "balance_cents": starting_balance, "kind": "actual"}] + [{"date": r["date"], "balance": r["forecast_balance"], "balance_cents": r["forecast_balance_cents"], "kind": "estimated" if r["estimated"] else "known"} for r in timeline], "totals_by_source": {k: cents_to_decimal(v) for k, v in totals.items()}, "explanations": ["Baseline uses current active liquid Account balances, Income, authoritative Scheduled Payment lifecycle occurrences, Bills and forecast-included Planned Spending."] + (["Expected forecasts add historical run-rate estimates where there is enough manual transaction history and no known commitment already covers the category."] if mode == "expected" else [])}
+    result = projection(db, user, start_date, end_date, mode, scenario)
+    return {**result, "mode": mode, "horizon": resolved}
 
 
 def compare_scenario(db: DbSession, user: User, payload: dict[str, Any]) -> dict:

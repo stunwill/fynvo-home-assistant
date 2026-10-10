@@ -33,3 +33,5 @@ import './payment-centre-mobile-v1183.css';
 import './mobile-overview-v1190.css';
 
 ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+
+import './cash-integrity-v131.css';

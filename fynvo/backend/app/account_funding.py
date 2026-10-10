@@ -29,6 +29,7 @@ class BalanceUpdate(BaseModel):
 
 class BulkBalanceUpdate(BaseModel):
     balances: Annotated[list[BalanceUpdate], Field(min_length=1, max_length=250)]
+    confirm_unchanged: bool = False
 
 
 class PreferredBufferUpdate(BaseModel):
@@ -102,13 +103,16 @@ def update_balances(payload: BulkBalanceUpdate, current_user: User = USER, db: D
             account = accounts[account_id]
             requested = parsed[account_id]
             current = account_balance_cents(db, account)
-            if requested == current:
+            if requested == current and not payload.confirm_unchanged:
                 continue
-            transaction_total = current - int(account.opening_balance_cents or 0)
+            from .finance import today_local
+            transaction_total = db.execute(text("SELECT COALESCE(SUM(amount_cents),0) FROM transactions WHERE user_id=:uid AND account_id=:aid AND transaction_date<=:today AND status NOT IN ('pending','cancelled','duplicate')"), {"uid":account.user_id,"aid":account.id,"today":today_local()}).scalar()
             account.opening_balance_cents = requested - transaction_total
             account.balance_updated_at = now
             account.balance_update_source = "manual"
             account.updated_at = now
+            from .balance_evidence import observe
+            observe(db, account, requested, "manual", observed_at=now)
             changed.append(
                 {
                     "account_id": account.id,
@@ -164,3 +168,9 @@ def account_funding(current_user: User = USER, db: DbSession = DB):
         "next_cycle": plan.get("payday_allocation"),
         "completeness": plan.get("completeness"),
     }
+
+
+@router.post("/accounts/{account_id}/confirm-balance")
+def confirm_balance(account_id: int, payload: PreferredBufferUpdate, current_user: User = USER, db: DbSession = DB):
+    """Record current observation evidence even when the monetary value is unchanged."""
+    return update_balances(BulkBalanceUpdate(balances=[BalanceUpdate(account_id=account_id, balance=payload.amount)], confirm_unchanged=True), current_user, db)

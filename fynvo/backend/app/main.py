@@ -106,6 +106,8 @@ async def lifespan(app: FastAPI):
     account_funding.ensure_account_funding_schema(get_engine())
     banking_v126.ensure_banking_v126_schema(get_engine())
     bank_activity_v128.ensure_bank_activity_schema(get_engine())
+    from .balance_evidence import ensure_schema
+    ensure_schema(get_engine())
     banking_v126.start_automatic_sync()
     try:
         yield

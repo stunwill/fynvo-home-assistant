@@ -161,7 +161,7 @@ def _apply_overrides(events: list[dict], overrides: list[dict]) -> list[dict]:
         if source_id is None:
             result.append(event)
             continue
-        occurrence_key = str(event.get("original_due_date") or event["date"])[:10]
+        occurrence_key = str(event.get("occurrence_date") or event.get("original_due_date") or event["date"])[:10]
         key = (event.get("source_type"), int(source_id), occurrence_key)
         override = exact.get(key)
         if override is None:
@@ -272,62 +272,7 @@ def _recalculate(events: list[dict], starting_balance: int, account_balances: di
 
 
 def cashflow_projection(db: DbSession, user: User, horizon: str = "30d", mode: str = "expected", start: date | None = None) -> dict:
-    base = generate_forecast(db, user, horizon, mode, start)
-    start_date = date.fromisoformat(base["start_date"])
-    end_date = date.fromisoformat(base["end_date"])
-    account_balances = _account_starting_balances(db, user, start_date)
-    events = [row for row in base["events"] if row.get("source_type") != "transfer"]
-    existing_bill_ids = {int(row["source_id"]) for row in events if row.get("source_type") == "bill" and row.get("source_id") is not None}
-    events += [row for row in _overdue_bill_events(db, user, start_date) if int(row["source_id"]) not in existing_bill_ids]
-    events += _future_transfers(db, user, start_date, end_date)
-    events = _apply_overrides(events, _overrides(db, user))
-    timeline, lowest, final_balance, final_balances = _recalculate(events, sum(account_balances.values()), account_balances)
-
-    accounts = _account_rows(db, user)
-    warnings = []
-    for account in accounts:
-        account_id = int(account["id"])
-        buffer_cents = account.get("minimum_balance_cents")
-        running = account_balances.get(account_id, 0)
-        first_buffer = None
-        first_negative = None
-        for event in timeline:
-            if event["direction"] == "transfer":
-                amount = int(event.get("transfer_amount_cents") or 0)
-                if int(event["from_account_id"]) == account_id:
-                    running -= amount
-                if int(event["to_account_id"]) == account_id:
-                    running += amount
-            elif event.get("account_id") is not None and int(event["account_id"]) == account_id:
-                running += int(event["amount_cents"])
-            if buffer_cents is not None and running < int(buffer_cents) and first_buffer is None:
-                first_buffer = (event, running)
-            if running < 0 and first_negative is None:
-                first_negative = (event, running)
-        if first_buffer:
-            event, running = first_buffer
-            warnings.append({"kind": "low_balance", "account_id": account_id, "account_name": account["name"], "date": event["date"], "projected_balance": cents_to_decimal(running), "safety_buffer": cents_to_decimal(buffer_cents), "shortfall": cents_to_decimal(int(buffer_cents) - running), "cause": event["name"]})
-        if first_negative:
-            event, running = first_negative
-            warnings.append({"kind": "negative_balance", "account_id": account_id, "account_name": account["name"], "date": event["date"], "projected_balance": cents_to_decimal(running), "required_to_avoid": cents_to_decimal(abs(running)), "cause": event["name"]})
-
-    income = sum(int(row["amount_cents"]) for row in timeline if row["direction"] == "income")
-    expenses = -sum(int(row["amount_cents"]) for row in timeline if row["direction"] == "expense")
-    return {
-        **base,
-        "starting_balance": cents_to_decimal(sum(account_balances.values())),
-        "final_balance": cents_to_decimal(final_balance),
-        "net_movement": cents_to_decimal(final_balance - sum(account_balances.values())),
-        "income_total": cents_to_decimal(income),
-        "expense_total": cents_to_decimal(expenses),
-        "lowest_balance": lowest,
-        "events": timeline,
-        "account_starting_balances": {str(k): cents_to_decimal(v) for k, v in account_balances.items()},
-        "account_final_balances": {str(k): cents_to_decimal(v) for k, v in final_balances.items()},
-        "warnings": warnings,
-        "chart_points": [{"date": start_date.isoformat(), "balance": cents_to_decimal(sum(account_balances.values())), "kind": "actual"}] + [{"date": row["date"], "balance": row["forecast_balance"], "kind": "forecast", "contributors": [row["name"]]} for row in timeline],
-        "explanations": list(base.get("explanations", [])) + ["Internal transfers update individual account projections but have zero household net effect.", "Unresolved overdue bills remain in the forecast until paid, skipped or rescheduled."],
-    }
+    return generate_forecast(db, user, horizon, mode, start)
 
 
 @router.get("/cash-flow")

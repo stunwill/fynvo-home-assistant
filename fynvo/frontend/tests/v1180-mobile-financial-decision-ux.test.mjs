@@ -79,6 +79,6 @@ test('mobile decision styles prevent ellipsis and retain responsive narrow-scree
 });
 
 test('current add-on and backend versions align', () => {
-  assert.match(config, /version: "1.30.0"/);
-  assert.match(backendConfig, /APP_VERSION = "1.30.0"/);
+  assert.match(config, /version: "1.31.0"/);
+  assert.match(backendConfig, /APP_VERSION = "1.31.0"/);
 });

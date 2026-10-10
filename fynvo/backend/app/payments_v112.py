@@ -154,7 +154,7 @@ def _bill_response(row: Any, today: date | None = None) -> dict[str, Any]:
     payment_method = data.get("payment_method") or "not_set"
     return {
         "id": int(data["id"]), "source_type": "bill", "source_id": int(data["id"]),
-        "recurring_expense_id": data.get("recurring_expense_id"), "name": data.get("name"),
+        "recurring_expense_id": data.get("recurring_expense_id"), "scheduled_payment_id": data.get("scheduled_payment_id"), "name": data.get("name"),
         "provider": data.get("provider"), "payee_merchant": data.get("payee_merchant") or data.get("provider"),
         "bill_type": data.get("bill_type"), "priority": data.get("priority") or "normal",
         "category_id": data.get("category_id"), "category": data.get("category_name") or data.get("bill_type"),
@@ -229,6 +229,7 @@ class BillPayload(BaseModel):
     auto_payment_grace_days: int = Field(default=3, ge=0, le=30)
     notes: str | None = None
     recurring_expense_id: int | None = None
+    scheduled_payment_id: int | None = None
     paid_through_date: date | None = None
     version: int | None = None
 
@@ -250,6 +251,7 @@ class BillUpdatePayload(BaseModel):
     auto_payment_grace_days: int | None = Field(default=None, ge=0, le=30)
     notes: str | None = None
     recurring_expense_id: int | None = None
+    scheduled_payment_id: int | None = None
     paid_through_date: date | None = None
     version: int | None = None
     status: str | None = None
@@ -279,9 +281,26 @@ def _validate_bill_payload(db: DbSession, user: User, payload: BillPayload) -> t
     return payload.account_id, payload.card_id
 
 
+def _validate_occurrence_link(db, user, payload, bill_id=None):
+    if payload.scheduled_payment_id is None and payload.recurring_expense_id is not None:
+        candidates = db.execute(text("SELECT id FROM scheduled_payments WHERE user_id=:uid AND recurring_expense_id=:rid AND COALESCE(occurrence_date,expected_date)=:day"), {"uid":user.id,"rid":payload.recurring_expense_id,"day":payload.due_date}).scalars().all()
+        if len(candidates) == 1:
+            payload.scheduled_payment_id = candidates[0]
+    if payload.scheduled_payment_id is None:
+        return
+    recurring_id = db.execute(text("SELECT recurring_expense_id FROM scheduled_payments WHERE id=:id AND user_id=:uid"), {"id":payload.scheduled_payment_id,"uid":user.id}).scalar()
+    if recurring_id is None or (payload.recurring_expense_id is not None and recurring_id != payload.recurring_expense_id):
+        raise HTTPException(status_code=400, detail="Choose an occurrence of the linked recurring expense")
+    duplicate = db.execute(text("SELECT id FROM bills WHERE user_id=:uid AND scheduled_payment_id=:sid AND is_active=1 AND (:bid IS NULL OR id<>:bid)"), {"uid": user.id, "sid": payload.scheduled_payment_id, "bid": bill_id}).first()
+    if duplicate:
+        raise HTTPException(status_code=409, detail="This occurrence already has a Bill")
+    payload.recurring_expense_id = recurring_id
+
+
 def create_bill_v112(db: DbSession, user: User, payload: Any) -> dict[str, Any]:
     values = payload if isinstance(payload, BillPayload) else BillPayload(**payload.model_dump()) if hasattr(payload, "model_dump") else BillPayload(**dict(payload))
     account_id, card_id = _validate_bill_payload(db, user, values)
+    _validate_occurrence_link(db, user, values)
     amount = parse_money(values.amount) if values.amount not in (None, "") else None
     now = utcnow()
     db.execute(text("""
@@ -303,6 +322,8 @@ def create_bill_v112(db: DbSession, user: User, payload: Any) -> dict[str, Any]:
         "paid_through": values.paid_through_date, "notes": values.notes, "now": now,
     })
     bill_id = int(db.execute(text("SELECT last_insert_rowid()")).scalar())
+    if values.scheduled_payment_id is not None:
+        db.execute(text("UPDATE bills SET scheduled_payment_id=:sid WHERE id=:id AND user_id=:uid"), {"sid":values.scheduled_payment_id,"id":bill_id,"uid":user.id})
     db.execute(text("INSERT INTO bill_payment_history(user_id,bill_id,from_status,to_status,source,note,created_at) VALUES(:uid,:bid,NULL,'scheduled','manual','Bill created',:now)"), {"uid": user.id, "bid": bill_id, "now": now})
     db.commit()
     return get_bill(db, user, bill_id)
@@ -349,6 +370,7 @@ def update_bill(bill_id: int, payload: BillUpdatePayload, current_user: User = U
         "auto_payment_grace_days": changes.get("auto_payment_grace_days", int(existing_data.get("auto_payment_grace_days") or payments_v17.DEFAULT_GRACE_DAYS)),
         "notes": changes.get("notes", existing_data.get("notes")),
         "recurring_expense_id": changes.get("recurring_expense_id", existing_data.get("recurring_expense_id")),
+        "scheduled_payment_id": changes.get("scheduled_payment_id", existing_data.get("scheduled_payment_id")),
         "paid_through_date": changes.get("paid_through_date", _as_date(existing_data.get("paid_through_date"))),
         "version": payload.version,
     }
@@ -361,6 +383,8 @@ def update_bill(bill_id: int, payload: BillUpdatePayload, current_user: User = U
     if payload.version is not None and int(payload.version) != int(existing_data.get("version") or 1):
         raise HTTPException(status_code=409, detail="This payment changed while you were reviewing it")
     account_id, card_id = _validate_bill_payload(db, current_user, values)
+    _validate_occurrence_link(db, current_user, values, bill_id)
+    db.execute(text("UPDATE bills SET scheduled_payment_id=:sid WHERE id=:id AND user_id=:uid"), {"sid":values.scheduled_payment_id,"id":bill_id,"uid":current_user.id})
     expected = parse_money(values.amount) if values.amount not in (None, "") else None
     now = utcnow()
     result = db.execute(text("""

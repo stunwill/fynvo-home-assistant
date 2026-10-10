@@ -340,6 +340,7 @@ function BalanceUpdater({ accounts, onClose, onSaved }) {
       String(values[account.id]).trim() !== String(initial[account.id]).trim(),
   );
   const dirty = changed.length > 0;
+  const [confirmAll, setConfirmAll] = useState(false);
   useEffect(() => {
     const warn = (event) => {
       if (!dirty) return;
@@ -371,7 +372,7 @@ function BalanceUpdater({ accounts, onClose, onSaved }) {
       );
       return;
     }
-    if (!dirty) {
+    if (!dirty && !confirmAll) {
       onClose();
       return;
     }
@@ -380,7 +381,8 @@ function BalanceUpdater({ accounts, onClose, onSaved }) {
       const result = await apiRequest("/accounts/balances", {
         method: "PATCH",
         body: JSON.stringify({
-          balances: changed.map((account) => ({
+          confirm_unchanged: confirmAll,
+          balances: (confirmAll ? accounts : changed).map((account) => ({
             account_id: account.id,
             balance: String(values[account.id]).trim(),
           })),
@@ -470,9 +472,10 @@ function BalanceUpdater({ accounts, onClose, onSaved }) {
             {error}
           </p>
         )}
+        <label><input type="checkbox" checked={confirmAll} onChange={(event) => setConfirmAll(event.target.checked)} /> Confirm these balances are current</label>
         <footer>
           <span>{changed.length ? `${changed.length} changed` : "No changes"}</span>
-          <button type="submit" className="primary" disabled={busy || !dirty}>
+          <button type="submit" className="primary" disabled={busy || (!dirty && !confirmAll)}>
             {busy ? "Saving…" : "Save balances"}
           </button>
         </footer>
@@ -509,6 +512,9 @@ function AccountRow({ account, cards, funding, onOpen }) {
       <span className="fynvo-accounts-v1240-row-copy">
         <strong>{account.name || "Account"}</strong>
         <small>{account.institution || accountType(account)}</small>
+        <small>{account.balance_source || "Legacy ledger"} · {account.balance_freshness || "Needs confirmation"}</small>
+        {account.balance_observed_at && <small>Observed {dateLabel(account.balance_observed_at)}</small>}
+        {funding?.lowest_projected_balance != null && <small>Lowest {money(funding.lowest_projected_balance)} on {dateLabel(funding.lowest_projected_date)}</small>}
         {fundingNeed && <small className="funding-need">{fundingNeed}</small>}
       </span>
       <span
