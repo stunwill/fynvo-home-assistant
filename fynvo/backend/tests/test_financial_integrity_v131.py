@@ -503,3 +503,41 @@ def test_database_guards_observation_mutation(client):
     with get_engine().begin() as connection, pytest.raises(IntegrityError, match="immutable"):
         connection.execute(text("UPDATE balance_observations SET current_cents=0 WHERE account_id=:id"), {"id": a["id"]})
     assert client.get("/api/accounts").json()[0]["current_balance"] == "100.00"
+
+
+@pytest.mark.parametrize(
+    ("timestamp", "expected_freshness"),
+    [
+        ("2026-10-31T10:00:00Z", "verified"),
+        ("2026-10-31T10:00:00+00:00", "verified"),
+        ("2026-10-31T21:00:00+11:00", "verified"),
+        ("2026-10-31T10:00:00", "verified"),
+        ("2026-10-29T10:00:00Z", "stale"),
+        ("2026-10-29T21:00:00+11:00", "stale"),
+    ],
+)
+def test_bank_observation_iso_timezone_freshness(
+    client, monkeypatch, timestamp, expected_freshness
+):
+    from datetime import UTC, datetime
+
+    from app import balance_evidence
+
+    class FrozenDatetime(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return datetime(2026, 10, 31, 12, tzinfo=UTC).astimezone(tz)
+
+    monkeypatch.setattr(balance_evidence, "datetime", FrozenDatetime)
+    monkeypatch.setenv("FYNVO_BANK_BALANCE_MAX_AGE_HOURS", "24")
+    setup(client)
+    a = account(client, balance="500")
+    with get_session_factory()() as db:
+        obj = db.get(Account, a["id"])
+        observe(db, obj, 50000, source="redbark", available=45000, observed_at=timestamp)
+        db.commit()
+        result = resolve(db, obj, TODAY)
+    assert result["balance_freshness"] == expected_freshness
+    assert result["balance_verified"] is (expected_freshness == "verified")
+    assert result["current_balance"] == "500.00"
+    assert result["accessible_balance"] == "450.00"

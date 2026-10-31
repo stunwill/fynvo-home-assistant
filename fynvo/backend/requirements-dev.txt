@@ -1,0 +1,4 @@
+# Shared local/CI tooling; runtime dependencies remain in requirements.txt.
+-r requirements.txt
+ruff==0.17.0
+PyYAML==6.0.3

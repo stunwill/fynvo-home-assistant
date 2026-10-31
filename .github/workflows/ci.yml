@@ -23,12 +23,13 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
-          cache-dependency-path: fynvo/backend/requirements.txt
+          cache-dependency-path: |
+            fynvo/backend/requirements.txt
+            fynvo/backend/requirements-dev.txt
       - name: Install backend dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r fynvo/backend/requirements.txt
-          pip install ruff
+          pip install -r fynvo/backend/requirements-dev.txt
       - name: Compile Python sources
         run: python -m compileall fynvo/backend/app
       - name: Ruff lint

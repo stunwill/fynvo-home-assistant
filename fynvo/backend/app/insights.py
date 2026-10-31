@@ -328,7 +328,7 @@ def _data_quality_insights(db: DbSession, user: User, seen: set[str]) -> dict[st
     for row in stale_rows:
         last = row["last_successful_sync"]
         if not last: stale.append({"id": row["id"], "institution": row["institution_name"], "last_successful_sync": None}); continue
-        last_dt = last if isinstance(last, datetime) else datetime.fromisoformat(str(last).replace("Z", "+00:00"))
+        last_dt = last if isinstance(last, datetime) else datetime.fromisoformat(str(last))
         if last_dt.date() < today - timedelta(days=2): stale.append({"id": row["id"], "institution": row["institution_name"], "last_successful_sync": str(last)})
     if stale:
         seen.add(_upsert(db, user, insight_type="stale_bank_data", category="data_quality", title="Connected bank data may be stale", summary=f"{len(stale)} connected bank source{'s have' if len(stale) != 1 else ' has'} not synchronised successfully within the last 2 days.", importance="attention", evidence={"connections": stale, "stale_after_days": 2}, action_label="Review Bank Connections", action_target="Accounts", material=stale))

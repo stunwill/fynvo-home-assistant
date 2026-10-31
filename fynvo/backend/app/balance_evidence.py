@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import os
 import sqlite3
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from pathlib import Path
 
 from sqlalchemy import text
@@ -260,10 +260,10 @@ def resolve(db, account, today: date | None = None):
             timestamp = external["balance_timestamp"]
             verification = "verified" if timestamp else "needs_confirmation"
     if timestamp:
-        parsed = datetime.fromisoformat(str(timestamp).replace("Z", "+00:00"))
+        parsed = datetime.fromisoformat(str(timestamp))
         if parsed.tzinfo is None:
-            parsed = parsed.replace(tzinfo=timezone.utc)
-        hours = max(0, (datetime.now(timezone.utc) - parsed).total_seconds() / 3600)
+            parsed = parsed.replace(tzinfo=UTC)
+        hours = max(0, (datetime.now(UTC) - parsed).total_seconds() / 3600)
         limit = max(
             1,
             int(

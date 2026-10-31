@@ -2,11 +2,20 @@
 
 Fynvo is a household finance and cash-planning application for understanding upcoming commitments, available cash, pay-cycle pressure, spending decisions and near-term financial risk. The roadmap prioritises practical household planning over business accounting, tax, payroll or investment-trading functionality.
 
-The current development baseline is v1.31.0. Payment Centre, recurring-payment lifecycle, 7/14/30-day commitment planning, pay-cycle cash planning, account funding requirements, Payday Allocation, bulk balance updates, available-cash comparisons, transactions, reconciliation, budgets, goals, scenarios, date-oriented financial Calendar, Cash Flow forecasting/impact analysis, CSV import, insights, Overview drill-down navigation, responsive Home Assistant ingress and prebuilt add-on image distribution are already delivered and are not repeated below as new scope.
+The latest verified published baseline is v1.31.0. The v1.31.1 corrective candidate is pending CI and review. This file is a release summary; [docs/FYNVO_PRODUCT_ROADMAP.md](docs/FYNVO_PRODUCT_ROADMAP.md) remains the canonical development queue. Payment Centre, recurring-payment lifecycle, 7/14/30-day commitment planning, pay-cycle cash planning, account funding requirements, Payday Allocation, bulk balance updates, available-cash comparisons, transactions, reconciliation, budgets, goals, scenarios, date-oriented financial Calendar, Cash Flow forecasting/impact analysis, CSV import, insights, Overview drill-down navigation, responsive Home Assistant ingress and prebuilt add-on image distribution are already delivered and are not repeated below as new scope.
+
+## v1.31.1 - CI Reliability and Release Status Correction
+
+Status: Planned
+
+- [x] Correct seven Ruff timezone findings without changing financial semantics.
+- [x] Pin shared local/CI development dependencies.
+- [x] Reconcile published release status and retain unverified installed acceptance.
+- [ ] Pass PR CI, record review, merge and verify merged-main CI before publication.
 
 ## v1.31.0 - Financial Integrity & Account Cash Flow
 
-Status: Implemented on the dedicated release branch, pending PR review and installed Home Assistant acceptance
+Status: Merged via PR #103 on 10 October 2026 and published on 11 October Australian time; installed Home Assistant and live financial acceptance remain unverified.
 
 - [x] Canonical occurrence identity, remaining Bill amounts and explicit duplicate prevention.
 - [x] Observed cash, accessible balance caps, freshness and unchanged-value manual confirmation.
@@ -17,7 +26,7 @@ Status: Implemented on the dedicated release branch, pending PR review and insta
 
 ## v1.27.0 - Bank Account Lifecycle
 
-Status: Implemented on release branch, pending Pull Request review
+Status: Merged via PR #98 on 28 September 2026; retained in the published v1.31.0 baseline. Separate v1.27.0 publication is not established here.
 
 - [x] Connect discovered Redbark accounts to the Fynvo household model through explicit account setup.
 - [x] Persist ignored and missing-account states, and preserve balances and history across connection failures.
@@ -25,7 +34,7 @@ Status: Implemented on release branch, pending Pull Request review
 
 ## v1.25.1 - Post-v1.25.0 Production Corrections
 
-Status: Implemented on release branch, pending Pull Request review and installed acceptance
+Status: Historical release-branch status superseded by the merged v1.31.0 baseline; installed acceptance remains unverified.
 
 - [x] Add precise Safe-to-Spend and Payday Allocation failure diagnostics while preserving partial known financial data.
 - [x] Label fallback commitment totals with their actual generated planning horizon.
@@ -49,4 +58,4 @@ Status: Released and installed; post-release corrections tracked in v1.25.1
 
 Status: Planned
 
-- [ ] Validate post-v1.25.1 installed iPhone/Home Assistant ingress behaviour and use production evidence for the next focused release.
+- [ ] Complete and record current installed iPhone/Home Assistant, restore, live banking and financial acceptance. See [release status](docs/RELEASE_STATUS.md). Owners and dates are not yet recorded.

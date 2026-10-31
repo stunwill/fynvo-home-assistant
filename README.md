@@ -6,23 +6,18 @@
 
 ## Current release
 
-Current development release: **v1.25.0 account funding, payday allocation, and balance management**.
+Latest verified published release: **v1.31.0 Financial Integrity and Account-Level Cash Flow**.
 
-v1.22.0 builds on the merged v1.21.2 Payments Requiring Attention baseline. It:
+The **v1.31.1 CI Reliability and Release Status Correction** candidate is pending PR checks and review. Preparing this candidate does not establish that it is merged, published or installed.
 
-- publishes versioned prebuilt multi-architecture images through GHCR for normal Home Assistant add-on installation and updates;
-- keeps the add-on's generic image reference, application versions and release tag aligned;
-- verifies all configured architecture entries, including `aarch64` for Raspberry Pi 5, before creating the release manifest;
-- adds OCI image provenance and startup version metadata for easier diagnostics;
-- preserves the existing ingress, port 8097, `/data` persistence and financial application behaviour;
-- documents local builds, update timing measurement, package visibility and rollback considerations;
-- does not fabricate install progress percentages controlled by Home Assistant Supervisor.
+v1.31.0 separates observed balances from imported history, unifies dated household and Account forecasts, handles remaining Bill amounts and accepted income receipts, and protects Account/household buffers in funding, Payday Allocation and Safe-to-Spend. Transfer recommendations are advisory. Missing essential data or unfunded payment Accounts prevent positive cash from being represented as ready to spend.
+
+PR #103 merged on 10 October 2026. The release was published on 11 October Australian time after a successful manual image/publication workflow. Merged-main CI failed at Ruff lint, so that run did not execute backend tests; earlier PR CI passed. See [current release status and acceptance evidence](docs/RELEASE_STATUS.md). Installed Home Assistant/iPhone, live Redbark and restore acceptance remain unverified.
 
 Production Home Assistant releases use the prebuilt multi-architecture image
-`ghcr.io/stunwill/fynvo:vX.Y.Z`. See
-[docs/ADDON_DISTRIBUTION.md](docs/ADDON_DISTRIBUTION.md) for the release,
-architecture, persistence and rollback details. Home Assistant Supervisor
-controls install progress; Fynvo does not fabricate percentage updates.
+`ghcr.io/stunwill/fynvo:X.Y.Z` (without the Git tag's `v` prefix). See
+[docs/ADDON_DISTRIBUTION.md](docs/ADDON_DISTRIBUTION.md) for distribution details.
+Home Assistant Supervisor controls install progress.
 
 Fynvo preserves the financial architecture established in earlier releases:
 
@@ -78,7 +73,7 @@ If no future Income can be determined, Fynvo reports **Next income not known** i
 
 Cards remain payment context only. A Card-linked commitment is funded through its linked Account and Card balances are never counted independently.
 
-The Account model does not currently contain an authoritative preferred minimum-balance/buffer field, so Fynvo does not invent buffer values. Required funding and known shortfalls are calculated independently of any future optional preferred-buffer feature.
+Preferred Account buffers and the household reserve are protected by the canonical cash-decision calculation. Recommendations do not execute transfers or prove a payment Account has been funded.
 
 The **Overview** consumes the same authoritative Payment Planning service for its Before next pay, Needs attention and Money needed soon summaries, so it does not maintain a separate cash-requirement calculation.
 
@@ -159,3 +154,7 @@ Release and planning metadata is exposed through:
 - intentional GitHub Releases for completed releases, with release notes derived from the final changelog.
 
 CI runs `scripts/validate_release_metadata.py` to keep the manifest, frontend, backend, changelogs and roadmap contract consistent.
+
+## Local validation
+
+Use Python 3.12 and install `fynvo/backend/requirements-dev.txt` in an isolated virtual environment before running `scripts/ci-local.sh`. This pins the same Ruff version used by GitHub CI. The complete script also requires Node.js 22, installed frontend dependencies and Docker.
