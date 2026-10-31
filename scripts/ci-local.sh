@@ -8,10 +8,10 @@ echo "== Backend: compile =="
 python -m compileall fynvo/backend/app
 
 echo "== Backend: Ruff =="
-ruff check --ignore DTZ011 fynvo/backend/app fynvo/backend/tests
+python -m ruff check --ignore DTZ011 fynvo/backend/app fynvo/backend/tests
 
 echo "== Backend: tests =="
-PYTHONPATH=fynvo/backend pytest fynvo/backend/tests
+PYTHONPATH=fynvo/backend python -m pytest fynvo/backend/tests
 
 echo "== Backend: import application =="
 PYTHONPATH=fynvo/backend python -c "from app.main import app; print(app.title)"

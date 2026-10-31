@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from app import intelligence
 from app.database import get_engine
@@ -82,7 +82,7 @@ def test_recurring_expense_income_and_amount_change_suggestions(client):
 def test_trends_anomalies_and_one_off_exclusion(client, monkeypatch):
     # This historical June/August fixture tests two rolling 56-day windows.
     # Pin its reference clock so the original trend contract stays meaningful.
-    monkeypatch.setattr(intelligence, "utcnow", lambda: datetime(2026, 9, 1, tzinfo=timezone.utc))
+    monkeypatch.setattr(intelligence, "utcnow", lambda: datetime(2026, 9, 1, tzinfo=UTC))
     login(client)
     acc = account(client)
     for week in range(1, 9):

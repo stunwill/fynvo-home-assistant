@@ -2,6 +2,22 @@
 
 This roadmap is the canonical development queue for Fynvo. Future development should update this file rather than creating parallel release plans.
 
+## Current baseline and next work (31 October 2026)
+
+Latest verified published release: **v1.31.0**, merged through [PR #103](https://github.com/stunwill/fynvo-home-assistant/pull/103) on 10 October and published on 11 October Australian time. The version sections below retain historical scope; their original plans are not current release status.
+
+The v1.31.1 corrective candidate addresses Ruff timezone findings and reproducible local/CI tooling, with aligned release documentation. It remains pending PR CI, review, merge and publication. It adds no financial features or migration. See [release evidence and outstanding acceptance](RELEASE_STATUS.md).
+
+Current priorities, with no committed dates or assigned owners recorded:
+
+1. Obtain green backend, frontend and Home Assistant image CI for the corrective candidate and then merged main.
+2. Record installed upgrade/restart, ingress/iPhone and restore acceptance using [the retained checklist](RELEASE_VALIDATION_v1.31.0.md).
+3. Reconcile live Redbark current/available balances, stale/error sync recovery and controlled financial scenarios.
+4. Record acceptance results and reviewer decisions before representing installed reliability as verified.
+
+Balance observations, dated Account/household forecasting, recurring and one-off plans, remaining Bills, accepted income, Account Funding, Payday Allocation, buffers and provisional Safe-to-Spend are implemented in v1.31.0. Publication does not establish deployment or live financial acceptance. Later production CDR/provider expansion means extending the existing Redbark integration, not adding Fynvo's first live provider.
+
+
 ## Product principles
 
 1. Forecast actual dated cash flow, not just monthly averages.
@@ -347,9 +363,9 @@ Production CDR/provider work remains future scope. v0.18.0 prepares cleaner iden
 
 ### v1.0.0 - Stable Production Release
 
-Status: In development.
+Status: Historical readiness plan, superseded by the current v1.31.0 release baseline. The acceptance requirements below remain relevant wherever evidence has not been recorded.
 
-Planned scope:
+Historical planned scope:
 - final acceptance QA of functionality already delivered;
 - final v0.18-to-v1 upgrade/migration validation and representative older-data upgrade confirmation;
 - backup and restore validation/documentation;
@@ -378,7 +394,9 @@ Planned scope retained because it is not present in the actual merged v0.16.0 so
 
 ### Future Household Production Capabilities
 
-These remain future capabilities and are not to be implied as v1.0.0-delivered unless separately implemented and validated:
+Historical backlog, requiring reconciliation against current source before any item is scheduled or described as absent. Redbark integration and household identity foundations have since shipped; this list must not override current implementation evidence. Remaining production acceptance is tracked above.
+
+Originally proposed capabilities:
 - household user creation, editing, deactivation/reactivation and password-reset workflows;
 - Administrator, Household Member and Read Only permissions;
 - household membership/profile management;

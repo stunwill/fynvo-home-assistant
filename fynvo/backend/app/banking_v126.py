@@ -489,7 +489,7 @@ def _sync_connection_unlocked(db: DbSession, user: User, connection_id: int, *, 
                 last_success = external.get("last_successful_sync")
                 from_date = None
                 if last_success:
-                    parsed = datetime.fromisoformat(str(last_success).replace("Z", "+00:00")).date()
+                    parsed = datetime.fromisoformat(str(last_success)).date()
                     from_date = parsed - timedelta(days=INCREMENTAL_OVERLAP_DAYS)
                 rows = provider.transactions(connection["provider_connection_id"], external["provider_account_id"], from_date)
                 for row in rows:

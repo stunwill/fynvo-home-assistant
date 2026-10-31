@@ -1,5 +1,8 @@
 # v1.31.0 release validation
 
+> Historical candidate validation record. PR #103 subsequently merged and v1.31.0 was published. Statements below about no merge/tag/image authorization describe the original implementation task, not present GitHub status. Unchecked installed/live acceptance has not been verified. See [current evidence](RELEASE_STATUS.md).
+
+
 This candidate implements the approved Financial Integrity and Account-Level Cash Flow specification on `release/v1.31.0-financial-integrity-account-forecasting`, based on merged main `074a62d46ef5b06c075b5e1602a896c32461286e`. No merge, release tag, published image or Issue is authorized by this work.
 
 ## Financial behavior

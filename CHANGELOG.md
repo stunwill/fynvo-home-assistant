@@ -2,6 +2,13 @@
 
 All notable Fynvo changes are documented here. Starting with v0.3.0, every release must include a user-readable changelog entry, Home Assistant-visible release notes and GitHub release notes.
 
+## v1.31.1 - CI Reliability and Release Status Correction
+
+- Corrects timezone lint findings using Python 3.12 native ISO timestamp parsing and the UTC alias, preserving financial calculation and UTC storage semantics.
+- Pins Ruff in shared development requirements so local and GitHub backend checks use the same tool version.
+- Reconciles release documentation with the merged and published v1.31.0 baseline. Installed Home Assistant, live banking and financial acceptance remain explicitly unverified.
+- No database migration or household preset changes. Schema v19 and existing financial workflows are retained.
+
 ## v1.31.0 - Financial Integrity & Account Cash Flow
 
 - Uses one canonical dated cash-event stream for household and Account forecasts, current-cycle funding, Safe-to-Spend and Payday Allocation. Linked Bills replace their original recurring occurrence, including rescheduling and partial payment amounts.
